@@ -1,0 +1,8 @@
+.autotest
+History.rdoc
+Manifest.txt
+README.rdoc
+Rakefile
+bin/gin
+lib/gin.rb
+test/gin_test.rb
