@@ -1,3 +1,7 @@
+require 'rack'
+require 'active_support/core_ext/string/conversions'
+
+
 class Gin
   VERSION = '1.0.0'
 

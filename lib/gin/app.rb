@@ -26,7 +26,7 @@ class Gin::App
   #
   # Controllers with non-mounted actions will throw a warning at boot time.
 
-  def self.mount ctrl, base_path, &block
+  def self.mount ctrl, base_path=nil, &block
     router.add ctrl, base_path, &block
   end
 

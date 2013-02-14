@@ -75,7 +75,9 @@ class Gin::Router
   ##
   # Add a Controller to the router with a base path.
 
-  def add ctrl, base_path, &block
+  def add ctrl, base_path=nil, &block
+    base_path ||= ctrl.to_s.underscore
+
     mount = Mount.new ctrl, base_path, @sep
     mount.instance_eval(&block)
 
