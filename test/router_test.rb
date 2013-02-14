@@ -47,13 +47,23 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
-  def test_add_omit_path
+  def test_add_omit_base_path
     @router.add MyCtrl do
-      get  :bar
+      get :bar
     end
 
     assert_equal [MyCtrl, :bar, {}],
       @router.resources_for("GET", "/router_test/my_ctrl/bar")
+  end
+
+
+  def test_add_root_base_path
+    @router.add MyCtrl, "/" do
+      get :bar, "/"
+    end
+
+    assert_equal [MyCtrl, :bar, {}],
+      @router.resources_for("GET", "/")
   end
 
 
