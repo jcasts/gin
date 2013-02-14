@@ -1,3 +1,5 @@
+require 'cgi'
+
 class CGI
   class << self
     alias_method :__escapeHTML, :escapeHTML

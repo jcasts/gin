@@ -15,5 +15,6 @@ class Gin
   require 'gin/router'
   require 'gin/request'
   require 'gin/response'
+  require 'gin/callback'
   require 'gin/controller'
 end
