@@ -9,7 +9,11 @@ class Gin
   class InvalidRouteError < Error; end
   class MissingParamError < Error; end
 
+  require 'gin/core_ext/cgi'
+
   require 'gin/app'
   require 'gin/router'
+  require 'gin/request'
+  require 'gin/response'
   require 'gin/controller'
 end

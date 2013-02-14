@@ -13,6 +13,16 @@
 
 class Gin::App
 
+  GENERIC_HTML = <<-HTML
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>%s</title>
+  </head>
+  <body><h1>%s</h1>%s</body>
+</html>
+  HTML
+
   ##
   # Mount a Gin::Controller into the App and specify a base path. If controller
   # mounts at root, use "/" as the base path.
@@ -28,6 +38,27 @@ class Gin::App
 
   def self.mount ctrl, base_path=nil, &block
     router.add ctrl, base_path, &block
+  end
+
+
+  ##
+  # Define a Gin::Controller as a catch-all error rendering controller.
+  # This can be a dedicated controller, or a parent controller
+  # such as AppController.
+  #
+  # If this isn't assigned, errors will be rendered as a plain, generic HTML
+  # page with a stack trace (when available).
+
+  def self.errors ctrl
+    @error_ctrl = ctrl
+  end
+
+
+  ##
+  # Accessor for the default error handling Gin::Controller.
+
+  def self.error_ctrl
+    @error_ctrl
   end
 
 
@@ -85,18 +116,53 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    ctrl, action, path_params =
-      router.resources_for env['HTTP_METHOD'], env['PATH_INFO']
+    ctrl, action, env['gin.path_query_hash'] =
+      router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
 
     if ctrl && action
-      ctrl.new(self, env).call action
+      dispatch env, ctrl, action
 
     elsif @rack_app
       @rack_app.call env
 
+    elsif error_ctrl && error_ctrl.handles?(404)
+      error_ctrl.trigger(404, error_ctrl.new(self, request))
+
     else
-      # Call 404 error
+      # Render generic 404 error
+      # Raise NotFound error.
     end
+
+  rescue Exception => err
+    # Render generic 500 error (or other status code if it's an HttpError)
+    title = "#{err.class.name}: #{err.message}"
+    status =
+      (err.respond_to?(:status) && Integer === err.status) ? err.status : 500
+
+    generic_http_response status, title, err.backtrace
+  end
+
+
+  ##
+  # Dispatch the Rack env to the given controller and action.
+
+  def dispatch env, ctrl, action
+    ctrl_inst = ctrl.new(self, env)
+    ctrl_inst.__call__ action
+
+  rescue => err
+    raise err unless error_ctrl &&
+      (error_ctrl.handles?(e.class) || error_ctrl === ctrl_inst)
+    error_ctrl.trigger(e.class, error_ctrl.new(self, env))
+  end
+
+
+  ##
+  # Creates a generic Rack response Array, mostly used for uncaught errors.
+
+  def generic_http_response status, title, text
+    html = GENERIC_HTML % [title, title, text]
+    [status, {"Content-Type" => "text/html"}, [html]]
   end
 
 
@@ -105,5 +171,13 @@ class Gin::App
 
   def router
     self.class.router
+  end
+
+
+  ##
+  # Sugar for self.class.error_ctrl
+
+  def error_ctrl
+    self.class.error_ctrl
   end
 end
