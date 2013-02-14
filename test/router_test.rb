@@ -45,44 +45,44 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
-  def test_path_for
+  def test_path_to
     @router.add :my_ctrl, '/my_ctrl/' do
       get :bar, "/bar"
     end
 
-    assert_equal "/my_ctrl/bar", @router.path_for(:my_ctrl, :bar)
+    assert_equal "/my_ctrl/bar", @router.path_to(:my_ctrl, :bar)
   end
 
 
-  def test_path_for_missing
+  def test_path_to_missing
     @router.add :my_ctrl, '/my_ctrl/' do
       get :bar, "/bar"
     end
 
     assert_raises Gin::InvalidRouteError do
-      @router.path_for(:my_ctrl, :foo)
+      @router.path_to(:my_ctrl, :foo)
     end
   end
 
 
-  def test_path_for_param
+  def test_path_to_param
     @router.add :my_ctrl, '/my_ctrl/' do
       get :show, "/:id"
     end
 
-    assert_equal "/my_ctrl/val", @router.path_for(:my_ctrl, :show, "id" => "val")
+    assert_equal "/my_ctrl/val", @router.path_to(:my_ctrl, :show, "id" => "val")
 
-    assert_equal "/my_ctrl/val", @router.path_for(:my_ctrl, :show, :id => "val")
+    assert_equal "/my_ctrl/val", @router.path_to(:my_ctrl, :show, :id => "val")
   end
 
 
-  def test_path_for_param_missing
+  def test_path_to_param_missing
     @router.add :my_ctrl, '/my_ctrl/' do
       get :show, "/:id"
     end
 
     assert_raises Gin::MissingParamError do
-      @router.path_for(:my_ctrl, :show)
+      @router.path_to(:my_ctrl, :show)
     end
   end
 end

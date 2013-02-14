@@ -99,7 +99,7 @@ class Gin::Router
   # with the needed params. Routes with missing path params will raise
   # MissingParamError. Returns a String starting with "/".
 
-  def path_for ctrl, action, params={}
+  def path_to ctrl, action, params={}
     verb, route, param_keys = @routes_lookup[[ctrl, action]]
     raise Gin::InvalidRouteError, "No route for #{ctrl}##{action}" unless route
 
