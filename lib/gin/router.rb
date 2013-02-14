@@ -26,11 +26,12 @@ class Gin::Router
 
       route = [verb].concat @base_path
       route.concat path.split(@sep)
+      route.delete_if{|part| part.empty?}
 
       route.map! do |part|
         if part[0] == ":"
           param_keys << part[1..-1]
-          "*"
+          "%s"
         else
           part
         end
@@ -67,6 +68,7 @@ class Gin::Router
   def initialize separator="/" # :nodoc:
     @sep = separator
     @routes_tree = Node.new
+    @routes_lookup = {}
   end
 
 
@@ -77,7 +79,7 @@ class Gin::Router
     mount = Mount.new ctrl, base_path, @sep
     mount.instance_eval(&block)
 
-    mount.each_route do |route_ary, value|
+    mount.each_route do |route_ary, val|
       curr_node = @routes_tree
 
       route_ary.each do |part|
@@ -85,7 +87,9 @@ class Gin::Router
         curr_node = curr_node[part]
       end
 
-      curr_node.value = value
+      curr_node.value = val
+      @routes_lookup[val[0..1]] =
+        [route_ary[0], "/" << route_ary[1..-1].join(@sep), val[2]]
     end
   end
 
@@ -96,7 +100,15 @@ class Gin::Router
   # MissingParamError. Returns a String starting with "/".
 
   def path_for ctrl, action, params={}
-    
+    verb, route, param_keys = @routes_lookup[[ctrl, action]]
+    raise Gin::InvalidRouteError, "No route for #{ctrl}##{action}" unless route
+
+    route = route % param_keys.map do |k|
+      params[k] || params[k.to_sym] ||
+        raise(Gin::MissingParamError, "Missing param #{k}")
+    end unless param_keys.empty?
+
+    route
   end
 
 
@@ -107,27 +119,30 @@ class Gin::Router
 
   def resources_for http_verb, path
     param_vals = []
-    curr_node  = @routes_tree
-    parts      = [http_verb].concat path.split(@sep)
+    curr_node  = @routes_tree[http_verb.to_s.downcase]
+    parts      = path.split(@sep)
 
     parts.each do |key|
+      next if key.empty?
+
       if curr_node[key]
         curr_node = curr_node[key]
 
-      elsif curr_node["*"]
+      elsif curr_node["%s"]
         param_vals << key
-        curr_node = curr_node["*"]
+        curr_node = curr_node["%s"]
 
       else
         return
       end
     end
 
+    return unless curr_node.value
     rsc = curr_node.value.dup
 
-    rsc[-1] = params_vals.empty? ?
-                Hash.new :
-                rsc[-1].inject(Hash.new){|h, name| h[name] = params_vals.shift}
+    rsc[-1] = param_vals.empty? ?
+              Hash.new :
+              rsc[-1].inject({}){|h, name| h[name] = param_vals.shift; h}
 
     rsc
   end

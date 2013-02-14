@@ -5,4 +5,9 @@ README.rdoc
 Rakefile
 bin/gin
 lib/gin.rb
+lib/gin/app.rb
+lib/gin/controller.rb
+lib/gin/router.rb
 test/gin_test.rb
+test/router_test.rb
+test/test_helper.rb

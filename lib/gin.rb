@@ -1,5 +1,9 @@
 class Gin
-  VERSION = '0.0.0'
+  VERSION = '1.0.0'
+
+  class Error < StandardError; end
+  class InvalidRouteError < Error; end
+  class MissingParamError < Error; end
 
   require 'gin/app'
   require 'gin/router'

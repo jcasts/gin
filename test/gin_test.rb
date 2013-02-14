@@ -1,8 +1,7 @@
-require "test/unit"
-require "gin"
+require 'test/test_helper'
 
-class TestGin < Test::Unit::TestCase
+class GinTest < Test::Unit::TestCase
   def test_sanity
-    flunk "write tests or I will kneecap you"
+    #flunk "write tests or I will kneecap you"
   end
 end
