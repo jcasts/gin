@@ -16,6 +16,7 @@ lib/gin/router.rb
 test/app/app_foo.rb
 test/app/controllers/app_controller.rb
 test/app/controllers/foo_controller.rb
-test/gin_test.rb
-test/router_test.rb
+test/test_app.rb
+test/test_gin.rb
 test/test_helper.rb
+test/test_router.rb

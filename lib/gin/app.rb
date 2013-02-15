@@ -80,6 +80,15 @@ class Gin::App
 
 
   ##
+  # Environment name setter
+
+  def self.environment= val
+    @environment = val
+  end
+
+
+
+  ##
   # Check if running in development mode.
 
   def self.development?
