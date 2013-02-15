@@ -19,7 +19,7 @@ class Gin::App
   <head>
     <title>%s</title>
   </head>
-  <body><h1>%s</h1>%s</body>
+  <body><h1>%s</h1><p>%s</p></body>
 </html>
   HTML
 
