@@ -1,6 +1,10 @@
 class Gin::Controller
   extend Gin::Callback
 
+  def self.controller_name
+    @ctrl_name ||= self.to_s.underscore.gsub(/_?controller_?/,'')
+  end
+
   def self.error err_type, &block
   end
 

@@ -2,7 +2,8 @@ require "test/test_helper"
 
 class RouterTest < Test::Unit::TestCase
 
-  class MyCtrl; end
+  class MyCtrl < Gin::Controller; end
+  class FooController < Gin::Controller; end
 
   def setup
     @router = Gin::Router.new
@@ -54,6 +55,16 @@ class RouterTest < Test::Unit::TestCase
 
     assert_equal [MyCtrl, :bar, {}],
       @router.resources_for("GET", "/router_test/my_ctrl/bar")
+  end
+
+
+  def test_add_omit_base_path_controller
+    @router.add FooController do
+      get :index, '/'
+    end
+
+    assert_equal [FooController, :index, {}],
+      @router.resources_for("GET", "/router_test/foo")
   end
 
 
