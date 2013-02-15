@@ -88,6 +88,14 @@ class Gin::App
 
 
   ##
+  # Check if running in test mode.
+
+  def self.test?
+    self.environment == "test"
+  end
+
+
+  ##
   # Check if running in staging mode.
 
   def self.staging?
@@ -107,11 +115,17 @@ class Gin::App
 
 
   ##
-  # Create a new Rack-mountable Gin::App instance, with an optional rack_app.
+  # Create a new Rack-mountable Gin::App instance, with an optional
+  # rack_app and logger.
 
   def initialize rack_app=nil, logger=nil
-    @rack_app = rack_app
-    @logger ||= Logger.new $stdout
+    if !rack_app.respond_to?(:call) && rack_app.respond_to?(:log) && logger.nil?
+      @rack_app = nil
+      @logger   = rack_app
+    else
+      @rack_app = rack_app
+      @logger   = Logger.new $stdout
+    end
   end
 
 
