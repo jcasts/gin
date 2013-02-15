@@ -103,12 +103,15 @@ class Gin::App
   end
 
 
+  attr_accessor :logger
+
 
   ##
   # Create a new Rack-mountable Gin::App instance, with an optional rack_app.
 
-  def initialize rack_app=nil
+  def initialize rack_app=nil, logger=nil
     @rack_app = rack_app
+    @logger ||= Logger.new $stdout
   end
 
 
@@ -129,17 +132,16 @@ class Gin::App
       error_ctrl.trigger(404, error_ctrl.new(self, request))
 
     else
-      # Render generic 404 error
-      # Raise NotFound error.
+      generic_http_response 404, "Page Not Found",
+        "Sorry, the page you are looking for does not exist."
     end
 
   rescue Exception => err
-    # Render generic 500 error (or other status code if it's an HttpError)
     title = "#{err.class.name}: #{err.message}"
-    status =
-      (err.respond_to?(:status) && Integer === err.status) ? err.status : 500
+    trace = err.backtrace.join("\n")
 
-    generic_http_response status, title, err.backtrace
+    logger.error [title, trace].join("\n")
+    generic_http_response 500, title, trace
   end
 
 
@@ -153,6 +155,10 @@ class Gin::App
   rescue => err
     raise err unless error_ctrl &&
       (error_ctrl.handles?(e.class) || error_ctrl === ctrl_inst)
+
+    logger.warn("[Caught Error] %s: %s\n%s" %
+      [err.class.name, err.message, Array(err.backtrace).join("\n")])
+
     error_ctrl.trigger(e.class, error_ctrl.new(self, env))
   end
 

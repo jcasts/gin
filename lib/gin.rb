@@ -1,3 +1,5 @@
+require 'logger'
+
 require 'rack'
 require 'active_support/core_ext/string/conversions'
 
