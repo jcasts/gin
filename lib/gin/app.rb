@@ -141,7 +141,13 @@ class Gin::App
     trace = err.backtrace.join("\n")
 
     logger.error [title, trace].join("\n")
-    generic_http_response 500, title, trace
+
+    if self.development?
+      generic_http_response 500, title, trace
+    else
+      generic_http_response 500, "Internal Server Error",
+        "There was a problem processing your request. Please try again later."
+    end
   end
 
 
@@ -185,5 +191,13 @@ class Gin::App
 
   def error_ctrl
     self.class.error_ctrl
+  end
+
+
+  ##
+  # Sugar for self.class.development?
+
+  def development?
+    self.class.development?
   end
 end
