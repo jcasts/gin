@@ -158,7 +158,7 @@ class Gin::App
       @rack_app.call env
 
     elsif error_ctrl && error_ctrl.handles?(404)
-      error_ctrl.trigger(404, error_ctrl.new(self, request))
+      error_ctrl.trigger(404, error_ctrl.new(request))
 
     else
       generic_http_response 404, "Page Not Found",
@@ -184,7 +184,7 @@ class Gin::App
   # Dispatch the Rack env to the given controller and action.
 
   def dispatch env, ctrl, action
-    ctrl_inst = ctrl.new(self, env)
+    ctrl_inst = ctrl.new(env)
     ctrl_inst.__call__ action
 
   rescue => err
@@ -194,7 +194,7 @@ class Gin::App
     logger.warn("[Caught Error] %s: %s\n%s" %
       [err.class.name, err.message, Array(err.backtrace).join("\n")])
 
-    error_ctrl.trigger(e.class, error_ctrl.new(self, env))
+    error_ctrl.trigger(e.class, error_ctrl.new(env))
   end
 
 
