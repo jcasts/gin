@@ -12,6 +12,7 @@
 #   run MyApp.new
 
 class Gin::App
+  extend GinClass
 
   GENERIC_HTML = <<-HTML
 <!DOCTYPE html>
@@ -22,6 +23,7 @@ class Gin::App
   <body><h1>%s</h1><p>%s</p></body>
 </html>
   HTML
+
 
   ##
   # Mount a Gin::Controller into the App and specify a base path. If controller
@@ -120,7 +122,11 @@ class Gin::App
   end
 
 
+  class_proxy_reader :error_ctrl, :router
+  class_proxy_reader :development?, :test?, :staging?, :production?
+
   attr_accessor :logger
+  attr_reader :rack_app
 
 
   ##
@@ -198,29 +204,5 @@ class Gin::App
   def generic_http_response status, title, text
     html = GENERIC_HTML % [title, title, text]
     [status, {"Content-Type" => "text/html"}, [html]]
-  end
-
-
-  ##
-  # Sugar for self.class.router
-
-  def router
-    self.class.router
-  end
-
-
-  ##
-  # Sugar for self.class.error_ctrl
-
-  def error_ctrl
-    self.class.error_ctrl
-  end
-
-
-  ##
-  # Sugar for self.class.development?
-
-  def development?
-    self.class.development?
   end
 end

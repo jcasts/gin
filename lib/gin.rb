@@ -10,6 +10,7 @@ class Gin
   class Error < StandardError; end
 
   require 'gin/core_ext/cgi'
+  require 'gin/core_ext/gin_class'
 
   require 'gin/app'
   require 'gin/router'
