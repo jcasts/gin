@@ -6,8 +6,6 @@ class Gin
   VERSION = '1.0.0'
 
   class Error < StandardError; end
-  class InvalidRouteError < Error; end
-  class MissingParamError < Error; end
 
   require 'gin/core_ext/cgi'
 

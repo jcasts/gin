@@ -1,5 +1,7 @@
 class Gin::Router
 
+  class PathArgumentError < Gin::Error; end
+
   class Mount
     VERBS = %w{get post put delete head options trace}
 
@@ -103,11 +105,11 @@ class Gin::Router
 
   def path_to ctrl, action, params={}
     verb, route, param_keys = @routes_lookup[[ctrl, action]]
-    raise Gin::InvalidRouteError, "No route for #{ctrl}##{action}" unless route
+    raise PathArgumentError, "No route for #{ctrl}##{action}" unless route
 
     route = route % param_keys.map do |k|
       params[k] || params[k.to_sym] ||
-        raise(Gin::MissingParamError, "Missing param #{k}")
+        raise(PathArgumentError, "Missing param #{k}")
     end unless param_keys.empty?
 
     route

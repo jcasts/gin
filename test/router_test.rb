@@ -81,7 +81,7 @@ class RouterTest < Test::Unit::TestCase
       get :bar, "/bar"
     end
 
-    assert_raises Gin::InvalidRouteError do
+    assert_raises Gin::Router::PathArgumentError do
       @router.path_to(MyCtrl, :foo)
     end
   end
@@ -103,7 +103,7 @@ class RouterTest < Test::Unit::TestCase
       get :show, "/:id"
     end
 
-    assert_raises Gin::MissingParamError do
+    assert_raises Gin::Router::PathArgumentError do
       @router.path_to(MyCtrl, :show)
     end
   end
