@@ -16,7 +16,9 @@ class Gin::Controller
 
   ##
   # Define an error handler for this Controller. Configurable with exceptions
-  # or status codes.
+  # or status codes. Omitting the err_types argument acts as a catch-all for
+  # non-explicitly handled errors.
+  #
   #   error 502, 503, 504 do
   #     # handle unexpected upstream error
   #   end
@@ -29,8 +31,33 @@ class Gin::Controller
   #     # something timed out
   #   end
 
-  def self.error err_type, &block
-    
+  def self.error *err_types, &block
+    return unless block_given?
+    err_types << nil if err_types.empty?
+
+    err_types.each do |name|
+      self.error_handlers[name] = block
+    end
+  end
+
+
+  ##
+  # Run after an error has been raised and optionally handled by an
+  # error callback. The block will get run on all errors and is given
+  # the exception instance as an argument.
+
+  def self.all_errors &block
+    return unless block_given?
+    self.error_handlers[:all] = block
+  end
+
+
+  ##
+  # Hash of error handlers defined by Gin::Controller.error.
+
+  def self.error_handlers
+    @err_handlers ||= self.superclass.respond_to?(:error_handlers) ?
+                        self.superclass.error_handlers.dup : {}
   end
 
 
@@ -44,11 +71,25 @@ class Gin::Controller
   #
   # Use Gin::Controller.before_filter and Gin::Controller.after_filter to
   # apply filters.
+  #
+  # Filters may also be called from inside a filter. Watch out for loops!
+  #   filter :admin, 403 do
+  #     filter :logged_in && @user.admin?
+  #   end
 
-  def self.filter name, throw_err=nil, &block
+  def self.filter name, throw_err=nil, msg=nil, &block
     throw_err ||= 403
-    @filters ||= {}
-    @filters[name.to_sym] = [throw_err, block]
+    msg       ||= "Filter #{name} failed"
+    self.filters[name.to_sym] = [throw_err, msg, block]
+  end
+
+
+  ##
+  # Hash of filters defined by Gin::Controller.filter.
+
+  def self.filters
+    @filters ||= self.superclass.respond_to?(:filters) ?
+                   self.superclass.filters.dup : {}
   end
 
 
@@ -76,33 +117,90 @@ class Gin::Controller
   end
 
 
-  class_proxy_reader :controller_name
+  class_proxy_reader :controller_name, :filters, :err_handlers
 
-  attr_reader :app, :request, :response
+  attr_reader :app, :request, :response, :action_name
 
 
-  def initialize env
-    @request  = Gin::Request.new env
-    @response = Gin::Response.new
+  def initialize app, env
+    @app         = app
+    @request     = Gin::Request.new env
+    @response    = Gin::Response.new
+    @action_name = nil
   end
 
 
-  def __call__ action
+  def __call_action__ action
+    @action_name = action
+
     # Check and run before filters
-    # Call action
+    __send__ action
     # Check and run after filters
   rescue => err
-    # Check for error handling or re-raise
+    handle_error err
   end
 
+
+  ##
+  # Chain-call filters from an action. Raises the filter exception if any
+  # filter in the chain fails.
+  #   filter :logged_in, :admin
 
   def filter name, *names
     names.unshift name
     names.each do |n|
-      throw_err, block = @filters[name.to_sym] = [throw_err, block]
+      throw_err, msg, block = self.filters[n.to_sym]
       raise InvalidFilterError, "No block to run for filter #{n}" unless block
-      # TODO: figure out how to correctly throw these errors/status codes
-      raise throw_err unless block.call
+      throw_err = Gin::HTTP_ERRORS[throw_err] if Integer === throw_err
+      raise throw_err, msg unless block.call
     end
+  end
+
+
+  ##
+  # Calls the appropriate error handlers for the given error.
+  # Re-raises the error if no handler is found.
+
+  def handle_error err
+    key = self.error_handlers.keys.find do |key|
+            key === err || err.respond_to?(:status) && key === err.status
+          end
+
+    raise err unless key || self.error_handlers[:all]
+
+    instance_exec(err, &self.error_handlers[key])  if key
+    instance_exec(err, &self.error_handlers[:all]) if self.error_handlers[:all]
+  end
+
+
+  ##
+  # Accessor for main application logger.
+
+  def logger
+    @app.logger
+  end
+
+
+  ##
+  # Get the request params.
+
+  def params
+    @request.params
+  end
+
+
+  ##
+  # Build a path to the given controller and action, with any expected params.
+
+  def path_to controller, action, params={}
+    @app.router.path_to controller, action, params
+  end
+
+
+  ##
+  # Returns the full path to an asset
+
+  def asset_path type, name
+    
   end
 end

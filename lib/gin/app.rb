@@ -151,30 +151,18 @@ class Gin::App
     ctrl, action, env['gin.path_query_hash'] =
       router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
 
-    if ctrl && action
-      dispatch env, ctrl, action
-
-    elsif @rack_app
-      @rack_app.call env
-
-    elsif error_ctrl && error_ctrl.handles?(404)
-      error_ctrl.trigger(404, error_ctrl.new(request))
-
-    else
-      generic_http_response 404, "Page Not Found",
-        "Sorry, the page you are looking for does not exist."
-    end
+    dispatch env, ctrl, action
 
   rescue Exception => err
-    title = "#{err.class.name}: #{err.message}"
-    trace = err.backtrace.join("\n")
-
-    logger.error [title, trace].join("\n")
+    status = err.respond_to?(:status) ? err.status : 500
+    trace  = err.backtrace.join("\n")
+    logger.error "#{err.class.name}: #{err.message}\n#{trace}"
 
     if self.development?
-      generic_http_response 500, title, trace
+      body = [err.message].concat(err.backtrace).join("<br/>")
+      generic_http_response status, err.class.name, body
     else
-      generic_http_response 500, "Internal Server Error",
+      generic_http_response status, "Internal Server Error",
         "There was a problem processing your request. Please try again later."
     end
   end
@@ -184,17 +172,29 @@ class Gin::App
   # Dispatch the Rack env to the given controller and action.
 
   def dispatch env, ctrl, action
-    ctrl_inst = ctrl.new(env)
-    ctrl_inst.__call__ action
+    raise Gin::NotFoundError, "No controller or action" unless ctrl && action
+
+    ctrl_inst = ctrl.new(self, env)
+    ctrl_inst.__call_action__ action
+
+  rescue Gin::NotFoundError => err
+    @rack_app ? @rack_app.call(env) : handle_error(err)
 
   rescue => err
-    raise err unless error_ctrl &&
-      (error_ctrl.handles?(e.class) || error_ctrl === ctrl_inst)
+    handle_error(err)
+  end
 
-    logger.warn("[Caught Error] %s: %s\n%s" %
+
+  ##
+  # Handle error with error controller if available, otherwise re-raise.
+
+  def handle_error err
+    raise err unless error_ctrl
+
+    logger.warn("[Handle Error] %s: %s\n%s" %
       [err.class.name, err.message, Array(err.backtrace).join("\n")])
 
-    error_ctrl.trigger(e.class, error_ctrl.new(env))
+    error_ctrl.new(self, env).handle_error(err)
   end
 
 

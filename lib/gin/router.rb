@@ -107,10 +107,14 @@ class Gin::Router
     verb, route, param_keys = @routes_lookup[[ctrl, action]]
     raise PathArgumentError, "No route for #{ctrl}##{action}" unless route
 
+    params = params.dup
+
     route = route % param_keys.map do |k|
-      params[k] || params[k.to_sym] ||
+      params.delete(k) || params.delete(k.to_sym) ||
         raise(PathArgumentError, "Missing param #{k}")
     end unless param_keys.empty?
+
+    route << "?#{params.to_query}" unless params.empty?
 
     route
   end
