@@ -162,8 +162,7 @@ class Gin::App
       body = [err.message].concat(err.backtrace).join("<br/>")
       generic_http_response status, err.class.name, body
     else
-      generic_http_response status, "Internal Server Error",
-        "There was a problem processing your request. Please try again later."
+      error_http_response status
     end
   end
 
@@ -195,6 +194,27 @@ class Gin::App
       [err.class.name, err.message, Array(err.backtrace).join("\n")])
 
     error_ctrl.new(self, env).handle_error(err)
+  end
+
+
+  ##
+  # Creates a generic error Rack response from a status code.
+
+  def error_http_response status
+    case status
+    when 404
+      generic_http_response status, "Page Not Found",
+        "The page you requested does not exist."
+
+    when (400..499)
+      generic_http_response status, "Invalid Request",
+        "Your request could not be completed as is. \
+Please review it and try again."
+
+    else
+      generic_http_response status, "Internal Server Error",
+        "There was a problem processing your request. Please try again later."
+    end
   end
 
 
