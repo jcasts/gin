@@ -100,8 +100,19 @@ class Gin::Controller
   # keys.
   #   before_filter :logged_in, :except => :index
 
-  def self.before_filter filter, *filters
+  def self.before_filter name, *names
+    names = [name].concat names
+    opts = names.delete_at(-1) if Hash === names[-1]
     
+  end
+
+
+  ##
+  # List of before filters.
+
+  def self.before_filters
+    @before_filters ||= self.superclass.respond_to?(:before_filters) ?
+                   self.superclass.before_filters.dup : {}
   end
 
 
@@ -112,7 +123,9 @@ class Gin::Controller
   # keys.
   #   after_filter :clear_cookies, :only => :logout
 
-  def self.after_filter filter, *filters
+  def self.after_filter name, *names
+    names = [name].concat names
+    opts = names.delete_at(-1) if Hash === names[-1]
     
   end
 
@@ -130,12 +143,13 @@ class Gin::Controller
   end
 
 
-  def __call_action__ action
+  def __call_action__ action #:nodoc:
     @action_name = action
 
     # Check and run before filters
     __send__ action
     # Check and run after filters
+
   rescue => err
     handle_error err
   end
