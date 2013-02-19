@@ -103,7 +103,7 @@ class Gin::Controller
   def self.before_filter name, *names
     names = [name].concat names
     opts = names.delete_at(-1) if Hash === names[-1]
-    
+    self.before_filters << {:names => names, :opts => opts}
   end
 
 
@@ -111,8 +111,9 @@ class Gin::Controller
   # List of before filters.
 
   def self.before_filters
+    # TODO: Inheritance needs to deep clone opts key on write
     @before_filters ||= self.superclass.respond_to?(:before_filters) ?
-                   self.superclass.before_filters.dup : {}
+                   self.superclass.before_filters.dup : []
   end
 
 
@@ -126,11 +127,21 @@ class Gin::Controller
   def self.after_filter name, *names
     names = [name].concat names
     opts = names.delete_at(-1) if Hash === names[-1]
-    
+    self.after_filters << {:names => names, :opts => opts}
   end
 
 
-  class_proxy_reader :controller_name, :filters, :err_handlers
+  ##
+  # List of before filters.
+
+  def self.after_filters
+    @after_filters ||= self.superclass.respond_to?(:after_filters) ?
+                   self.superclass.after_filters.dup : []
+  end
+
+
+  class_proxy_reader :controller_name, :err_handlers
+  class_proxy_reader :filters, :before_filters, :after_filters
 
   attr_reader :app, :request, :response, :action_name
 
@@ -146,9 +157,11 @@ class Gin::Controller
   def __call_action__ action #:nodoc:
     @action_name = action
 
-    # Check and run before filters
+    __call_before_filters__ action
     __send__ action
-    # Check and run after filters
+    __call_after_filters__ action
+    # TODO: assign and return response
+    #       allow for streaming
 
   rescue => err
     handle_error err
@@ -216,5 +229,29 @@ class Gin::Controller
 
   def asset_path type, name
     
+  end
+
+
+  private
+
+
+  def __call_before_filters__ action #:nodoc:
+    before_filters.each do |fhash|
+      filter(*fhash[:names]) if __check_filter_opts__ action, fhash[:opts]
+    end
+  end
+
+
+  def __call_after_filters__ action #:nodoc:
+    after_filters.each do |fhash|
+      filter(*fhash[:names]) if __check_filter_opts__ action, fhash[:opts]
+    end
+  end
+
+
+  def __check_filter_opts__ action, opts #:nodoc:
+    return true unless opts
+    opts.each do |key, val|
+    end
   end
 end
