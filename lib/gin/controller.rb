@@ -1,6 +1,6 @@
 class Gin::Controller
   extend GinClass
-  include Gin::Filter
+  include Gin::Filterable
 
   class InvalidFilterError < Gin::Error; end
 

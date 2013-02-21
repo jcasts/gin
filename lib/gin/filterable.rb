@@ -1,4 +1,4 @@
-module Gin::Filter
+module Gin::Filterable
   extend GinClass
 
   def self.included klass
@@ -107,6 +107,14 @@ module Gin::Filter
 
 
     ##
+    # Skip a before filter in the context of the controller.
+
+    def skip_before_filter name, *names
+      skip_filters(self.before_filters, name, *names)
+    end
+
+
+    ##
     # Assign one or more filters to run after calling an action.
     # Set for all actions by default.
     # Supports an options hash as the last argument with :only and :except
@@ -124,6 +132,14 @@ module Gin::Filter
     def after_filters
       @after_filters ||= self.superclass.respond_to?(:after_filters) ?
                      self.superclass.after_filters.dup : []
+    end
+
+
+    ##
+    # Skip an after filter in the context of the controller.
+
+    def skip_before_filter name, *names
+      skip_filters(self.after_filters, name, *names)
     end
   end
 
