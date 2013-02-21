@@ -7,9 +7,10 @@ Rakefile
 bin/gin
 lib/gin.rb
 lib/gin/app.rb
-lib/gin/callback.rb
 lib/gin/controller.rb
 lib/gin/core_ext/cgi.rb
+lib/gin/core_ext/gin_class.rb
+lib/gin/filterable.rb
 lib/gin/request.rb
 lib/gin/response.rb
 lib/gin/router.rb
@@ -17,6 +18,8 @@ test/app/app_foo.rb
 test/app/controllers/app_controller.rb
 test/app/controllers/foo_controller.rb
 test/test_app.rb
+test/test_controller.rb
+test/test_filterable.rb
 test/test_gin.rb
 test/test_helper.rb
 test/test_router.rb
