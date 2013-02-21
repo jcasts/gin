@@ -174,16 +174,36 @@ class FilterableTest < Test::Unit::TestCase
 
 
   def test_with_filters
-    
+    @session_ctrl.with_filters_for :unhindered_action do
+      FILTER_CALLS << :ACTION
+    end
+
+    expected = [:logged_in, :custom_thing, :ACTION, :log_action, :other_filter]
+    assert_equal expected, FILTER_CALLS
   end
 
 
   def test_with_filters_failed
-    
+    SessionCtrl.is_logged_in = false
+
+    assert_raises Gin::HTTP_ERRORS[401] do
+      @session_ctrl.with_filters_for :foo do
+        FILTER_CALLS << :ACTION_FOO
+      end
+    end
+
+    assert_equal [:logged_in], FILTER_CALLS
   end
 
 
   def test_with_filters_restrictions
-    
+    SessionCtrl.is_logged_in = false
+
+    @session_ctrl.with_filters_for :new do
+      FILTER_CALLS << :ACTION_NEW
+    end
+
+    assert_equal [:custom_thing, :ACTION_NEW, :log_action, :other_filter],
+                  FILTER_CALLS
   end
 end
