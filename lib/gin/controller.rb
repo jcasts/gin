@@ -2,8 +2,6 @@ class Gin::Controller
   extend GinClass
   include Gin::Filterable
 
-  class InvalidFilterError < Gin::Error; end
-
   ##
   # String representing the controller name.
   # Underscores the class name and removes mentions of 'controller'.
@@ -78,7 +76,7 @@ class Gin::Controller
   def __call_action__ action #:nodoc:
     @action = action
 
-    __with_filters__ @action do
+    with_filters_for @action do
       __send__ @action
     end
 

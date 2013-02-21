@@ -1,5 +1,8 @@
 module Gin::Filterable
+
   extend GinClass
+
+  class InvalidFilterError < Gin::Error; end
 
   def self.included klass
     klass.extend ClassMethods
@@ -70,7 +73,7 @@ module Gin::Filterable
             Array(opts[:except]).concat Array(old_opts[:except]) if
             old_opts[:except] || opts[:except]
 
-          filter_ary[i] = [filter[0], new_opts]
+          filter_ary[i] = [fname, new_opts]
         end
 
       else
@@ -82,6 +85,7 @@ module Gin::Filterable
     def normalize_filter_opts opts #:nodoc:
       opts[:only]   = Array(opts[:only])   if opts[:only]
       opts[:except] = Array(opts[:except]) if opts[:except]
+      opts
     end
 
 
@@ -138,7 +142,7 @@ module Gin::Filterable
     ##
     # Skip an after filter in the context of the controller.
 
-    def skip_before_filter name, *names
+    def skip_after_filter name, *names
       skip_filters(self.after_filters, name, *names)
     end
   end
@@ -158,29 +162,33 @@ module Gin::Filterable
       throw_err, msg, block = self.filters[n.to_sym]
       raise InvalidFilterError, "No block to run for filter #{n}" unless block
       throw_err = Gin::HTTP_ERRORS[throw_err] if Integer === throw_err
-      raise throw_err, msg unless block.call
+      raise throw_err, msg unless instance_eval(&block)
     end
   end
 
 
-  private
+  ##
+  # Run a block in between before and after filters for the given action name.
 
-
-  def __with_filters__ action, &block #:nodoc:
+  def with_filters_for action, &block #:nodoc:
     __call_filters__ before_filters, action
     block.call
     __call_filters__ after_filters, action
   end
 
 
+
+  private
+
+
   def __call_filters__ filter_ary, action #:nodoc:
     filter_ary.each do |name, opts|
-      filter(name) if __check_filter_opts__ action, opts
+      filter(name) if __valid_filter__ action, opts
     end
   end
 
 
-  def __check_filter_opts__ action, opts #:nodoc:
+  def __valid_filter__ action, opts #:nodoc:
     return true unless opts
 
     return false if opts[:only] && !opts[:only].include?(action) ||
