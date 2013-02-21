@@ -1,5 +1,6 @@
 class Gin::Controller
   extend GinClass
+  include Gin::Filter
 
   class InvalidFilterError < Gin::Error; end
 
@@ -61,126 +62,31 @@ class Gin::Controller
   end
 
 
-  ##
-  # Create a filter for controller actions. If the filter's return value is
-  # false-ish it will raise an error, specified by throw_err.
-  # By default filters throw a 403 error.
-  #   filter :logged_in, 401 do
-  #     @user && @user.logged_in?
-  #   end
-  #
-  # Use Gin::Controller.before_filter and Gin::Controller.after_filter to
-  # apply filters.
-  #
-  # Filters may also be called from inside a filter. Watch out for loops!
-  #   filter :admin, 403 do
-  #     filter :logged_in && @user.admin?
-  #   end
-
-  def self.filter name, throw_err=nil, msg=nil, &block
-    throw_err ||= 403
-    msg       ||= "Filter #{name} failed"
-    self.filters[name.to_sym] = [throw_err, msg, block]
-  end
-
-
-  ##
-  # Hash of filters defined by Gin::Controller.filter.
-
-  def self.filters
-    @filters ||= self.superclass.respond_to?(:filters) ?
-                   self.superclass.filters.dup : {}
-  end
-
-
-  ##
-  # Assign one or more filters to run before calling an action.
-  # Set for all actions by default.
-  # Supports an options hash as the last argument with :only and :except
-  # keys.
-  #   before_filter :logged_in, :except => :index
-
-  def self.before_filter name, *names
-    names = [name].concat names
-    opts = names.delete_at(-1) if Hash === names[-1]
-    self.before_filters << {:names => names, :opts => opts}
-  end
-
-
-  ##
-  # List of before filters.
-
-  def self.before_filters
-    # TODO: Inheritance needs to deep clone opts key on write
-    @before_filters ||= self.superclass.respond_to?(:before_filters) ?
-                   self.superclass.before_filters.dup : []
-  end
-
-
-  ##
-  # Assign one or more filters to run after calling an action.
-  # Set for all actions by default.
-  # Supports an options hash as the last argument with :only and :except
-  # keys.
-  #   after_filter :clear_cookies, :only => :logout
-
-  def self.after_filter name, *names
-    names = [name].concat names
-    opts = names.delete_at(-1) if Hash === names[-1]
-    self.after_filters << {:names => names, :opts => opts}
-  end
-
-
-  ##
-  # List of before filters.
-
-  def self.after_filters
-    @after_filters ||= self.superclass.respond_to?(:after_filters) ?
-                   self.superclass.after_filters.dup : []
-  end
-
-
   class_proxy_reader :controller_name, :err_handlers
-  class_proxy_reader :filters, :before_filters, :after_filters
 
-  attr_reader :app, :request, :response, :action_name
+  attr_reader :app, :request, :response, :action
 
 
   def initialize app, env
     @app         = app
     @request     = Gin::Request.new env
     @response    = Gin::Response.new
-    @action_name = nil
+    @action      = nil
   end
 
 
   def __call_action__ action #:nodoc:
-    @action_name = action
+    @action = action
 
-    __call_before_filters__ action
-    __send__ action
-    __call_after_filters__ action
+    __with_filters__ @action do
+      __send__ @action
+    end
+
     # TODO: assign and return response
     #       allow for streaming
 
   rescue => err
     handle_error err
-  end
-
-
-  ##
-  # Chain-call filters from an action. Raises the filter exception if any
-  # filter in the chain fails.
-  #   filter :logged_in, :admin
-
-  def filter name, *names
-    names.unshift name
-    names.each do |n|
-      throw_err, msg, block = self.filters[n.to_sym]
-      raise InvalidFilterError, "No block to run for filter #{n}" unless block
-      throw_err = Gin::HTTP_ERRORS[throw_err] if Integer === throw_err
-      raise throw_err, msg unless block.call
-    end
   end
 
 
@@ -229,29 +135,5 @@ class Gin::Controller
 
   def asset_path type, name
     
-  end
-
-
-  private
-
-
-  def __call_before_filters__ action #:nodoc:
-    before_filters.each do |fhash|
-      filter(*fhash[:names]) if __check_filter_opts__ action, fhash[:opts]
-    end
-  end
-
-
-  def __call_after_filters__ action #:nodoc:
-    after_filters.each do |fhash|
-      filter(*fhash[:names]) if __check_filter_opts__ action, fhash[:opts]
-    end
-  end
-
-
-  def __check_filter_opts__ action, opts #:nodoc:
-    return true unless opts
-    opts.each do |key, val|
-    end
   end
 end

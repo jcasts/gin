@@ -44,5 +44,6 @@ class Gin
   require 'gin/request'
   require 'gin/response'
   require 'gin/callback'
+  require 'gin/filter'
   require 'gin/controller'
 end
