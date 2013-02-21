@@ -2,14 +2,31 @@ require "test/test_helper"
 
 class AppTest < Test::Unit::TestCase
 
-  class FooController < Gin::Controller; end
+  class FooController < Gin::Controller;
+    def index; end
+    def create; end
+  end
 
   class FooApp < Gin::App
+    mount FooController do
+      get :index,   "/"
+      post :create, "/"
+    end
+  end
+
+  class MissingRouteApp < Gin::App
     mount FooController do
       get :index, "/"
     end
   end
 
+  class ExtraRouteApp < Gin::App
+    mount FooController do
+      get :index, "/"
+      post :create, "/"
+      post :delete, "/delete"
+    end
+  end
 
   def setup
     FooApp.instance_variable_set("@environment", nil)
@@ -31,6 +48,20 @@ class AppTest < Test::Unit::TestCase
     assert Gin::Router === @app.router, "Should have a Gin::Router"
     assert @app.router.resources_for("get", "/app_test/foo"),
       "App should route GET /app_test/foo"
+  end
+
+
+  def test_init_missing_routes
+    assert_raises Gin::App::RouterError do
+      MissingRouteApp.new
+    end
+  end
+
+
+  def test_init_extra_routes
+    assert_raises Gin::App::RouterError do
+      ExtraRouteApp.new
+    end
   end
 
 

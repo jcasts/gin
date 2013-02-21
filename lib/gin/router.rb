@@ -99,6 +99,22 @@ class Gin::Router
 
 
   ##
+  # Check if a Controller and action combo has a route.
+
+  def has_route? ctrl, action
+    !!@routes_lookup[[ctrl, action]]
+  end
+
+
+  ##
+  # Yield every Controller, action, route combination.
+
+  def each_route &block
+    @routes_lookup.each{|(ctrl,action),route| block.call route, ctrl, action }
+  end
+
+
+  ##
   # Get the path to the given Controller and action combo, provided
   # with the needed params. Routes with missing path params will raise
   # MissingParamError. Returns a String starting with "/".

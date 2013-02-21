@@ -14,6 +14,8 @@
 class Gin::App
   extend GinClass
 
+  class RouterError < Gin::Error; end
+
   GENERIC_HTML = <<-HTML
 <!DOCTYPE html>
 <html>
@@ -141,6 +143,8 @@ class Gin::App
       @rack_app = rack_app
       @logger   = Logger.new $stdout
     end
+
+    validate_all_controllers!
   end
 
 
@@ -224,5 +228,26 @@ Please review it and try again."
   def generic_http_response status, title, text
     html = GENERIC_HTML % [title, title, text]
     [status, {"Content-Type" => "text/html"}, [html]]
+  end
+
+
+  private
+
+  def validate_all_controllers!
+    actions = {}
+
+    router.each_route do |route, ctrl, action|
+      (actions[ctrl] ||= []) << action
+    end
+
+    actions.each do |ctrl, actions|
+      not_mounted   = ctrl.instance_methods(false) - actions
+      raise RouterError, "#{ctrl}##{not_mounted[0]} has no route." unless
+        not_mounted.empty?
+
+      extra_mounted = actions - ctrl.instance_methods(false)
+      raise RouterError, "#{ctrl}##{extra_mounted[0]} is not a method" unless
+        extra_mounted.empty?
+    end
   end
 end

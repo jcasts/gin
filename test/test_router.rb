@@ -2,7 +2,10 @@ require "test/test_helper"
 
 class RouterTest < Test::Unit::TestCase
 
-  class MyCtrl < Gin::Controller; end
+  class MyCtrl < Gin::Controller;
+    def unmounted_action; end
+  end
+
   class FooController < Gin::Controller; end
 
   def setup
@@ -75,6 +78,18 @@ class RouterTest < Test::Unit::TestCase
 
     assert_equal [MyCtrl, :bar, {}],
       @router.resources_for("GET", "/")
+  end
+
+
+  def test_has_route
+    @router.add MyCtrl, '/my_ctrl/:str' do
+      get  :bar, "/bar"
+      post :foo, "/"
+    end
+
+    assert @router.has_route?(MyCtrl, :bar)
+    assert @router.has_route?(MyCtrl, :foo)
+    assert !@router.has_route?(MyCtrl, :thing)
   end
 
 
