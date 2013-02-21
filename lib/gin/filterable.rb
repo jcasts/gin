@@ -42,7 +42,7 @@ module Gin::Filterable
 
     def append_filters filter_ary, name, *names #:nodoc:
       names = [name].concat names
-      opts  = normalize_opts names.delete_at(-1) if Hash === names[-1]
+      opts  = normalize_filter_opts names.delete_at(-1) if Hash === names[-1]
 
       filter_ary.concat names.map{|n| [n.to_sym, opts] }
     end
@@ -52,7 +52,7 @@ module Gin::Filterable
       names = [name].concat names
 
       if Hash === names[-1]
-        opts = normalize_opts names.delete_at(-1)
+        opts = normalize_filter_opts names.delete_at(-1)
         opts[:except], opts[:only] = opts[:only], opts[:except]
 
         filter_ary.length.times do |i|
@@ -79,7 +79,7 @@ module Gin::Filterable
     end
 
 
-    def normalize_opts opts #:nodoc:
+    def normalize_filter_opts opts #:nodoc:
       opts[:only]   = Array(opts[:only])   if opts[:only]
       opts[:except] = Array(opts[:except]) if opts[:except]
     end
