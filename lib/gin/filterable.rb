@@ -36,6 +36,7 @@ module Gin::Filterable
 
     ##
     # Hash of filters defined by Gin::Controller.filter.
+    # This attribute is inherited.
 
     def filters
       @filters ||= self.superclass.respond_to?(:filters) ?
@@ -92,6 +93,7 @@ module Gin::Filterable
     ##
     # Assign one or more filters to run before calling an action.
     # Set for all actions by default.
+    # This attribute is inherited.
     # Supports an options hash as the last argument with :only and :except
     # keys.
     #   before_filter :logged_in, :except => :index
@@ -103,6 +105,7 @@ module Gin::Filterable
 
     ##
     # List of before filters.
+    # This attribute is inherited.
 
     def before_filters
       @before_filters ||= self.superclass.respond_to?(:before_filters) ?
@@ -112,6 +115,7 @@ module Gin::Filterable
 
     ##
     # Skip a before filter in the context of the controller.
+    # This attribute is inherited.
 
     def skip_before_filter name, *names
       skip_filters(self.before_filters, name, *names)
@@ -121,6 +125,7 @@ module Gin::Filterable
     ##
     # Assign one or more filters to run after calling an action.
     # Set for all actions by default.
+    # This attribute is inherited.
     # Supports an options hash as the last argument with :only and :except
     # keys.
     #   after_filter :clear_cookies, :only => :logout
@@ -132,6 +137,7 @@ module Gin::Filterable
 
     ##
     # List of before filters.
+    # This attribute is inherited.
 
     def after_filters
       @after_filters ||= self.superclass.respond_to?(:after_filters) ?
@@ -141,6 +147,7 @@ module Gin::Filterable
 
     ##
     # Skip an after filter in the context of the controller.
+    # This attribute is inherited.
 
     def skip_after_filter name, *names
       skip_filters(self.after_filters, name, *names)

@@ -53,10 +53,22 @@ class Gin::Controller
 
   ##
   # Hash of error handlers defined by Gin::Controller.error.
+  # This attribute is inherited.
 
   def self.error_handlers
     @err_handlers ||= self.superclass.respond_to?(:error_handlers) ?
                         self.superclass.error_handlers.dup : {}
+  end
+
+
+  ##
+  # Set or get the default content type for this Gin::Controller.
+  # Default value is "text/html". This attribute is inherited.
+
+  def self.content_type new_type=nil
+    return @content_type = new_type if new_type
+    @content_type ||= self.superclass.respond_to?(:content_type) ?
+                        self.superclass.content_type.dup : "text/html"
   end
 
 
