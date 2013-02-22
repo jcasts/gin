@@ -10,6 +10,7 @@ lib/gin/app.rb
 lib/gin/controller.rb
 lib/gin/core_ext/cgi.rb
 lib/gin/core_ext/gin_class.rb
+lib/gin/errorable.rb
 lib/gin/filterable.rb
 lib/gin/request.rb
 lib/gin/response.rb
