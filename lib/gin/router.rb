@@ -6,7 +6,7 @@ class Gin::Router
     VERBS = %w{get post put delete head options trace}
 
     VERBS.each do |verb|
-      define_method(verb){|action, path=nil| add verb, action, path}
+      define_method(verb){|action, *args| add(verb, action, *args)}
     end
 
     def initialize ctrl, base_path, sep="/"
@@ -22,8 +22,12 @@ class Gin::Router
     end
 
 
-    def add verb, action, path=nil
+    def add verb, action, *args
+      path = args.shift        if String === args[0]
+      name = args.shift.to_sym if args[0]
+
       path ||= action.to_s
+      name ||= :"#{action}_#{@ctrl.controller_name}"
       param_keys = []
 
       route = [verb].concat @base_path
@@ -39,12 +43,12 @@ class Gin::Router
         end
       end
 
-      @routes << [route, [@ctrl, action, param_keys]]
+      @routes << [route, name, [@ctrl, action, param_keys]]
     end
 
 
     def each_route &block
-      @routes.each{|(route, value)| block.call(route, value) }
+      @routes.each{|(route, name, value)| block.call(route, name, value) }
     end
   end
 
@@ -83,7 +87,7 @@ class Gin::Router
     mount = Mount.new ctrl, base_path, @sep
     mount.instance_eval(&block)
 
-    mount.each_route do |route_ary, val|
+    mount.each_route do |route_ary, name, val|
       curr_node = @routes_tree
 
       route_ary.each do |part|
@@ -92,8 +96,10 @@ class Gin::Router
       end
 
       curr_node.value = val
-      @routes_lookup[val[0..1]] =
-        [route_ary[0], "/" << route_ary[1..-1].join(@sep), val[2]]
+      route = [route_ary[0], "/" << route_ary[1..-1].join(@sep), val[2]]
+
+      @routes_lookup[name]      = route if name
+      @routes_lookup[val[0..1]] = route
     end
   end
 
@@ -107,23 +113,33 @@ class Gin::Router
 
 
   ##
-  # Yield every Controller, action, route combination.
+  # Yield every Controller, action, route, name combination.
 
   def each_route &block
-    @routes_lookup.each{|(ctrl,action),route| block.call route, ctrl, action }
+    @routes_lookup.each do |key,route|
+      next unless Array === key
+      block.call route, key[0], key[1]
+    end
   end
 
 
   ##
-  # Get the path to the given Controller and action combo, provided
-  # with the needed params. Routes with missing path params will raise
+  # Get the path to the given Controller and action combo or route name,
+  # provided with the needed params. Routes with missing path params will raise
   # MissingParamError. Returns a String starting with "/".
+  #
+  #   path_to FooController, :show, :id => 123
+  #   #=> "/foo/123"
+  #
+  #   path_to :show_foo, :id => 123
+  #   #=> "/foo/123"
 
-  def path_to ctrl, action, params={}
-    verb, route, param_keys = @routes_lookup[[ctrl, action]]
-    raise PathArgumentError, "No route for #{ctrl}##{action}" unless route
+  def path_to *args
+    key = Class === args[0] ? args.slice!(0..1) : args.shift
+    verb, route, param_keys = @routes_lookup[key]
+    raise PathArgumentError, "No route for #{Array(key).join("#")}" unless route
 
-    params = params.dup
+    params = (args.pop || {}).dup
 
     route = route % param_keys.map do |k|
       params.delete(k) || params.delete(k.to_sym) ||

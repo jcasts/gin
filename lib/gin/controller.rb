@@ -136,15 +136,29 @@ class Gin::Controller
 
 
   ##
-  # Build a path to the given controller and action, with any expected params.
+  # Build a path to the given controller and action or route name,
+  # with any expected params. If no controller is specified and the
+  # current controller responds to the symbol given, uses the current
+  # controller for path lookup.
+  #
+  #   path_to FooController, :show, :id => 123
+  #   #=> "/foo/123"
+  #
+  #   # From FooController
+  #   path_to :show, :id => 123
+  #   #=> "/foo/123"
+  #
+  #   path_to :show_foo, :id => 123
+  #   #=> "/foo/123"
 
-  def path_to ctrl, action, params={}
-    @app.router.path_to ctrl, action, params
+  def path_to *args
+    args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
+    @app.router.path_to(*args)
   end
 
 
   ##
-  # Build a URI to the given controller and action, or path,
+  # Build a URI to the given controller and action or named route, or path,
   # with any expected params.
   #   url_to "/foo"
   #   #=> "http://example.com/foo
@@ -157,10 +171,14 @@ class Gin::Controller
   #
   #   url_to MyController, :show, :id => 123
   #   #=> "http://example.com/routed/action/123
+  #
+  #   url_to :show_foo
+  #   #=> "http://example.com/routed/action
+
 
   def url_to *args
-    path = args.length > 1 && args[0].respond_to?(:controller_name) ?
-            path_to(*args) : "#{args[0]}?#{args[1].to_query if args[1]}"
+    path = String === args[0] ?
+            "#{args[0]}?#{args[1].to_query if args[1]}" : path_to(*args)
 
     return path if path =~ /\A[A-z][A-z0-9\+\.\-]*:/
 

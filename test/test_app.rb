@@ -1,32 +1,35 @@
 require "test/test_helper"
 
+class FooController < Gin::Controller;
+  def index; end
+  def create; end
+end
+
+class FooApp < Gin::App
+  mount FooController do
+    get  :index,  "/"
+    post :create, "/"
+  end
+end
+
+class MissingRouteApp < Gin::App
+  mount FooController do
+    get :index, "/"
+  end
+end
+
+class ExtraRouteApp < Gin::App
+  mount FooController do
+    get  :index,  "/"
+    post :create, "/"
+    post :delete, "/delete"
+  end
+end
+
+
+
 class AppTest < Test::Unit::TestCase
 
-  class FooController < Gin::Controller;
-    def index; end
-    def create; end
-  end
-
-  class FooApp < Gin::App
-    mount FooController do
-      get :index,   "/"
-      post :create, "/"
-    end
-  end
-
-  class MissingRouteApp < Gin::App
-    mount FooController do
-      get :index, "/"
-    end
-  end
-
-  class ExtraRouteApp < Gin::App
-    mount FooController do
-      get :index, "/"
-      post :create, "/"
-      post :delete, "/delete"
-    end
-  end
 
   def setup
     FooApp.instance_variable_set("@environment", nil)
@@ -46,8 +49,8 @@ class AppTest < Test::Unit::TestCase
     assert_nil @app.rack_app, "Rack application should be nil by default"
     assert Proc === @rapp.rack_app, "Rack application should be a Proc"
     assert Gin::Router === @app.router, "Should have a Gin::Router"
-    assert @app.router.resources_for("get", "/app_test/foo"),
-      "App should route GET /app_test/foo"
+    assert @app.router.resources_for("get", "/foo"),
+      "App should route GET /foo"
   end
 
 

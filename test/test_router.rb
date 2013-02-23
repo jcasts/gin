@@ -1,12 +1,13 @@
 require "test/test_helper"
 
+class MyCtrl < Gin::Controller;
+  def unmounted_action; end
+end
+
+class FooController < Gin::Controller; end
+
+
 class RouterTest < Test::Unit::TestCase
-
-  class MyCtrl < Gin::Controller;
-    def unmounted_action; end
-  end
-
-  class FooController < Gin::Controller; end
 
   def setup
     @router = Gin::Router.new
@@ -35,6 +36,22 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
+  def test_add_and_retrieve_named_route
+    @router.add FooController, "/foo" do
+      get  :index, "/", :all_foo
+      get  :bar, :my_bar
+      post :create
+    end
+
+    assert_equal [FooController, :bar, {}],
+      @router.resources_for("GET", "/foo/bar")
+
+    assert_equal "/foo/bar", @router.path_to(:my_bar)
+    assert_equal "/foo/create", @router.path_to(:create_foo)
+    assert_equal "/foo", @router.path_to(:all_foo)
+  end
+
+
   def test_add_and_retrieve_w_path_params
     @router.add MyCtrl, '/my_ctrl/:str' do
       get  :bar, "/bar"
@@ -57,7 +74,7 @@ class RouterTest < Test::Unit::TestCase
     end
 
     assert_equal [MyCtrl, :bar, {}],
-      @router.resources_for("GET", "/router_test/my_ctrl/bar")
+      @router.resources_for("GET", "/my_ctrl/bar")
   end
 
 
@@ -67,7 +84,7 @@ class RouterTest < Test::Unit::TestCase
     end
 
     assert_equal [FooController, :index, {}],
-      @router.resources_for("GET", "/router_test/foo")
+      @router.resources_for("GET", "/foo")
   end
 
 
