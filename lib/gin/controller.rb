@@ -34,6 +34,7 @@ class Gin::Controller
   def initialize app, env
     @app      = app
     @action   = nil
+    @env      = env
     @request  = Gin::Request.new env
     @response = Gin::Response.new
     @response['Content-Type'] = self.class.content_type
@@ -104,14 +105,6 @@ class Gin::Controller
 
 
   ##
-  # Send a 301, 302, or 303 redirect.
-
-  def redirect uri, *args
-    
-  end
-
-
-  ##
   # Assigns a Gin::Stream to the response body, which is yielded to the block.
   # The block execution is delayed until the action returns.
   #   stream do |io|
@@ -145,8 +138,66 @@ class Gin::Controller
   ##
   # Build a path to the given controller and action, with any expected params.
 
-  def path_to controller, action, params={}
-    @app.router.path_to controller, action, params
+  def path_to ctrl, action, params={}
+    @app.router.path_to ctrl, action, params
+  end
+
+
+  ##
+  # Build a URI to the given controller and action, or path,
+  # with any expected params.
+  #   url_to "/foo"
+  #   #=> "http://example.com/foo
+  #
+  #   url_to "/foo", :page => 2
+  #   #=> "http://example.com/foo?page=foo
+  #
+  #   url_to MyController, :action
+  #   #=> "http://example.com/routed/action
+  #
+  #   url_to MyController, :show, :id => 123
+  #   #=> "http://example.com/routed/action/123
+
+  def uri_to *args
+    path = args.length > 1 && args[0].respond_to?(:controller_name) ?
+            path_to(*args) : "#{args[0]}?#{args[1].to_query if args[1]}"
+
+    return path if path =~ /\A[A-z][A-z0-9\+\.\-]*:/
+
+    uri  = [host = ""]
+    host << "http#{'s' if request.secure?}://"
+
+    if request.forwarded? or request.port != (request.secure? ? 443 : 80)
+      host << request.host_with_port
+    else
+      host << request.host
+    end
+
+    uri << request.script_name.to_s
+    uri << path
+    File.join uri
+  end
+
+  alias uri_to to
+
+
+  ##
+  # Send a 301, 302, or 303 redirect and halt.
+  # Supports passing a full URI, partial path.
+  #   redirect "http://google.com"
+  #   redirect "/foo"
+  #   redirect "/foo", 301, "You are being redirected..."
+  #   redirect to(MyController, :action)
+
+  def redirect uri, *args
+    if @env['HTTP_VERSION'] == 'HTTP/1.1' && @env["REQUEST_METHOD"] != 'GET'
+      status 303
+    else
+      status 302
+    end
+
+    @response['Location'] = uri_to(uri.to_s)
+    halt(*args)
   end
 
 

@@ -4,9 +4,9 @@ class Gin::Response
   attr_reader :headers
 
   def initialize
-    @status = 200
+    @status  = 200
     @headers = Rack::Utils::HeaderHash.new
-    @body   = []
+    @body    = []
   end
 
 
@@ -17,11 +17,6 @@ class Gin::Response
 
   def []= key, val
     @headers[key] = val
-  end
-
-
-  def stream use_ev=false
-    
   end
 
 
