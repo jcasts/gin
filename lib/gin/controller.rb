@@ -158,7 +158,7 @@ class Gin::Controller
   #   url_to MyController, :show, :id => 123
   #   #=> "http://example.com/routed/action/123
 
-  def uri_to *args
+  def url_to *args
     path = args.length > 1 && args[0].respond_to?(:controller_name) ?
             path_to(*args) : "#{args[0]}?#{args[1].to_query if args[1]}"
 
@@ -178,7 +178,7 @@ class Gin::Controller
     File.join uri
   end
 
-  alias uri_to to
+  alias to url_to
 
 
   ##
@@ -196,7 +196,7 @@ class Gin::Controller
       status 302
     end
 
-    @response['Location'] = uri_to(uri.to_s)
+    @response['Location'] = url_to(uri.to_s)
     halt(*args)
   end
 
