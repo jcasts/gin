@@ -14,6 +14,18 @@ class Gin::Controller
   end
 
 
+  ##
+  # Set or get the default content type for this Gin::Controller.
+  # Default value is "text/html". This attribute is inherited.
+
+  def self.content_type new_type=nil
+    return @content_type = new_type if new_type
+    return @content_type if @content_type
+    self.superclass.respond_to?(:content_type) ?
+      self.superclass.content_type.dup : "text/html"
+  end
+
+
   class_proxy_reader :controller_name
 
   attr_reader :app, :request, :response, :action
@@ -24,49 +36,42 @@ class Gin::Controller
     @action   = nil
     @request  = Gin::Request.new env
     @response = Gin::Response.new
+    @response['Content-Type'] = self.class.content_type
   end
 
 
-  def __call_action__ action #:nodoc:
-    @action = action
-    invoke{ call_with_filters @action }
+  def call_action action #:nodoc:
+    invoke{ dispatch action }
     invoke{ handle_status(@response.status) }
-  end
-
-
-  def call_with_filters action
-    invoke do
-      __call_filters__ before_filters, action
-      __send__ action
-    end
-
-    # TODO: assign and return response
-    #       allow for streaming
-
-  rescue => err
-    invoke{ handle_error err }
-  ensure
-    __call_filters__ after_filters, action
+    content_type 'text/html' unless @response['Content-Type']
+    @response.finish
   end
 
 
   ##
-  # Taken from Sinatra.
-  #
-  # Run the block with 'throw :halt' support and apply result to the response.
+  # Set or get the HTTP response status code.
 
-  def invoke
-    res = catch(:halt) { yield }
-    res = [res] if Fixnum === res or String === res
-    if Array === res and Fixnum === res.first
-      res = res.dup
-      status(res.shift)
-      body(res.pop)
-      headers(*res)
-    elsif res.respond_to? :each
-      body res
-    end
-    nil # avoid double setting the same response tuple twice
+  def status code=nil
+    @response.status = code if code
+    @response.status
+  end
+
+
+  ##
+  # Get or set the HTTP response body.
+
+  def body bdy=nil
+    @response.body = bdy if bdy
+    @response.body
+  end
+
+
+  ##
+  # Get or set the HTTP response Content-Type header.
+
+  def content_type ct=nil
+    @response['Content-Type'] = ct if ct
+    @response['Content-Type']
   end
 
 
@@ -76,6 +81,33 @@ class Gin::Controller
   def halt *resp
     resp = resp.first if resp.length == 1
     throw :halt, resp
+  end
+
+
+  ##
+  # Halt processing and return the error status provided.
+
+  def error code, body=nil
+    code, body     = 500, code.to_str if code.respond_to? :to_str
+    @response.body = body unless body.nil?
+    halt code
+  end
+
+
+  ##
+  # Set multiple response headers with Hash.
+
+  def headers hash=nil
+    @response.headers.merge! hash if hash
+    @response.headers
+  end
+
+
+  ##
+  # Send a 301, 302, or 303 redirect.
+
+  def redirect uri, *args
+    
   end
 
 
@@ -123,5 +155,42 @@ class Gin::Controller
 
   def asset_path type, name
     
+  end
+
+
+  private
+
+
+  ##
+  # Taken from Sinatra.
+  #
+  # Run the block with 'throw :halt' support and apply result to the response.
+
+  def invoke
+    res = catch(:halt) { yield }
+    res = [res] if Fixnum === res or String === res
+    if Array === res and Fixnum === res.first
+      res = res.dup
+      status(res.shift)
+      body(res.pop)
+      headers(*res)
+    elsif res.respond_to? :each
+      body res
+    end
+    nil # avoid double setting the same response tuple twice
+  end
+
+
+  def dispatch action #:nodoc:
+    @action = action
+    invoke do
+      __call_filters__ before_filters, action
+      __send__ action
+    end
+
+  rescue => err
+    invoke{ handle_error err }
+  ensure
+    __call_filters__ after_filters, action
   end
 end

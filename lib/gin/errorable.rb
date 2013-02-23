@@ -60,17 +60,6 @@ module Gin::Errorable
     def self.local_error_handlers #:nodoc:
       @err_handlers ||= {}
     end
-
-
-    ##
-    # Set or get the default content type for this Gin::Controller.
-    # Default value is "text/html". This attribute is inherited.
-
-    def self.content_type new_type=nil
-      return @content_type = new_type if new_type
-      @content_type ||= self.superclass.respond_to?(:content_type) ?
-                          self.superclass.content_type.dup : "text/html"
-    end
   end
 
 

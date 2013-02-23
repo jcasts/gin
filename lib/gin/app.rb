@@ -178,7 +178,7 @@ class Gin::App
     raise Gin::NotFoundError, "No controller or action" unless ctrl && action
 
     ctrl_inst = ctrl.new(self, env)
-    ctrl_inst.__call_action__ action
+    ctrl_inst.call_action action
 
   rescue Gin::NotFoundError => err
     @rack_app ? @rack_app.call(env) : handle_error(err)

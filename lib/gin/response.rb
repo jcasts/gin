@@ -1,12 +1,22 @@
 class Gin::Response
 
-  attr_accessor :status
-  attr_reader :body, :header
+  attr_accessor :body, :status
+  attr_reader :headers
 
   def initialize
     @status = 200
-    @header = Rack::Utils::HeaderHash.new
+    @headers = Rack::Utils::HeaderHash.new
     @body   = []
+  end
+
+
+  def [] key
+    @headers[key]
+  end
+
+
+  def []= key, val
+    @headers[key] = val
   end
 
 
@@ -15,7 +25,7 @@ class Gin::Response
   end
 
 
-  def to_a
+  def finish
     [@status, @header, @body]
   end
 end
