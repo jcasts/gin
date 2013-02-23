@@ -30,7 +30,7 @@ module Gin::Errorable
       err_types << nil if err_types.empty?
 
       err_types.each do |name|
-        self.error_handlers[name] = block
+        self.local_error_handlers[name] = block
       end
     end
 
@@ -42,7 +42,7 @@ module Gin::Errorable
 
     def self.all_errors &block
       return unless block_given?
-      self.error_handlers[:all] = block
+      self.local_error_handlers[:all] = block
     end
 
 
@@ -51,8 +51,14 @@ module Gin::Errorable
     # This attribute is inherited.
 
     def self.error_handlers
-      @err_handlers ||= self.superclass.respond_to?(:error_handlers) ?
-                          self.superclass.error_handlers.dup : {}
+      inherited = self.superclass.respond_to?(:error_handlers) ?
+                          self.superclass.error_handlers : {}
+      inherited.merge local_error_handlers
+    end
+
+
+    def self.local_error_handlers #:nodoc:
+      @err_handlers ||= {}
     end
 
 
@@ -75,13 +81,21 @@ module Gin::Errorable
   # Re-raises the error if no handler is found.
 
   def handle_error err
-    key = self.error_handlers.keys.find do |key|
-            key === err || err.respond_to?(:status) && key === err.status
-          end
+    status(500) unless (400..599).include? status
 
+    key = self.error_handlers.keys.find{|key| key === err }
     raise err unless key || self.error_handlers[:all]
 
     instance_exec(err, &self.error_handlers[key])  if key
     instance_exec(err, &self.error_handlers[:all]) if self.error_handlers[:all]
+  end
+
+
+  ##
+  # Calls the appropriate error handlers for the given status code.
+
+  def handle_status code
+    handler = self.error_handlers[code]
+    instance_exec(&handler) if handler
   end
 end

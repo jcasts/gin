@@ -13,7 +13,7 @@ class FilterableTest < Test::Unit::TestCase
 
     self.is_logged_in = true
 
-    filter :logged_in, 401 do
+    filter :logged_in do
       FILTER_CALLS << :logged_in
       self.class.is_logged_in
     end
@@ -139,71 +139,5 @@ class FilterableTest < Test::Unit::TestCase
   def test_filter_calls
     @session_ctrl.filter :logged_in, :custom_thing, :other_filter
     assert_equal [:logged_in, :custom_thing, :other_filter], FILTER_CALLS
-  end
-
-
-  def test_filter_calls_missing
-    assert_raises Gin::Filterable::InvalidFilterError do
-      @session_ctrl.filter :logged_in, :foo, :other_filter
-    end
-
-    assert_equal [:logged_in], FILTER_CALLS
-  end
-
-
-  def test_filter_failed_calls
-    SessionCtrl.is_logged_in = false
-
-    assert_raises Gin::HTTP_ERRORS[401] do
-      @session_ctrl.filter :logged_in, :other_filter
-    end
-
-    assert_equal [:logged_in], FILTER_CALLS
-  end
-
-
-  def test_filter_failed_calls_default_err
-    SessionCtrl.is_custom_thing = false
-
-    assert_raises Gin::HTTP_ERRORS[403] do
-      @session_ctrl.filter :other_filter, :custom_thing, :find_device
-    end
-
-    assert_equal [:other_filter, :custom_thing], FILTER_CALLS
-  end
-
-
-  def test_with_filters
-    @session_ctrl.with_filters_for :unhindered_action do
-      FILTER_CALLS << :ACTION
-    end
-
-    expected = [:logged_in, :custom_thing, :ACTION, :log_action, :other_filter]
-    assert_equal expected, FILTER_CALLS
-  end
-
-
-  def test_with_filters_failed
-    SessionCtrl.is_logged_in = false
-
-    assert_raises Gin::HTTP_ERRORS[401] do
-      @session_ctrl.with_filters_for :foo do
-        FILTER_CALLS << :ACTION_FOO
-      end
-    end
-
-    assert_equal [:logged_in], FILTER_CALLS
-  end
-
-
-  def test_with_filters_restrictions
-    SessionCtrl.is_logged_in = false
-
-    @session_ctrl.with_filters_for :new do
-      FILTER_CALLS << :ACTION_NEW
-    end
-
-    assert_equal [:custom_thing, :ACTION_NEW, :log_action, :other_filter],
-                  FILTER_CALLS
   end
 end

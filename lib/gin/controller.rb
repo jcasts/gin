@@ -29,21 +29,53 @@ class Gin::Controller
 
   def __call_action__ action #:nodoc:
     @action = action
+    invoke{ call_with_filters @action }
+    invoke{ handle_status(@response.status) }
+  end
 
-    resp = catch :respond do
-      with_filters_for @action do
-        action_resp = __send__ @action
-      end
 
-      action_resp
+  def call_with_filters action
+    invoke do
+      __call_filters__ before_filters, action
+      __send__ action
     end
 
     # TODO: assign and return response
     #       allow for streaming
 
   rescue => err
-    # TODO: Make sure we get a Rack response Array from this
-    handle_error err
+    invoke{ handle_error err }
+  ensure
+    __call_filters__ after_filters, action
+  end
+
+
+  ##
+  # Taken from Sinatra.
+  #
+  # Run the block with 'throw :halt' support and apply result to the response.
+
+  def invoke
+    res = catch(:halt) { yield }
+    res = [res] if Fixnum === res or String === res
+    if Array === res and Fixnum === res.first
+      res = res.dup
+      status(res.shift)
+      body(res.pop)
+      headers(*res)
+    elsif res.respond_to? :each
+      body res
+    end
+    nil # avoid double setting the same response tuple twice
+  end
+
+
+  ##
+  # Stop the execution of an action and return the response.
+
+  def halt *resp
+    resp = resp.first if resp.length == 1
+    throw :halt, resp
   end
 
 
@@ -57,8 +89,8 @@ class Gin::Controller
   #   end
 
   def stream keep_open=false, &block
-    scheduler = env['async.callback'] ? EventMachine : Stream
-    body Stream.new(scheduler, keep_open){ |out| yield(out) }
+    scheduler = env['async.callback'] ? EventMachine : Gin::Stream
+    body Gin::Stream.new(scheduler, keep_open){ |out| yield(out) }
   end
 
 

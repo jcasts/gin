@@ -12,25 +12,16 @@ module Gin::Filterable
   module ClassMethods
 
     ##
-    # Create a filter for controller actions. If the filter's return value is
-    # false-ish it will raise an error, specified by throw_err.
-    # By default filters throw a 403 error.
-    #   filter :logged_in, 401 do
+    # Create a filter for controller actions.
+    #   filter :logged_in do
     #     @user && @user.logged_in?
     #   end
     #
     # Use Gin::Controller.before_filter and Gin::Controller.after_filter to
     # apply filters.
-    #
-    # Filters may also be called from inside a filter. Watch out for loops!
-    #   filter :admin, 403 do
-    #     filter :logged_in && @user.admin?
-    #   end
 
-    def filter name, throw_err=nil, msg=nil, &block
-      throw_err ||= 403
-      msg       ||= "Filter #{name} failed"
-      self.filters[name.to_sym] = [throw_err, msg, block]
+    def filter name, &block
+      self.filters[name.to_sym] = block
     end
 
 
@@ -166,23 +157,9 @@ module Gin::Filterable
   def filter name, *names
     names.unshift name
     names.each do |n|
-      throw_err, msg, block = self.filters[n.to_sym]
-      raise InvalidFilterError, "No block to run for filter #{n}" unless block
-      throw_err = Gin::HTTP_ERRORS[throw_err] if Integer === throw_err
-      raise throw_err, msg unless instance_eval(&block)
+      instance_eval(&self.filters[n.to_sym])
     end
   end
-
-
-  ##
-  # Run a block in between before and after filters for the given action name.
-
-  def with_filters_for action, &block #:nodoc:
-    __call_filters__ before_filters, action
-    block.call
-    __call_filters__ after_filters, action
-  end
-
 
 
   private
