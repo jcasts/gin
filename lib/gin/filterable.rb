@@ -87,10 +87,14 @@ module Gin::Filterable
     # This attribute is inherited.
     # Supports an options hash as the last argument with :only and :except
     # keys.
-    #   before_filter :logged_in, :except => :index
+    #
+    #   before_filter :logged_in, :except => :index do
+    #     verify_session! || halt 401
+    #   end
 
-    def before_filter name, *names
-      append_filters(self.before_filters, name, *names)
+    def before_filter name, *opts, &block
+      filter(name, &block) if block_given?
+      append_filters(self.before_filters, name, *opts)
     end
 
 
@@ -119,15 +123,19 @@ module Gin::Filterable
     # This attribute is inherited.
     # Supports an options hash as the last argument with :only and :except
     # keys.
-    #   after_filter :clear_cookies, :only => :logout
+    #
+    #   after_filter :clear_cookies, :only => :logout do
+    #     session[:user] = nil
+    #   end
 
-    def after_filter name, *names
-      append_filters(self.after_filters, name, *names)
+    def after_filter name, *opts, &block
+      filter(name, &block) if block_given?
+      append_filters(self.after_filters, name, *opts)
     end
 
 
     ##
-    # List of before filters.
+    # List of after filters.
     # This attribute is inherited.
 
     def after_filters
