@@ -7,8 +7,12 @@ class Gin::Request < Rack::Request
 
 
   def params
-    super
-    @params = indifferent_params @params
+    unless @params
+      super
+      @params = indifferent_params @params
+    end
+
+    @params
   end
 
 
