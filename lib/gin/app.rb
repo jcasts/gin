@@ -197,6 +197,7 @@ class Gin::App
     logger.warn("[Handle Error] %s: %s\n%s" %
       [err.class.name, err.message, Array(err.backtrace).join("\n")])
 
+    # TODO: Make sure we get a Rack response Array from this
     error_ctrl.new(self, env).handle_error(err)
   end
 

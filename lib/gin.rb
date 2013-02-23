@@ -43,6 +43,7 @@ class Gin
   require 'gin/router'
   require 'gin/request'
   require 'gin/response'
+  require 'gin/stream'
   require 'gin/errorable'
   require 'gin/filterable'
   require 'gin/controller'

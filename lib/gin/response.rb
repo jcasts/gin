@@ -1,6 +1,7 @@
 class Gin::Response
 
   attr_accessor :status
+  attr_reader :body, :header
 
   def initialize
     @status = 200
@@ -9,12 +10,12 @@ class Gin::Response
   end
 
 
-  def stream str_or_io
+  def stream use_ev=false
     
   end
 
 
-  def each &block
-    
+  def to_a
+    [@status, @header, @body]
   end
 end
