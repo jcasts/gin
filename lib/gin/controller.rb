@@ -206,6 +206,7 @@ class Gin::Controller
   #   redirect "/foo"
   #   redirect "/foo", 301, "You are being redirected..."
   #   redirect to(MyController, :action)
+  #   redirect to(:show_foo)
 
   def redirect uri, *args
     if @env['HTTP_VERSION'] == 'HTTP/1.1' && @env["REQUEST_METHOD"] != 'GET'
@@ -252,14 +253,30 @@ class Gin::Controller
 
   def dispatch action #:nodoc:
     @action = action
+
     invoke do
       __call_filters__ before_filters, action
-      __send__ action
+      args = action_arguments action
+      __send__(action, *args)
     end
 
   rescue => err
     invoke{ handle_error err }
   ensure
     __call_filters__ after_filters, action
+  end
+
+
+  def action_arguments action=@action
+    return [] unless m = method(action)
+
+    args = []
+    m.parameters.each do |(type, name)|
+      raise Gin::BadRequest, "Expected param `#{name}'" if
+        type == :req && !params[name]
+      args << params[name]
+    end
+
+    args
   end
 end

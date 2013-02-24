@@ -10,6 +10,14 @@ class Gin
 
   class Error < StandardError; end
 
+  class BadRequest < Error
+    def http_status; 400; end
+  end
+
+  class NotFound < Error
+    def http_status; 404; end
+  end
+
   require 'gin/core_ext/cgi'
   require 'gin/core_ext/gin_class'
 
