@@ -21,6 +21,7 @@ class Gin::Response
 
 
   def finish
+    bdy = @body.respond_to?(:each) ? @body : [@body]
     [@status, @header, @body]
   end
 end

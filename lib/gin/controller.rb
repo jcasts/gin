@@ -28,7 +28,7 @@ class Gin::Controller
 
   class_proxy_reader :controller_name
 
-  attr_reader :app, :request, :response, :action
+  attr_reader :app, :request, :response, :action, :env
 
 
   def initialize app, env
@@ -61,8 +61,8 @@ class Gin::Controller
   ##
   # Get or set the HTTP response body.
 
-  def body bdy=nil
-    @response.body = bdy if bdy
+  def body body=nil
+    @response.body = body if body
     @response.body
   end
 
@@ -132,6 +132,15 @@ class Gin::Controller
 
   def params
     @request.params
+  end
+
+
+  ##
+  # Access the request session.
+
+  def session
+    #TODO: builder.use Rack::Session::Cookie, options
+    @request.session
   end
 
 
