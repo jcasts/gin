@@ -10,11 +10,11 @@ class Gin
 
   class Error < StandardError; end
 
-  class BadRequest < Error
+  class BadRequest < ArgumentError
     def http_status; 400; end
   end
 
-  class NotFound < Error
+  class NotFound < NameError
     def http_status; 404; end
   end
 
