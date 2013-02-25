@@ -27,8 +27,21 @@ class Gin::App
   HTML
 
 
+  CALLERS_TO_IGNORE = [ # :nodoc:
+    /\/gin(\/(.*?))?\.rb$/,             # all gin code
+    /lib\/tilt.*\.rb$/,                 # all tilt code
+    /^\(.*\)$/,                         # generated code
+    /rubygems\/custom_require\.rb$/,    # rubygems require hacks
+    /active_support/,                   # active_support require hacks
+    /bundler(\/runtime)?\.rb/,          # bundler require hacks
+    /<internal:/,                       # internal in ruby >= 1.9.2
+    /src\/kernel\/bootstrap\/[A-Z]/     # maglev kernel files
+  ]
+
+
   def self.inherited subclass   #:nodoc:
-    dir = File.expand_path("..", caller.first.split(/:\d+:in `</).first)
+    caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
+    dir = File.expand_path("..", caller_line.split(/:\d+:in `</).first)
     subclass.root_dir dir
   end
 
