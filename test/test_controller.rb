@@ -25,6 +25,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def setup
+    MockApp.instance_variable_set("@asset_host", nil)
     @app  = MockApp.new
     @ctrl = BarController.new(@app, rack_env)
   end
@@ -39,8 +40,48 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_asset_path
+    assert_equal "/foo.jpg", @ctrl.asset_path("foo.jpg")
+
+    MockApp.asset_host "http://example.com"
+    assert_equal "http://example.com/foo.jpg", @ctrl.asset_path("foo.jpg")
+
+    MockApp.asset_host do |file|
+      file =~ /\.js$/ ? "http://js.example.com" : "http://img.example.com"
+    end
+    assert_equal "http://js.example.com/foo.js",   @ctrl.asset_path("foo.js")
+    assert_equal "http://img.example.com/foo.jpg", @ctrl.asset_path("foo.jpg")
+  end
+
+
+  def test_redirect_non_get
+    rack_env['REQUEST_METHOD'] = 'POST'
+    rack_env['HTTP_VERSION']   = 'HTTP/1.0'
+    catch(:halt){ @ctrl.redirect "/foo" }
+    assert_equal 302, @ctrl.status
+    assert_equal "http://example.com/foo", @ctrl.response['Location']
+
+    rack_env['HTTP_VERSION'] = 'HTTP/1.1'
+    catch(:halt){ @ctrl.redirect "/foo" }
+    assert_equal 303, @ctrl.status
+    assert_equal "http://example.com/foo", @ctrl.response['Location']
+  end
+
+
   def test_redirect
-    
+    catch(:halt){ @ctrl.redirect "/foo" }
+    assert_equal 302, @ctrl.status
+    assert_equal "http://example.com/foo", @ctrl.response['Location']
+
+    resp = catch(:halt){ @ctrl.redirect "https://google.com/foo", 301, "Move Along" }
+    assert_equal 302, @ctrl.status
+    assert_equal "https://google.com/foo", @ctrl.response['Location']
+    assert_equal [301, "Move Along"], resp
+
+    resp = catch(:halt){ @ctrl.redirect "https://google.com/foo", 301, {'X-LOC' => "test"}, "Move Along" }
+    assert_equal 302, @ctrl.status
+    assert_equal "https://google.com/foo", @ctrl.response['Location']
+    assert_equal [301, {'X-LOC' => "test"}, "Move Along"], resp
   end
 
 

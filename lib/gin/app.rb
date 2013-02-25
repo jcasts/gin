@@ -85,6 +85,26 @@ class Gin::App
 
 
   ##
+  # Get or set the CDN asset host (and path).
+  # If block is given, evaluates the block on every read.
+
+  def self.asset_host host=nil, &block
+    @asset_host = host  if host
+    @asset_host = block if block_given?
+    host = @asset_host.respond_to?(:call) ? @asset_host.call : @asset_host
+  end
+
+
+  ##
+  # Returns the asset host for a given asset name. This is useful when assigning
+  # a block for the asset_host. The asset_name argument is passed to the block.
+
+  def self.asset_host_for asset_name
+     @asset_host.respond_to?(:call) ? @asset_host.call(asset_name) : @asset_host
+  end
+
+
+  ##
   # Define a Gin::Controller as a catch-all error rendering controller.
   # This can be a dedicated controller, or a parent controller
   # such as AppController.
@@ -157,6 +177,7 @@ class Gin::App
 
 
   class_proxy_reader :error_delegate, :router
+  class_proxy_reader :root_dir, :public_dir, :asset_host
   class_proxy_reader :development?, :test?, :staging?, :production?
 
   attr_accessor :logger
@@ -262,6 +283,15 @@ Please review it and try again."
   def generic_http_response status, title, text
     html = GENERIC_HTML % [title, title, text]
     [status, {"Content-Type" => "text/html"}, [html]]
+  end
+
+
+  ##
+  # Get the asset host for a given resource. Passes the asset name to the
+  # asset_host block if defined.
+
+  def asset_host_for name
+    self.class.asset_host_for name
   end
 
 

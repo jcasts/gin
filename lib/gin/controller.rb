@@ -231,10 +231,10 @@ class Gin::Controller
 
 
   ##
-  # Returns the full path to an asset
+  # Returns the full path to an asset, including predefined asset cdn hosts.
 
-  def asset_path type, name
-    
+  def asset_path name
+    File.join(@app.asset_host_for(name).to_s, name)
   end
 
 

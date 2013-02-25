@@ -33,6 +33,7 @@ class AppTest < Test::Unit::TestCase
 
   def setup
     FooApp.instance_variable_set("@environment", nil)
+    FooApp.instance_variable_set("@asset_host", nil)
     @app  = FooApp.new Logger.new($stdout)
     @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}
   end
@@ -43,9 +44,31 @@ class AppTest < Test::Unit::TestCase
   end
 
 
+  def test_asset_host_for
+    FooApp.asset_host do |name|
+      "http://#{File.extname(name)[1..-1] << "." if name}foo.com"
+    end
+    assert_equal "http://js.foo.com", FooApp.asset_host_for("app.js")
+    assert_equal "http://js.foo.com", @app.asset_host_for("app.js")
+  end
+
+
+  def test_asset_host
+    FooApp.asset_host "http://example.com"
+    assert_equal "http://example.com", FooApp.asset_host
+    assert_equal "http://example.com", @app.asset_host
+
+    FooApp.asset_host{ "https://foo.com" }
+    assert_equal "https://foo.com", FooApp.asset_host
+    assert_equal "https://foo.com", @app.asset_host
+  end
+
+
   def test_default_dirs
     assert_equal File.expand_path("..",__FILE__), FooApp.root_dir
     assert_equal File.expand_path("../public",__FILE__), FooApp.public_dir
+    assert_equal File.expand_path("..",__FILE__), @app.root_dir
+    assert_equal File.expand_path("../public",__FILE__), @app.public_dir
   end
 
 
