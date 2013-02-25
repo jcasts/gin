@@ -27,6 +27,12 @@ class Gin::App
   HTML
 
 
+  def self.inherited subclass   #:nodoc:
+    dir = File.expand_path("..", caller.first.split(/:\d+:in `</).first)
+    subclass.root_dir dir
+  end
+
+
   ##
   # Mount a Gin::Controller into the App and specify a base path. If controller
   # mounts at root, use "/" as the base path.
@@ -46,6 +52,26 @@ class Gin::App
 
 
   ##
+  # Get or set the root directory of the application.
+  # Defaults to the app file's directory.
+
+  def self.root_dir dir=nil
+    @root_dir = dir if dir
+    @root_dir
+  end
+
+
+  ##
+  # Get or set the path to the public directory.
+  # Defaults to root_dir + "public"
+
+  def self.public_dir dir=nil
+    @public_dir = dir if dir
+    @public_dir ||= File.join(root_dir, "public")
+  end
+
+
+  ##
   # Define a Gin::Controller as a catch-all error rendering controller.
   # This can be a dedicated controller, or a parent controller
   # such as AppController.
@@ -53,7 +79,7 @@ class Gin::App
   # If this isn't assigned, errors will be rendered as a plain, generic HTML
   # page with a stack trace (when available).
 
-  def self.error_delegate ctrl
+  def self.error_delegate ctrl=nil
     @error_delegate = ctrl if ctrl
     @error_delegate
   end

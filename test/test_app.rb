@@ -43,6 +43,12 @@ class AppTest < Test::Unit::TestCase
   end
 
 
+  def test_default_dirs
+    assert_equal File.expand_path("..",__FILE__), FooApp.root_dir
+    assert_equal File.expand_path("../public",__FILE__), FooApp.public_dir
+  end
+
+
   def test_init
     assert Logger === @app.logger, "logger attribute should be a Logger"
     assert Logger === @rapp.logger, "logger attribute should be a Logger"
