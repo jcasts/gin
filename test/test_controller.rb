@@ -1,21 +1,105 @@
 require "test/test_helper"
 
+unless defined? EventMachine
+  class EventMachine; end
+end
+
 class AppController < Gin::Controller
 end
 
 class BarController < AppController
+  def show
+  end
+  def delete
+  end
 end
 
 
 class ControllerTest < Test::Unit::TestCase
+  class MockApp < Gin::App
+    mount BarController do
+      get :show, "/:id"
+      get :delete, :rm_bar
+    end
+  end
+
 
   def setup
-    @ctrl = BarController.new(:mock_app, rack_env)
+    @app  = MockApp.new
+    @ctrl = BarController.new(@app, rack_env)
   end
 
 
   def rack_env
-    @rack_env ||= {'rack.input' => '', 'gin.path_query_hash' => {}}
+    @rack_env ||= {
+      'HTTP_HOST' => 'example.com',
+      'rack.input' => '',
+      'gin.path_query_hash' => {'id' => 123},
+    }
+  end
+
+
+  def test_redirect
+    
+  end
+
+
+  def test_url_to
+    assert_equal "http://example.com/bar/123",
+                  @ctrl.url_to(BarController, :show, :id => 123)
+    assert_equal "http://example.com/bar/123", @ctrl.url_to(:show, :id => 123)
+    assert_equal "http://example.com/bar/delete?id=123",
+                  @ctrl.url_to(:rm_bar, :id => 123)
+    assert_equal "https://foo.com/path?id=123",
+                  @ctrl.url_to("https://foo.com/path", :id => 123)
+    assert_equal "http://example.com/bar/123",
+                  @ctrl.to(BarController, :show, :id => 123)
+  end
+
+
+  def test_path_to
+    assert_equal "/bar/123", @ctrl.path_to(BarController, :show, id: 123)
+    assert_equal "/bar/123", @ctrl.path_to(:show, id: 123)
+    assert_equal "/bar/delete?id=123", @ctrl.path_to(:rm_bar, id: 123)
+    assert_equal "/bar/delete", @ctrl.path_to(:rm_bar)
+    assert_equal "/test?id=123", @ctrl.path_to("/test", id: 123)
+    assert_equal "/test", @ctrl.path_to("/test")
+  end
+
+
+  def test_session
+    assert_equal(@ctrl.request.session, @ctrl.session)
+  end
+
+
+  def test_params
+    assert_equal({'id' => 123}, @ctrl.params)
+    assert_equal(@ctrl.request.params, @ctrl.params)
+  end
+
+
+  def test_logger
+    assert_equal @app.logger, @ctrl.logger
+  end
+
+
+  def test_stream
+    @ctrl.stream{|out| out << "BODY"}
+    assert Gin::Stream === @ctrl.body
+    assert_equal Gin::Stream, @ctrl.body.instance_variable_get("@scheduler")
+
+    @ctrl.env.merge! "async.callback" => lambda{}
+
+    @ctrl.stream{|out| out << "BODY"}
+    assert Gin::Stream === @ctrl.body
+    assert_equal EventMachine, @ctrl.body.instance_variable_get("@scheduler")
+  end
+
+
+  def test_headers
+    @ctrl.headers "Content-Length" => 123
+    assert_equal @ctrl.response.headers, @ctrl.headers
+    assert_equal({"Content-Type"=>"text/html", "Content-Length"=>123}, @ctrl.headers)
   end
 
 
@@ -107,7 +191,7 @@ class ControllerTest < Test::Unit::TestCase
     assert Gin::Response === @ctrl.response
     assert_equal BarController.content_type,
                  @ctrl.response['Content-Type']
-    assert_equal :mock_app, @ctrl.app
+    assert_equal @app, @ctrl.app
     assert_equal rack_env, @ctrl.env
   end
 

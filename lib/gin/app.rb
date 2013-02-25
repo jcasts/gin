@@ -151,7 +151,7 @@ class Gin::App
     dispatch env, ctrl, action
 
   rescue Exception => err
-    status = err.respond_to?(:status) ? err.status : 500
+    status = err.respond_to?(:http_status) ? err.http_status : 500
     trace  = err.backtrace.join("\n")
     logger.error "#{err.class.name}: #{err.message}\n#{trace}"
 
@@ -171,7 +171,7 @@ class Gin::App
     raise Gin::NotFoundError, "No controller or action" unless ctrl && action
 
     ctrl_inst = ctrl.new(self, env)
-    ctrl_inst.call_action action
+    resp = ctrl_inst.call_action action
 
   rescue Gin::NotFoundError => err
     @rack_app ? @rack_app.call(env) : handle_error(err)
@@ -185,13 +185,14 @@ class Gin::App
   # Handle error with error controller if available, otherwise re-raise.
 
   def handle_error err
-    raise err unless error_ctrl
+    raise err unless error_delegate
 
     logger.warn("[Handle Error] %s: %s\n%s" %
       [err.class.name, err.message, Array(err.backtrace).join("\n")])
 
-    # TODO: Make sure we get a Rack response Array from this
-    error_ctrl.new(self, env).handle_error(err)
+    delegate = error_delegate.new(self, env)
+    delegate.handle_error(err)
+    delegate.response.finish
   end
 
 

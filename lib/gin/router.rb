@@ -141,6 +141,7 @@ class Gin::Router
 
     params = (args.pop || {}).dup
 
+    route = route.dup
     route = route % param_keys.map do |k|
       params.delete(k) || params.delete(k.to_sym) ||
         raise(PathArgumentError, "Missing param #{k}")

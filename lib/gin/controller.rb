@@ -140,6 +140,7 @@ class Gin::Controller
 
   def session
     #TODO: builder.use Rack::Session::Cookie, options
+    #      session_secret on App
     @request.session
   end
 
@@ -161,6 +162,7 @@ class Gin::Controller
   #   #=> "/foo/123"
 
   def path_to *args
+    return "#{args[0]}#{"?" << args[1].to_query if args[1]}" if String === args[0]
     args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
     @app.router.path_to(*args)
   end
@@ -186,8 +188,7 @@ class Gin::Controller
 
 
   def url_to *args
-    path = String === args[0] ?
-            "#{args[0]}?#{args[1].to_query if args[1]}" : path_to(*args)
+    path = path_to(*args)
 
     return path if path =~ /\A[A-z][A-z0-9\+\.\-]*:/
 

@@ -6,6 +6,16 @@ class Gin::Request < Rack::Request
   end
 
 
+  def secure?
+    scheme == 'https'
+  end
+
+
+  def forwarded?
+    @env.include? "HTTP_X_FORWARDED_HOST"
+  end
+
+
   def params
     unless @params
       super
