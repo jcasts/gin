@@ -53,16 +53,9 @@ class Gin::App
   # If this isn't assigned, errors will be rendered as a plain, generic HTML
   # page with a stack trace (when available).
 
-  def self.errors ctrl
-    @error_ctrl = ctrl
-  end
-
-
-  ##
-  # Accessor for the default error handling Gin::Controller.
-
-  def self.error_ctrl
-    @error_ctrl
+  def self.error_delegate ctrl
+    @error_delegate = ctrl if ctrl
+    @error_delegate
   end
 
 
@@ -124,7 +117,7 @@ class Gin::App
   end
 
 
-  class_proxy_reader :error_ctrl, :router
+  class_proxy_reader :error_delegate, :router
   class_proxy_reader :development?, :test?, :staging?, :production?
 
   attr_accessor :logger
