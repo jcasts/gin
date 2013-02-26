@@ -273,6 +273,8 @@ class Gin::App
   # Call App instance without internal middleware.
 
   def call! env
+    return Rack::File.new(public_dir).call(env) if static?(env)
+
     ctrl, action, env[RACK_KEYS[:path_params]] =
       router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
 
@@ -289,6 +291,18 @@ class Gin::App
     else
       error_http_response status
     end
+  end
+
+
+  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
+
+  ##
+  # Check if the request is for a static file.
+
+  def static? env
+    path_info = env['PATH_INFO'].gsub STATIC_PATH_CLEANER, ""
+    filepath  = File.join(public_dir, path_info)
+    File.file?(filepath)
   end
 
 

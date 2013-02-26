@@ -85,6 +85,7 @@ class ControllerTest < Test::Unit::TestCase
     cookie = {:value => "user@example.com", :expires => Time.now + 360}
     @ctrl.cookies['test'] = cookie
     assert_equal cookie, @ctrl.env["rack.request.cookie_hash"]["test"]
+    assert_equal "user@example.com", @ctrl.cookies['test'][:value]
   end
 
 
