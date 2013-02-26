@@ -132,7 +132,7 @@ class Gin::App
 
 
   ##
-  # Add middleware to the app.
+  # Add middleware internal to the app.
 
   def self.use middleware, *args, &block
     middleware << [middleware, *args, block]
@@ -140,7 +140,7 @@ class Gin::App
 
 
   ##
-  # List of middleware to add to builder.
+  # List of internal app middleware.
 
   def self.middleware
     @middleware ||= []
@@ -160,6 +160,7 @@ class Gin::App
 
   ##
   # Get or set the session secret.
+  # Defaults to a new random value on boot.
 
   def self.session_secret val=nil
     @session_secret = val if val
@@ -225,7 +226,10 @@ class Gin::App
   class_proxy_reader :root_dir, :public_dir, :asset_host
   class_proxy_reader :development?, :test?, :staging?, :production?
 
+  # Application logger. Defaults to log to $stdout.
   attr_accessor :logger
+
+  # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
 
 
@@ -392,6 +396,9 @@ Please review it and try again."
     builder.use Rack::Protection, options
   end
 
+
+  ##
+  # Make sure all controller actions have a route, or raise a RouterError.
 
   def validate_all_controllers!
     actions = {}
