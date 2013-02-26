@@ -148,6 +148,14 @@ class Gin::Controller
 
 
   ##
+  # Access the request cookies.
+
+  def cookies
+    @request.cookies
+  end
+
+
+  ##
   # Build a path to the given controller and action or route name,
   # with any expected params. If no controller is specified and the
   # current controller responds to the symbol given, uses the current
