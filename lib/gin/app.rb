@@ -16,7 +16,12 @@ class Gin::App
 
   class RouterError < Gin::Error; end
 
-  GENERIC_HTML = <<-HTML
+  RACK_KEYS = { #:nodoc:
+    :stack       => 'gin.stack'.freeze,
+    :path_params => 'gin.path_query_hash'.freeze
+  }.freeze
+
+  GENERIC_HTML = <<-HTML.freeze #:nodoc:
 <!DOCTYPE html>
 <html>
   <head>
@@ -127,6 +132,53 @@ class Gin::App
 
 
   ##
+  # Add middleware to the app.
+
+  def self.use middleware, *args, &block
+    middleware << [middleware, *args, block]
+  end
+
+
+  ##
+  # List of middleware to add to builder.
+
+  def self.middleware
+    @middleware ||= []
+  end
+
+
+  ##
+  # Use rack sessions or not. Supports assigning
+  # hash for options. Defaults to true.
+
+  def self.sessions opts=nil
+    @session = opts if opts
+    @session = true if @session.nil?
+    @session
+  end
+
+
+  ##
+  # Get or set the session secret.
+
+  def self.session_secret val=nil
+    @session_secret = val if val
+    @session_secret ||= "%064x" % Kernel.rand(2**256-1)
+  end
+
+
+  ##
+  # Use rack-protection or not. Supports assigning
+  # hash for options. Defaults to true.
+
+  def self.protection opts=nil
+    @protection = opts if opts
+    @protection = true if @protection.nil?
+    @protection
+  end
+
+
+  ##
   # Access to the current environment name,
   # by default ENV['RACK_ENV'], or "development".
 
@@ -176,6 +228,7 @@ class Gin::App
   end
 
 
+  class_proxy_reader :protection, :sessions, :session_secret, :middleware
   class_proxy_reader :error_delegate, :router
   class_proxy_reader :root_dir, :public_dir, :asset_host
   class_proxy_reader :development?, :test?, :staging?, :production?
@@ -198,6 +251,8 @@ class Gin::App
     end
 
     validate_all_controllers!
+
+    @stack = build_app Rack::Builder.new
   end
 
 
@@ -205,7 +260,24 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    ctrl, action, env['gin.path_query_hash'] =
+    stack_key = RACK_KEYS[:stack]
+
+    if env[stack_key]
+      env.delete stack_key
+      call! env
+
+    else
+      env[stack_key] = true
+      @stack.call env
+    end
+  end
+
+
+  ##
+  # Call App instance without internal middleware.
+
+  def call! env
+    ctrl, action, env[RACK_KEYS[:path_params]] =
       router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
 
     dispatch env, ctrl, action
@@ -228,12 +300,12 @@ class Gin::App
   # Dispatch the Rack env to the given controller and action.
 
   def dispatch env, ctrl, action
-    raise Gin::NotFoundError, "No controller or action" unless ctrl && action
+    raise Gin::NotFound, "No controller or action" unless ctrl && action
 
     ctrl_inst = ctrl.new(self, env)
     resp = ctrl_inst.call_action action
 
-  rescue Gin::NotFoundError => err
+  rescue Gin::NotFound => err
     @rack_app ? @rack_app.call(env) : handle_error(err)
 
   rescue => err
@@ -296,6 +368,38 @@ Please review it and try again."
 
 
   private
+
+  def build_app builder
+    setup_sessions   builder
+    setup_protection builder
+    middleware.each do |args|
+      block = args.pop if Proc === args.last
+      builder.use(*args, &block)
+    end
+
+    builder.run self
+    builder.to_app
+  end
+
+
+  def setup_sessions builder
+    return unless sessions
+    options = {}
+    options[:secret] = session_secret if session_secret
+    options.merge! sessions.to_hash if sessions.respond_to? :to_hash
+    builder.use Rack::Session::Cookie, options
+  end
+
+
+  def setup_protection builder
+    return unless protection
+    options = Hash === protection ? protection.dup : {}
+    options[:except] = Array options[:except]
+    options[:except] += [:session_hijacking, :remote_token] unless sessions
+    options[:reaction] ||= :drop_session
+    builder.use Rack::Protection, options
+  end
+
 
   def validate_all_controllers!
     actions = {}

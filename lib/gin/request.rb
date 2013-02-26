@@ -2,7 +2,8 @@ class Gin::Request < Rack::Request
 
   def initialize env
     super
-    self.params.update env['gin.path_query_hash'] if env['gin.path_query_hash']
+    self.params.update env[Gin::App::RACK_KEYS[:path_params]] if
+      env[Gin::App::RACK_KEYS[:path_params]]
   end
 
 

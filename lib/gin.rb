@@ -1,6 +1,7 @@
 require 'logger'
 
 require 'rack'
+require 'rack-protection'
 require 'active_support/core_ext/string/conversions'
 require 'active_support/core_ext/object/to_query'
 
