@@ -5,12 +5,46 @@ unless defined? EventMachine
 end
 
 class AppController < Gin::Controller
+  FILTERS_RUN = []
+
+  before_filter :f1 do
+    FILTERS_RUN << :f1
+  end
+
+  after_filter :f2 do
+    FILTERS_RUN << :f2
+  end
+
+  error Gin::BadRequest do
+    body "Bad Request"
+  end
 end
 
 class BarController < AppController
-  def show
+  before_filter :stop, :only => :delete do
+    FILTERS_RUN << :stop
+    halt 404, "Not Found"
   end
-  def delete
+
+  error 404 do
+    content_type "text/plain"
+    body "This is not the page you are looking for."
+  end
+
+  def show id
+    "SHOW #{id}!"
+  end
+
+  def delete id, email=nil, name=nil
+    "DELETE!"
+  end
+
+  def index
+    raise "OH NOES"
+  end
+
+  def caught_error
+    raise Gin::BadRequest, "Something is wrong"
   end
 end
 
@@ -20,6 +54,8 @@ class ControllerTest < Test::Unit::TestCase
     mount BarController do
       get :show, "/:id"
       get :delete, :rm_bar
+      get :index, "/"
+      get :caught_error
     end
   end
 
@@ -31,11 +67,105 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def teardown
+    BarController::FILTERS_RUN.clear
+  end
+
+
   def rack_env
     @rack_env ||= {
       'HTTP_HOST' => 'example.com',
       'rack.input' => '',
       'gin.path_query_hash' => {'id' => 123},
+    }
+  end
+
+
+  def test_call_action
+    resp = @ctrl.call_action(:show)
+    assert_equal [:f1, :f2], BarController::FILTERS_RUN
+    assert_equal [200, {"Content-Type"=>"text/html"}, ["SHOW 123!"]], resp
+  end
+
+
+  def test_call_action_error
+    assert_raises(RuntimeError){ @ctrl.call_action(:index) }
+    assert_equal [:f1, :f2], BarController::FILTERS_RUN
+  end
+
+
+  def test_call_action_caught_error
+    resp = @ctrl.call_action(:caught_error)
+    assert_equal [:f1, :f2], BarController::FILTERS_RUN
+    assert_equal [400, {"Content-Type"=>"text/html"}, ["Bad Request"]], resp
+  end
+
+
+  def test_call_action_halt
+    resp = @ctrl.call_action(:delete)
+    assert_equal [:f1, :stop, :f2], BarController::FILTERS_RUN
+    assert_equal [404, {"Content-Type"=>"text/plain"},
+      ["This is not the page you are looking for."]], resp
+  end
+
+
+  def test_dispatch
+    @ctrl.send(:dispatch, :show)
+    assert_equal [:f1, :f2], BarController::FILTERS_RUN
+    assert_equal 200, @ctrl.response.status
+    assert_equal ["SHOW 123!"], @ctrl.response.body
+  end
+
+
+  def test_dispatch_error
+    assert_raises(RuntimeError){ @ctrl.send(:dispatch, :index) }
+    assert_equal [:f1, :f2], BarController::FILTERS_RUN
+    assert_equal 500, @ctrl.response.status
+    assert RuntimeError === @ctrl.env['gin.errors'].first
+    assert_equal [], @ctrl.response.body
+  end
+
+
+  def test_dispatch_filter_halt
+    @ctrl.send(:dispatch, :delete)
+    assert_equal [:f1, :stop, :f2], BarController::FILTERS_RUN
+    assert_equal 404, @ctrl.response.status
+    assert_equal ["Not Found"], @ctrl.response.body
+  end
+
+
+  def test_invoke
+    @ctrl.send(:invoke){ "test body" }
+    assert_equal ["test body"], @ctrl.body
+
+    @ctrl.send(:invoke){ [401, "test body"] }
+    assert_equal 401, @ctrl.status
+    assert_equal ["test body"], @ctrl.body
+
+    @ctrl.send(:invoke){ [302, {'Location' => 'http://foo.com'}, "test body"] }
+    assert_equal 302, @ctrl.status
+    assert_equal 'http://foo.com', @ctrl.response['Location']
+    assert @ctrl.response['Content-Type']
+    assert_equal ["test body"], @ctrl.body
+
+    @ctrl.send(:invoke){ 301 }
+    assert_equal 301, @ctrl.status
+  end
+
+
+  def test_action_arguments
+    assert_raises(NameError){ @ctrl.send("action_arguments", "nonaction") }
+    assert_equal [], @ctrl.send("action_arguments", "index")
+
+    assert_equal [123], @ctrl.send("action_arguments", "show")
+    assert_equal [123, nil, nil], @ctrl.send("action_arguments", "delete")
+
+    @ctrl.params.update 'name' => 'bob'
+    assert_equal [123,nil,'bob'], @ctrl.send("action_arguments", "delete")
+
+    @ctrl.params.delete('id')
+    assert_raises(Gin::BadRequest){
+      @ctrl.send("action_arguments", "show")
     }
   end
 
@@ -212,8 +342,8 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal [], @ctrl.response.body
 
     @ctrl.body("<HTML></HTML>")
-    assert_equal "<HTML></HTML>", @ctrl.body
-    assert_equal "<HTML></HTML>", @ctrl.response.body
+    assert_equal ["<HTML></HTML>"], @ctrl.body
+    assert_equal ["<HTML></HTML>"], @ctrl.response.body
   end
 
 

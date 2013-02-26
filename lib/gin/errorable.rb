@@ -1,7 +1,7 @@
 module Gin::Errorable
   extend GinClass
 
-  def self.inherited klass
+  def self.included klass
     klass.extend ClassMethods
   end
 
@@ -25,7 +25,7 @@ module Gin::Errorable
     #     # something timed out
     #   end
 
-    def self.error *err_types, &block
+    def error *err_types, &block
       return unless block_given?
       err_types << nil if err_types.empty?
 
@@ -40,7 +40,7 @@ module Gin::Errorable
     # error callback. The block will get run on all errors and is given
     # the exception instance as an argument.
 
-    def self.all_errors &block
+    def all_errors &block
       return unless block_given?
       self.local_error_handlers[:all] = block
     end
@@ -50,20 +50,20 @@ module Gin::Errorable
     # Hash of error handlers defined by Gin::Controller.error.
     # This attribute is inherited.
 
-    def self.error_handlers
+    def error_handlers
       inherited = self.superclass.respond_to?(:error_handlers) ?
                           self.superclass.error_handlers : {}
       inherited.merge local_error_handlers
     end
 
 
-    def self.local_error_handlers #:nodoc:
+    def local_error_handlers #:nodoc:
       @err_handlers ||= {}
     end
   end
 
 
-  class_proxy_reader :err_handlers
+  class_proxy_reader :error_handlers
 
   ##
   # Calls the appropriate error handlers for the given error.

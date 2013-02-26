@@ -62,7 +62,9 @@ class Gin::Controller
   # Get or set the HTTP response body.
 
   def body body=nil
-    @response.body = body if body
+    if body
+      @response.body = String === body ? [body.to_str] : body
+    end
     @response.body
   end
 
@@ -261,7 +263,11 @@ class Gin::Controller
   end
 
 
-  def dispatch action #:nodoc:
+  ##
+  # Dispatch the call to the action, calling before and after filers, and
+  # including error handling.
+
+  def dispatch action
     @action = action
 
     invoke do
@@ -277,8 +283,12 @@ class Gin::Controller
   end
 
 
+  ##
+  # Get action arguments from the params.
+  # Raises Gin::BadRequest if a required argument has no matching param.
+
   def action_arguments action=@action
-    return [] unless m = method(action)
+    m = method(action)
 
     args = []
     m.parameters.each do |(type, name)|
