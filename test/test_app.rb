@@ -144,7 +144,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_set_environment
     %w{development test staging production}.each do |name|
-      FooApp.environment = name
+      FooApp.environment name
       mname = name + "?"
       assert @app.send(mname), "Instance environment should be #{name}"
       assert FooApp.send(mname), "Class environment should be #{name}"

@@ -179,21 +179,13 @@ class Gin::App
 
 
   ##
-  # Access to the current environment name,
+  # Get or set the current environment name,
   # by default ENV['RACK_ENV'], or "development".
 
-  def self.environment
+  def self.environment env=nil
+    @environment = env if env
     @environment ||= ENV['RACK_ENV'] || "development"
   end
-
-
-  ##
-  # Environment name setter
-
-  def self.environment= val
-    @environment = val
-  end
-
 
 
   ##
