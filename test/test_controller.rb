@@ -81,10 +81,24 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_set_cookie
+    cookie = {:value => "user@example.com", :expires => Time.now + 360}
+    @ctrl.cookies['test'] = cookie
+    assert_equal cookie, @ctrl.env["rack.request.cookie_hash"]["test"]
+  end
+
+
+  def test_set_session
+    @ctrl.session['test'] = 'user@example.com'
+    assert_equal({"test"=>"user@example.com"}, @ctrl.env['rack.session'])
+  end
+
+
   def test_call_action
     resp = @ctrl.call_action(:show)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
-    assert_equal [200, {"Content-Type"=>"text/html"}, ["SHOW 123!"]], resp
+    assert_equal [200, {"Content-Type"=>"text/html", "Content-Length"=>"9"},
+      ["SHOW 123!"]], resp
   end
 
 
@@ -97,14 +111,15 @@ class ControllerTest < Test::Unit::TestCase
   def test_call_action_caught_error
     resp = @ctrl.call_action(:caught_error)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
-    assert_equal [400, {"Content-Type"=>"text/html"}, ["Bad Request"]], resp
+    assert_equal [400, {"Content-Type"=>"text/html", "Content-Length"=>"11"},
+      ["Bad Request"]], resp
   end
 
 
   def test_call_action_halt
     resp = @ctrl.call_action(:delete)
     assert_equal [:f1, :stop, :f2], BarController::FILTERS_RUN
-    assert_equal [404, {"Content-Type"=>"text/plain"},
+    assert_equal [404, {"Content-Type"=>"text/plain", "Content-Length"=>"41"},
       ["This is not the page you are looking for."]], resp
   end
 
@@ -281,7 +296,7 @@ class ControllerTest < Test::Unit::TestCase
     end
 
     assert_equal 404, resp
-    assert_equal "Not Found", @ctrl.body
+    assert_equal ["Not Found"], @ctrl.body
   end
 
 
@@ -303,7 +318,7 @@ class ControllerTest < Test::Unit::TestCase
     end
 
     assert_equal 500, resp
-    assert_equal "OH NOES", @ctrl.body
+    assert_equal ["OH NOES"], @ctrl.body
   end
 
 

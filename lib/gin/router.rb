@@ -113,7 +113,7 @@ class Gin::Router
 
 
   ##
-  # Yield every Controller, action, route, name combination.
+  # Yield every Controller, action, route combination.
 
   def each_route &block
     @routes_lookup.each do |key,route|

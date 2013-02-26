@@ -44,7 +44,6 @@ class Gin::Controller
   def call_action action #:nodoc:
     invoke{ dispatch action }
     invoke{ handle_status(@response.status) }
-    content_type 'text/html' unless @response['Content-Type']
     @response.finish
   end
 
@@ -141,8 +140,6 @@ class Gin::Controller
   # Access the request session.
 
   def session
-    #TODO: builder.use Rack::Session::Cookie, options
-    #      session_secret on App
     @request.session
   end
 
