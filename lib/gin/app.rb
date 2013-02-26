@@ -152,7 +152,7 @@ class Gin::App
   # hash for options. Defaults to true.
 
   def self.sessions opts=nil
-    @session = opts if opts
+    @session = opts unless opts.nil?
     @session = true if @session.nil?
     @session
   end
