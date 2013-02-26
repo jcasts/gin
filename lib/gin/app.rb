@@ -256,14 +256,12 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    stack_key = RACK_KEYS[:stack]
-
-    if env[stack_key]
-      env.delete stack_key
+    if env[RACK_KEYS[:stack]]
+      env.delete RACK_KEYS[:stack]
       call! env
 
     else
-      env[stack_key] = true
+      env[RACK_KEYS[:stack]] = true
       @stack.call env
     end
   end

@@ -37,7 +37,7 @@ class Gin::Controller
     @env      = env
     @request  = Gin::Request.new env
     @response = Gin::Response.new
-    @response['Content-Type'] = self.class.content_type
+    @response[Gin::Response::H_CTYPE] = self.class.content_type
   end
 
 
@@ -61,9 +61,7 @@ class Gin::Controller
   # Get or set the HTTP response body.
 
   def body body=nil
-    if body
-      @response.body = String === body ? [body.to_str] : body
-    end
+    @response.body = body if body
     @response.body
   end
 
@@ -72,8 +70,8 @@ class Gin::Controller
   # Get or set the HTTP response Content-Type header.
 
   def content_type ct=nil
-    @response['Content-Type'] = ct if ct
-    @response['Content-Type']
+    @response[Gin::Response::H_CTYPE] = ct if ct
+    @response[Gin::Response::H_CTYPE]
   end
 
 
@@ -90,7 +88,7 @@ class Gin::Controller
   # Halt processing and return the error status provided.
 
   def error code, body=nil
-    code, body     = 500, code.to_str if code.respond_to? :to_str
+    code, body     = 500, code if code.respond_to? :to_str
     @response.body = body unless body.nil?
     halt code
   end
@@ -288,6 +286,8 @@ class Gin::Controller
   end
 
 
+  BAD_REQ_MSG = "Expected param `%s'" #:nodoc:
+
   ##
   # Get action arguments from the params.
   # Raises Gin::BadRequest if a required argument has no matching param.
@@ -297,7 +297,7 @@ class Gin::Controller
 
     args = []
     m.parameters.each do |(type, name)|
-      raise Gin::BadRequest, "Expected param `#{name}'" if
+      raise Gin::BadRequest, BAD_REQ_MSG % name if
         type == :req && !params[name]
       args << params[name]
     end

@@ -1,20 +1,25 @@
 class Gin::Response < Rack::Response
 
+  NO_BODY_STATUSES = [100, 101, 204, 205, 304].freeze #:nodoc:
+  H_CTYPE   = "Content-Type".freeze   #:nodoc:
+  H_CLENGTH = "Content-Length".freeze #:nodoc:
+
   attr_accessor :status
   attr_reader :body
 
   def body= value
     value = value.body while Rack::Response === value
-    @body = String === value ? [value.to_str] : value
+    @body = String === value ? [value] : value
+    @body
   end
 
 
   def finish
     body_out = body
 
-    if [100, 101, 204, 205, 304].include?(status.to_i)
-      header.delete "Content-Type"
-      header.delete "Content-Length"
+    if NO_BODY_STATUSES.include?(status.to_i)
+      header.delete H_CTYPE
+      header.delete H_CLENGTH
 
       if status.to_i > 200
         close
@@ -31,10 +36,10 @@ class Gin::Response < Rack::Response
   private
 
   def update_content_length
-    if header["Content-Type"] && !header["Content-Length"] && Array === body
-      header["Content-Length"] = body.inject(0) do |l, p|
-                                   l + Rack::Utils.bytesize(p)
-                                 end.to_s
+    if header[H_CTYPE] && !header[H_CLENGTH] && Array === body
+      header[H_CLENGTH] = body.inject(0) do |l, p|
+                            l + Rack::Utils.bytesize(p)
+                          end.to_s
     end
   end
 end
