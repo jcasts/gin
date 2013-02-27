@@ -16,6 +16,7 @@ class Gin::Response < Rack::Response
 
   def finish
     body_out = body
+    header[H_CTYPE] ||= 'text/html'
 
     if NO_BODY_STATUSES.include?(status.to_i)
       header.delete H_CTYPE

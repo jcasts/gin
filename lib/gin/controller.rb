@@ -45,13 +45,13 @@ class Gin::Controller
     @env      = env
     @request  = Gin::Request.new env
     @response = Gin::Response.new
-    @response[Gin::Response::H_CTYPE] = self.class.content_type
   end
 
 
   def call_action action #:nodoc:
     invoke{ dispatch action }
     invoke{ handle_status(@response.status) }
+    @response[Gin::Response::H_CTYPE] ||= self.class.content_type
     @response.finish
   end
 
@@ -240,6 +240,15 @@ class Gin::Controller
 
     @response['Location'] = url_to(uri.to_s)
     halt(*args)
+  end
+
+
+  ##
+  # Assigns a file to the response body and halts the execution of the action.
+  # Produces a 404 response if no file is found.
+
+  def send_file filename, opts={}
+    
   end
 
 

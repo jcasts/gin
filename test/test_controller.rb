@@ -161,7 +161,6 @@ class ControllerTest < Test::Unit::TestCase
     @ctrl.send(:invoke){ [302, {'Location' => 'http://foo.com'}, "test body"] }
     assert_equal 302, @ctrl.status
     assert_equal 'http://foo.com', @ctrl.response['Location']
-    assert @ctrl.response['Content-Type']
     assert_equal ["test body"], @ctrl.body
 
     @ctrl.send(:invoke){ 301 }
@@ -286,7 +285,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_headers
     @ctrl.headers "Content-Length" => 123
     assert_equal @ctrl.response.headers, @ctrl.headers
-    assert_equal({"Content-Type"=>"text/html", "Content-Length"=>123}, @ctrl.headers)
+    assert_equal({"Content-Length"=>123}, @ctrl.headers)
   end
 
 
@@ -344,8 +343,8 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_content_type
-    assert_equal BarController.content_type, @ctrl.content_type
-    assert_equal BarController.content_type, @ctrl.response['Content-Type']
+    assert_nil @ctrl.content_type
+    assert_nil @ctrl.response['Content-Type']
 
     @ctrl.content_type 'text/json'
     assert_equal 'text/json', @ctrl.content_type
@@ -376,8 +375,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_init
     assert Gin::Request  === @ctrl.request
     assert Gin::Response === @ctrl.response
-    assert_equal BarController.content_type,
-                 @ctrl.response['Content-Type']
+    assert_nil @ctrl.response['Content-Type']
     assert_equal @app, @ctrl.app
     assert_equal rack_env, @ctrl.env
   end
