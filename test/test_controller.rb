@@ -342,6 +342,36 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_send_file
+    res = catch(:halt){ @ctrl.send_file "./Manifest.txt" }
+    assert_equal 200, res[0]
+    assert Rack::File === res[1]
+
+    @ctrl.status 404
+    @ctrl.send(:invoke){ @ctrl.send_file "./Manifest.txt" }
+    assert_equal 200, @ctrl.status
+    assert_equal "text/plain;charset=UTF-8", @ctrl.headers["Content-Type"]
+    assert_equal "498", @ctrl.headers["Content-Length"]
+    assert Rack::File === @ctrl.body
+
+    read_body = ""
+    @ctrl.body.each{|data| read_body << data}
+    assert_equal File.read("./Manifest.txt"), read_body
+  end
+
+
+  def test_send_file_not_found
+    res = catch(:halt){ @ctrl.send_file "./no-such-file" }
+    assert_equal 404, res
+  end
+
+
+  def test_mime_type
+    assert_equal "text/html", @ctrl.mime_type(:html)
+    assert_equal @ctrl.app.mime_type(:html), @ctrl.mime_type(:html)
+  end
+
+
   def test_content_type
     assert_nil @ctrl.content_type
     assert_nil @ctrl.response['Content-Type']
