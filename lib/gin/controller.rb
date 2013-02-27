@@ -89,7 +89,8 @@ class Gin::Controller
   def content_type type=nil, params={}
     return @response[Gin::Response::H_CTYPE] unless type
 
-    mime_type = mime_type(type) || params.delete(:default)
+    default   = params.delete(:default)
+    mime_type = mime_type(type) || default
     raise "Unknown media type: %p" % type if mime_type.nil?
 
     mime_type = mime_type.dup
@@ -235,7 +236,7 @@ class Gin::Controller
     uri  = [host = ""]
     host << "http#{'s' if request.secure?}://"
 
-    if request.forwarded? or request.port != (request.secure? ? 443 : 80)
+    if request.forwarded? || request.port != (request.secure? ? 443 : 80)
       host << request.host_with_port
     else
       host << request.host
@@ -275,7 +276,7 @@ class Gin::Controller
   # Produces a 404 response if no file is found.
 
   def send_file path, opts={}
-    if opts[:type] or not response[Gin::Response::H_CTYPE]
+    if opts[:type] || !@response[Gin::Response::H_CTYPE]
       content_type opts[:type] || File.extname(path),
                     :default => 'application/octet-stream'
     end
@@ -319,7 +320,7 @@ class Gin::Controller
     @response['Last-Modified'] = time.httpdate
     return if @env['HTTP_IF_NONE_MATCH']
 
-    if status == 200 and @env['HTTP_IF_MODIFIED_SINCE']
+    if status == 200 && @env['HTTP_IF_MODIFIED_SINCE']
       # compare based on seconds since epoch
       since = Time.httpdate(@env['HTTP_IF_MODIFIED_SINCE']).to_i
       halt 304 if since >= time.to_i
@@ -352,8 +353,8 @@ class Gin::Controller
 
   def invoke
     res = catch(:halt) { yield }
-    res = [res] if Fixnum === res or String === res
-    if Array === res and Fixnum === res.first
+    res = [res] if Fixnum === res || String === res
+    if Array === res && Fixnum === res.first
       res = res.dup
       status(res.shift)
       body(res.pop)
