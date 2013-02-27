@@ -98,7 +98,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_call_action
     resp = @ctrl.call_action(:show)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
-    assert_equal [200, {"Content-Type"=>"text/html", "Content-Length"=>"9"},
+    assert_equal [200, {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
       ["SHOW 123!"]], resp
   end
 
@@ -112,7 +112,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_call_action_caught_error
     resp = @ctrl.call_action(:caught_error)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
-    assert_equal [400, {"Content-Type"=>"text/html", "Content-Length"=>"11"},
+    assert_equal [400, {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"11"},
       ["Bad Request"]], resp
   end
 
@@ -349,6 +349,27 @@ class ControllerTest < Test::Unit::TestCase
     @ctrl.content_type 'text/json'
     assert_equal "text/json;charset=UTF-8", @ctrl.content_type
     assert_equal "text/json;charset=UTF-8", @ctrl.response['Content-Type']
+
+    assert_equal "application/json;charset=UTF-8", @ctrl.content_type(".json")
+  end
+
+
+  def test_content_type_params
+    assert_equal "application/json;charset=ASCII-8BIT",
+      @ctrl.content_type(".json", charset: "ASCII-8BIT")
+
+    assert_equal "application/json;foo=bar, charset=UTF-8",
+      @ctrl.content_type(".json", foo: "bar")
+  end
+
+
+  def test_content_type_unknown
+    assert_raises RuntimeError do
+      @ctrl.content_type 'fhwbghd'
+    end
+
+    assert_equal "text/html;charset=UTF-8",
+      @ctrl.content_type('fhwbghd', default: 'text/html')
   end
 
 

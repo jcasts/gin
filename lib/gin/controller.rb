@@ -51,7 +51,8 @@ class Gin::Controller
   def call_action action #:nodoc:
     invoke{ dispatch action }
     invoke{ handle_status(@response.status) }
-    @response[Gin::Response::H_CTYPE] ||= self.class.content_type
+    content_type self.class.content_type unless
+      @response[Gin::Response::H_CTYPE]
     @response.finish
   end
 
