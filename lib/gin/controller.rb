@@ -75,11 +75,38 @@ class Gin::Controller
 
 
   ##
+  # Get the normalized mime-type matching the given input.
+
+  def mime_type type
+    @app.mime_type type
+  end
+
+
+  ##
   # Get or set the HTTP response Content-Type header.
 
-  def content_type ct=nil
-    @response[Gin::Response::H_CTYPE] = ct if ct
-    @response[Gin::Response::H_CTYPE]
+  def content_type type=nil, params={}
+    return @response['Content-Type'] unless type
+
+    default = params.delete :default
+    mime_type = mime_type(type) || default
+    raise "Unknown media type: %p" % type if mime_type.nil?
+
+    mime_type = mime_type.dup
+    unless params.include? :charset
+      params[:charset] = params.delete('charset') || "UTF-8"
+    end
+
+    params.delete :charset if mime_type.include? 'charset'
+    unless params.empty?
+      mime_type << (mime_type.include?(';') ? ', ' : ';')
+      mime_type << params.map do |key, val|
+        val = val.inspect if val =~ /[";,]/
+        "#{key}=#{val}"
+      end.join(', ')
+    end
+
+    @response['Content-Type'] = mime_type
   end
 
 
@@ -247,8 +274,28 @@ class Gin::Controller
   # Assigns a file to the response body and halts the execution of the action.
   # Produces a 404 response if no file is found.
 
-  def send_file filename, opts={}
-    
+  def send_file path, opts={}
+    if opts[:type] or not response['Content-Type']
+      content_type opts[:type] || File.extname(path), :default => 'application/octet-stream'
+    end
+
+    disposition = opts[:disposition]
+    filename    = opts[:filename]
+    disposition = 'attachment' if disposition.nil? and filename
+    filename    = path         if filename.nil?
+    attachment(filename, disposition) if disposition
+
+    last_modified opts[:last_modified] if opts[:last_modified]
+
+    file      = Rack::File.new nil
+    file.path = path
+    result    = file.serving env
+    result[1].each { |k,v| headers[k] ||= v }
+    headers['Content-Length'] = result[1]['Content-Length']
+    halt opts[:status] || result[0], result[2]
+
+  rescue Errno::ENOENT
+    halt 404
   end
 
 

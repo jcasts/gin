@@ -139,6 +139,26 @@ class Gin::App
     @router ||= Gin::Router.new
   end
 
+  ##
+  # Lookup or register a mime type in Rack's mime registry.
+
+  def self.mime_type type, value=nil
+    return type if type.nil? || type.to_s.include?('/')
+    type = ".#{type}" unless type.to_s[0] == ?.
+    return Rack::Mime.mime_type(type, nil) unless value
+    Rack::Mime::MIME_TYPES[type] = value
+  end
+
+  ##
+  # Provides all mime types matching type, including deprecated types:
+  #   mime_types :html # => ['text/html']
+  #   mime_types :js   # => ['application/javascript', 'text/javascript']
+
+  def self.mime_types type
+    type = mime_type type
+    type =~ /^application\/(xml|javascript)$/ ? [type, "text/#$1"] : [type]
+  end
+
 
   ##
   # Add middleware internal to the app.
@@ -381,6 +401,14 @@ Please review it and try again."
 
   def asset_host_for name
     self.class.asset_host_for name
+  end
+
+
+  ##
+  # Sugar for self.class.mime_type getter.
+
+  def mime_type type
+    self.class.mime_type type
   end
 
 

@@ -120,7 +120,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_call_action_halt
     resp = @ctrl.call_action(:delete)
     assert_equal [:f1, :stop, :f2], BarController::FILTERS_RUN
-    assert_equal [404, {"Content-Type"=>"text/plain", "Content-Length"=>"41"},
+    assert_equal [404, {"Content-Type"=>"text/plain;charset=UTF-8", "Content-Length"=>"41"},
       ["This is not the page you are looking for."]], resp
   end
 
@@ -347,8 +347,8 @@ class ControllerTest < Test::Unit::TestCase
     assert_nil @ctrl.response['Content-Type']
 
     @ctrl.content_type 'text/json'
-    assert_equal 'text/json', @ctrl.content_type
-    assert_equal 'text/json', @ctrl.response['Content-Type']
+    assert_equal "text/json;charset=UTF-8", @ctrl.content_type
+    assert_equal "text/json;charset=UTF-8", @ctrl.response['Content-Type']
   end
 
 
