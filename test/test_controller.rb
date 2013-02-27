@@ -342,6 +342,98 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_last_modified
+    time = Time.now
+    @ctrl.last_modified time
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+
+    date = DateTime.parse time.to_s
+    @ctrl.last_modified date
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+
+    date = Date.parse time.to_s
+    expected = Time.new(time.year, time.month, time.day)
+    @ctrl.last_modified date
+    assert_equal expected.httpdate, @ctrl.response['Last-Modified']
+  end
+
+
+  def test_last_modified_str
+    time = Time.now
+    @ctrl.last_modified time.to_s
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+  end
+
+
+  def test_last_modified_int
+    time = Time.now
+    @ctrl.last_modified time.to_i
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+  end
+
+
+  def test_last_modified_false
+    @ctrl.last_modified false
+    assert_nil @ctrl.response['Last-Modified']
+  end
+
+
+  def test_last_modified_if_modified_since
+    rack_env['HTTP_IF_MODIFIED_SINCE'] = Time.parse("10 Feb 3012").httpdate
+    time = Time.now
+    @ctrl.status 200
+    res = catch(:halt){ @ctrl.last_modified time }
+
+    assert_equal 304, res
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+
+    rack_env['HTTP_IF_MODIFIED_SINCE'] = Time.parse("10 Feb 2012").httpdate
+    time = Time.now
+    @ctrl.status 200
+    @ctrl.last_modified time
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+  end
+
+
+  def test_last_modified_if_modified_since_non_200
+    rack_env['HTTP_IF_MODIFIED_SINCE'] = Time.parse("10 Feb 3012").httpdate
+    time = Time.now
+    @ctrl.status 404
+    @ctrl.last_modified time
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+  end
+
+
+  def test_last_modified_if_unmodified_since
+    [200, 299, 412].each do |code|
+      rack_env['HTTP_IF_UNMODIFIED_SINCE'] = Time.parse("10 Feb 2012").httpdate
+      time = Time.now
+      @ctrl.status code
+      res = catch(:halt){ @ctrl.last_modified time }
+
+      assert_equal 412, res
+      assert_equal time.httpdate, @ctrl.response['Last-Modified']
+
+      rack_env['HTTP_IF_MODIFIED_SINCE'] = Time.parse("10 Feb 3012").httpdate
+      time = Time.now
+      @ctrl.status code
+      @ctrl.last_modified time
+      assert_equal time.httpdate, @ctrl.response['Last-Modified']
+    end
+  end
+
+
+  def test_last_modified_if_unmodified_since_404
+    rack_env['HTTP_IF_UNMODIFIED_SINCE'] = Time.parse("10 Feb 2012").httpdate
+    time = Time.now
+    @ctrl.status 404
+    @ctrl.last_modified time
+
+    assert_equal 404, @ctrl.status
+    assert_equal time.httpdate, @ctrl.response['Last-Modified']
+  end
+
+
   def test_send_file
     res = catch(:halt){ @ctrl.send_file "./Manifest.txt" }
     assert_equal 200, res[0]
@@ -352,6 +444,8 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal 200, @ctrl.status
     assert_equal "text/plain;charset=UTF-8", @ctrl.headers["Content-Type"]
     assert_equal "498", @ctrl.headers["Content-Length"]
+    assert(Time.parse(@ctrl.headers["Last-Modified"]) >
+           Time.parse("Fri, 22 Feb 2012 18:51:31 GMT"))
     assert Rack::File === @ctrl.body
 
     read_body = ""
@@ -363,6 +457,27 @@ class ControllerTest < Test::Unit::TestCase
   def test_send_file_not_found
     res = catch(:halt){ @ctrl.send_file "./no-such-file" }
     assert_equal 404, res
+  end
+
+
+  def test_send_file_last_modified
+    mod_date = Time.now
+    catch(:halt){ @ctrl.send_file "./Manifest.txt", last_modified: mod_date }
+    assert_equal mod_date.httpdate, @ctrl.headers["Last-Modified"]
+    assert_nil @ctrl.headers['Content-Disposition']
+  end
+
+
+  def test_send_file_attachment
+    res = catch(:halt){ @ctrl.send_file "./Manifest.txt", :disposition => 'attachment' }
+    expected = "attachment; filename=\"Manifest.txt\""
+    assert_equal expected, @ctrl.headers['Content-Disposition']
+
+    res = catch(:halt){
+      @ctrl.send_file "./Manifest.txt", :disposition => 'attachment', :filename => "foo.txt"
+    }
+    expected = "attachment; filename=\"foo.txt\""
+    assert_equal expected, @ctrl.headers['Content-Disposition']
   end
 
 

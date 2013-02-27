@@ -277,14 +277,19 @@ class Gin::Controller
 
   def send_file path, opts={}
     if opts[:type] or not response['Content-Type']
-      content_type opts[:type] || File.extname(path), :default => 'application/octet-stream'
+      content_type opts[:type] || File.extname(path),
+                    :default => 'application/octet-stream'
     end
 
     disposition = opts[:disposition]
     filename    = opts[:filename]
-    disposition = 'attachment' if disposition.nil? and filename
-    filename    = path         if filename.nil?
-    attachment(filename, disposition) if disposition
+    disposition = 'attachment'        if disposition.nil? && filename
+    filename    = File.basename(path) if filename.nil?
+
+    if disposition
+      @response['Content-Disposition'] =
+        "#{disposition}; filename=\"%s\"" % filename
+    end
 
     last_modified opts[:last_modified] if opts[:last_modified]
 
@@ -297,6 +302,36 @@ class Gin::Controller
 
   rescue Errno::ENOENT
     halt 404
+  end
+
+
+  ##
+  # Set the last modified time of the resource (HTTP 'Last-Modified' header)
+  # and halt if conditional GET matches. The +time+ argument is a Time,
+  # DateTime, or other object that responds to +to_time+ or +httpdate+.
+
+  def last_modified time
+    return unless time
+
+    time = Time.at(time)    if Integer === time
+    time = Time.parse(time) if String === time
+    time = time.to_time     if time.respond_to?(:to_time)
+
+    @response['Last-Modified'] = time.httpdate
+    return if @env['HTTP_IF_NONE_MATCH']
+
+    if status == 200 and @env['HTTP_IF_MODIFIED_SINCE']
+      # compare based on seconds since epoch
+      since = Time.httpdate(@env['HTTP_IF_MODIFIED_SINCE']).to_i
+      halt 304 if since >= time.to_i
+    end
+
+    if @env['HTTP_IF_UNMODIFIED_SINCE'] && ((200..299).include?(status) || status == 412)
+      # compare based on seconds since epoch
+      since = Time.httpdate(@env['HTTP_IF_UNMODIFIED_SINCE']).to_i
+      halt 412 if since < time.to_i
+    end
+  rescue ArgumentError
   end
 
 
