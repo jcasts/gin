@@ -52,6 +52,15 @@ class Gin::App
 
 
   ##
+  # Create a new intance of the app and call it.
+
+  def self.call env
+    @instance ||= self.new
+    @instance.call env
+  end
+
+
+  ##
   # Mount a Gin::Controller into the App and specify a base path. If controller
   # mounts at root, use "/" as the base path.
   #   mount UserController, "/user" do
