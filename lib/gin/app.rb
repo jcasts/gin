@@ -139,6 +139,7 @@ class Gin::App
     @router ||= Gin::Router.new
   end
 
+
   ##
   # Lookup or register a mime type in Rack's mime registry.
 
@@ -148,6 +149,7 @@ class Gin::App
     return Rack::Mime.mime_type(type, nil) unless value
     Rack::Mime::MIME_TYPES[type] = value
   end
+
 
   ##
   # Provides all mime types matching type, including deprecated types:
@@ -164,7 +166,9 @@ class Gin::App
   # Add middleware internal to the app.
 
   def self.use middleware, *args, &block
-    middleware << [middleware, *args, block]
+    ary = [middleware, *args]
+    ary << block if block_given?
+    self.middleware << ary
   end
 
 

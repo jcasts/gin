@@ -26,6 +26,28 @@ class ExtraRouteApp < Gin::App
   end
 end
 
+class FooMiddleware
+  @@called = false
+  attr_reader :app, :args
+  def initialize app, *args
+    @app  = app
+    @args = args
+    @@called = false
+  end
+
+  def self.reset!
+    @@called = false
+  end
+
+  def self.called?
+    @@called
+  end
+
+  def call env
+    @@called = true
+    @app.call env
+  end
+end
 
 
 class AppTest < Test::Unit::TestCase
@@ -34,6 +56,7 @@ class AppTest < Test::Unit::TestCase
   def setup
     FooApp.instance_variable_set("@environment", nil)
     FooApp.instance_variable_set("@asset_host", nil)
+    FooApp.instance_variable_set("@middleware", nil)
     @app  = FooApp.new Logger.new($stdout)
     @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}
   end
@@ -41,6 +64,38 @@ class AppTest < Test::Unit::TestCase
 
   def teardown
     ENV.delete 'RACK_ENV'
+  end
+
+
+  def test_use_middleware
+    FooApp.use FooMiddleware, :foo, :bar
+    assert_equal [FooMiddleware, :foo, :bar], FooApp.middleware[0]
+    assert !FooMiddleware.called?
+
+    myapp = FooApp.new
+    myapp.call({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
+    assert FooMiddleware.called?
+
+    FooMiddleware.reset!
+    myapp.call!({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
+    assert !FooMiddleware.called?
+  end
+
+
+  def test_mime_type
+    assert_equal "foo/blah", Gin::App.mime_type("foo/blah")
+    assert_equal "text/html", Gin::App.mime_type(:html)
+    assert_equal "application/json", Gin::App.mime_type(:json)
+    assert_equal "text/plain", Gin::App.mime_type(".txt")
+
+    assert_equal Gin::App.mime_type(:json), @app.mime_type(:json)
+  end
+
+
+  def test_set_mime_type
+    assert_nil Gin::App.mime_type(:foo)
+    Gin::App.mime_type(:foo, "application/foo")
+    assert_equal "application/foo", @app.mime_type(:foo)
   end
 
 
