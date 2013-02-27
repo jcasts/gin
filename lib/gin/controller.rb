@@ -4,6 +4,14 @@ class Gin::Controller
   include Gin::Errorable
 
   ##
+  # Array of action names for this controller.
+
+  def self.actions
+    instance_methods(false)
+  end
+
+
+  ##
   # String representing the controller name.
   # Underscores the class name and removes mentions of 'controller'.
   #   MyApp::FooController.controller_name

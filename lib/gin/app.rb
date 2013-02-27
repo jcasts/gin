@@ -420,11 +420,11 @@ Please review it and try again."
     end
 
     actions.each do |ctrl, actions|
-      not_mounted   = ctrl.instance_methods(false) - actions
+      not_mounted   = ctrl.actions - actions
       raise RouterError, "#{ctrl}##{not_mounted[0]} has no route." unless
         not_mounted.empty?
 
-      extra_mounted = actions - ctrl.instance_methods(false)
+      extra_mounted = actions - ctrl.actions
       raise RouterError, "#{ctrl}##{extra_mounted[0]} is not a method" unless
         extra_mounted.empty?
     end

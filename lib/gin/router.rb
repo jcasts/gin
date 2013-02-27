@@ -3,17 +3,37 @@ class Gin::Router
   class PathArgumentError < Gin::Error; end
 
   class Mount
+    DEFAULT_ACTION_MAP = Hash.new{|h,k| ['get', "/#{k}"] }.merge!(
+      :index   => %w{get /},
+      :show    => %w{get /:id},
+      :new     => %w{get /new},
+      :create  => %w{post /:id},
+      :edit    => %w{get /:id/edit},
+      :update  => %w{put /:id},
+      :destroy => %w{delete /:id}
+    )
+
     VERBS = %w{get post put delete head options trace}
 
     VERBS.each do |verb|
       define_method(verb){|action, *args| add(verb, action, *args)}
     end
 
-    def initialize ctrl, base_path, sep="/"
+
+    def initialize ctrl, base_path, sep="/", &block
       @sep       = sep
       @ctrl      = ctrl
       @routes    = []
       @base_path = base_path.split(@sep)
+
+      if block_given?
+        instance_eval(&block)
+      else
+        ctrl.actions.each do |action|
+          verb, path = DEFAULT_ACTION_MAP[action]
+          add(verb, action, path)
+        end
+      end
     end
 
 
@@ -84,8 +104,7 @@ class Gin::Router
   def add ctrl, base_path=nil, &block
     base_path ||= ctrl.controller_name
 
-    mount = Mount.new ctrl, base_path, @sep
-    mount.instance_eval(&block)
+    mount = Mount.new(ctrl, base_path, @sep, &block)
 
     mount.each_route do |route_ary, name, val|
       curr_node = @routes_tree
