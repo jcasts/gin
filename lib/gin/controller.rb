@@ -87,15 +87,14 @@ class Gin::Controller
   # Get or set the HTTP response Content-Type header.
 
   def content_type type=nil, params={}
-    return @response['Content-Type'] unless type
+    return @response[Gin::Response::H_CTYPE] unless type
 
-    default = params.delete :default
-    mime_type = mime_type(type) || default
+    mime_type = mime_type(type) || params.delete(:default)
     raise "Unknown media type: %p" % type if mime_type.nil?
 
     mime_type = mime_type.dup
     unless params.include? :charset
-      params[:charset] = params.delete('charset') || "UTF-8"
+      params[:charset] = params.delete('charset') || 'UTF-8'
     end
 
     params.delete :charset if mime_type.include? 'charset'
@@ -107,7 +106,7 @@ class Gin::Controller
       end.join(', ')
     end
 
-    @response['Content-Type'] = mime_type
+    @response[Gin::Response::H_CTYPE] = mime_type
   end
 
 
@@ -276,7 +275,7 @@ class Gin::Controller
   # Produces a 404 response if no file is found.
 
   def send_file path, opts={}
-    if opts[:type] or not response['Content-Type']
+    if opts[:type] or not response[Gin::Response::H_CTYPE]
       content_type opts[:type] || File.extname(path),
                     :default => 'application/octet-stream'
     end
@@ -297,7 +296,7 @@ class Gin::Controller
     file.path = path
     result    = file.serving env
     result[1].each { |k,v| headers[k] ||= v }
-    headers['Content-Length'] = result[1]['Content-Length']
+    headers[Gin::Response::H_CLENGTH] = result[1][Gin::Response::H_CLENGTH]
     halt opts[:status] || result[0], result[2]
 
   rescue Errno::ENOENT
