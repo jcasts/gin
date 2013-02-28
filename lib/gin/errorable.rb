@@ -30,7 +30,7 @@ module Gin::Errorable
       err_types << nil if err_types.empty?
 
       err_types.each do |name|
-        self.local_error_handlers[name] = block
+        self.error_handlers[name] = block
       end
     end
 
@@ -42,7 +42,7 @@ module Gin::Errorable
 
     def all_errors &block
       return unless block_given?
-      self.local_error_handlers[:all] = block
+      self.error_handlers[:all] = block
     end
 
 
@@ -51,14 +51,28 @@ module Gin::Errorable
     # This attribute is inherited.
 
     def error_handlers
-      inherited = self.superclass.respond_to?(:error_handlers) ?
-                          self.superclass.error_handlers : {}
-      inherited.merge local_error_handlers
+      @err_handlers ||= {}
     end
 
 
-    def local_error_handlers #:nodoc:
-      @err_handlers ||= {}
+    ##
+    # Find the appropriate error handler for the given error.
+    # First looks for handler in the current class, then looks
+    # in parent classes if none is found.
+
+    def error_handler_for err #:nodoc:
+      case err
+      when Integer
+        return error_handlers[err] || error_handlers[nil]
+
+      when Exception
+        klasses = err.class.ancestors[0...-3]
+        key = klasses.find{|klass| error_handlers[klass] }
+
+        error_handlers[key] ||
+          self.superclass.respond_to?(:error_handler_for) &&
+            self.superclass.error_handler_for(err)
+      end
     end
   end
 
@@ -74,11 +88,16 @@ module Gin::Errorable
     status(err.http_status) if err.respond_to?(:http_status)
     status(500) unless (400..599).include? status
 
-    key = self.error_handlers.keys.find{|key| key === err }
-    raise err unless key || self.error_handlers[:all]
+    handler = error_handler_for(err)
+    raise err unless handler
 
-    instance_exec(err, &self.error_handlers[key])  if key
-    instance_exec(err, &self.error_handlers[:all]) if self.error_handlers[:all]
+    instance_exec(err, &handler) if handler
+    instance_exec(err, &error_handlers[:all]) if error_handlers[:all]
+  end
+
+
+  def error_handler_for err #:nodoc:
+    self.class.error_handler_for err
   end
 
 
@@ -86,7 +105,7 @@ module Gin::Errorable
   # Calls the appropriate error handlers for the given status code.
 
   def handle_status code
-    handler = self.error_handlers[code]
+    handler = error_handler_for(code)
     instance_exec(&handler) if handler
   end
 end
