@@ -18,7 +18,8 @@ class Gin::App
 
   RACK_KEYS = { #:nodoc:
     :stack       => 'gin.stack'.freeze,
-    :path_params => 'gin.path_query_hash'.freeze
+    :path_params => 'gin.path_query_hash'.freeze,
+    :static_file => 'gin.static_file'.freeze
   }.freeze
 
   GENERIC_HTML = <<-HTML.freeze #:nodoc:
@@ -305,7 +306,7 @@ class Gin::App
 
   def call! env
     if static?(env)
-      return error_delegate.exec(self, env){ send_file env['gin.static_file'] }
+      return error_delegate.exec(self, env){ send_file env[RACK_KEYS[:static_file]] }
     end
 
     ctrl, action, env[RACK_KEYS[:path_params]] =
@@ -335,7 +336,7 @@ class Gin::App
   def static? env
     path_info = env['PATH_INFO'].gsub STATIC_PATH_CLEANER, ""
     filepath  = File.join(public_dir, path_info)
-    env['gin.static_file'] = filepath if File.file?(filepath)
+    env[RACK_KEYS[:static_file]] = filepath if File.file?(filepath)
   end
 
 
