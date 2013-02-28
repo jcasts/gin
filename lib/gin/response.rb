@@ -1,6 +1,6 @@
 class Gin::Response < Rack::Response
 
-  NO_BODY_STATUSES = [100, 101, 204, 205, 304].freeze #:nodoc:
+  NO_HEADER_STATUSES = [100, 101, 204, 205, 304].freeze #:nodoc:
   H_CTYPE   = "Content-Type".freeze   #:nodoc:
   H_CLENGTH = "Content-Length".freeze #:nodoc:
 
@@ -9,7 +9,7 @@ class Gin::Response < Rack::Response
 
   def body= value
     value = value.body while Rack::Response === value
-    @body = String === value ? [value] : value
+    @body = value.respond_to?(:each) ? value : [value.to_s]
     @body
   end
 
@@ -18,7 +18,7 @@ class Gin::Response < Rack::Response
     body_out = body
     header[H_CTYPE] ||= 'text/html'
 
-    if NO_BODY_STATUSES.include?(status.to_i)
+    if NO_HEADER_STATUSES.include?(status.to_i)
       header.delete H_CTYPE
       header.delete H_CLENGTH
 

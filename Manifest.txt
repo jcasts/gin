@@ -26,4 +26,5 @@ test/test_filterable.rb
 test/test_gin.rb
 test/test_helper.rb
 test/test_request.rb
+test/test_response.rb
 test/test_router.rb
