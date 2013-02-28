@@ -186,8 +186,26 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_asset_path
-    assert_equal "/foo.jpg", @ctrl.asset_path("foo.jpg")
+    old_public_dir = MockApp.public_dir
+    MockApp.public_dir File.dirname(__FILE__)
 
+    file_id  = MockApp.md5 __FILE__
+    expected = "/test_controller.rb?#{file_id}"
+
+    assert_equal 8, file_id.length
+    assert_equal expected, @ctrl.asset_path(File.basename(__FILE__))
+
+  ensure
+    MockApp.public_dir old_public_dir
+  end
+
+
+  def test_asset_path_unknown
+    assert_equal "/foo.jpg", @ctrl.asset_path("foo.jpg")
+  end
+
+
+  def test_asset_path_w_host
     MockApp.asset_host "http://example.com"
     assert_equal "http://example.com/foo.jpg", @ctrl.asset_path("foo.jpg")
 

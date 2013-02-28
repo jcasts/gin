@@ -98,6 +98,20 @@ class AppTest < Test::Unit::TestCase
   end
 
 
+  def test_asset_version
+    old_dir = FooApp.public_dir
+    FooApp.public_dir File.dirname(__FILE__)
+
+    md5_cmd = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum'
+    expected = `#{md5_cmd} #{__FILE__}`[0...8]
+
+    assert_equal expected, FooApp.asset_version(File.basename(__FILE__))
+
+  ensure
+    FooApp.public_dir old_dir
+  end
+
+
   def test_asset_host_for
     FooApp.asset_host do |name|
       "http://#{File.extname(name)[1..-1] << "." if name}foo.com"

@@ -337,7 +337,9 @@ class Gin::Controller
       halt 304 if since >= time.to_i
     end
 
-    if @env['HTTP_IF_UNMODIFIED_SINCE'] && ((200..299).include?(status) || status == 412)
+    if @env['HTTP_IF_UNMODIFIED_SINCE'] &&
+      ((200..299).include?(status) || status == 412)
+
       # compare based on seconds since epoch
       since = Time.httpdate(@env['HTTP_IF_UNMODIFIED_SINCE']).to_i
       halt 412 if since < time.to_i
@@ -350,7 +352,8 @@ class Gin::Controller
   # Returns the full path to an asset, including predefined asset cdn hosts.
 
   def asset_path name
-    File.join(@app.asset_host_for(name).to_s, name)
+    url = File.join(@app.asset_host_for(name).to_s, name)
+    [url, *@app.asset_version(url)].join("?")
   end
 
 

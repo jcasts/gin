@@ -119,6 +119,26 @@ class Gin::App
 
 
   ##
+  # Returns the first 8 bytes of the asset file's md5.
+  # File path is assumed relative to the public_dir.
+
+  def self.asset_version path
+    path = File.expand_path(File.join(public_dir, path))
+    return unless File.file?(path)
+
+    @asset_versions       ||= {}
+    @asset_versions[path] ||= md5(path)
+  end
+
+
+  MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
+
+  def self.md5 path #:nodoc:
+    `#{MD5} #{path}`[0...8]
+  end
+
+
+  ##
   # Define a Gin::Controller as a catch-all error rendering controller.
   # This can be a dedicated controller, or a parent controller
   # such as AppController.
@@ -256,8 +276,8 @@ class Gin::App
 
   class_proxy :protection, :sessions, :session_secret, :middleware
   class_proxy :error_delegate, :router
-  class_proxy :root_dir, :public_dir, :asset_host
-  class_proxy :mime_type, :asset_host_for
+  class_proxy :root_dir, :public_dir
+  class_proxy :mime_type, :asset_host_for, :asset_host, :asset_version
   class_proxy :development?, :test?, :staging?, :production?
 
   # Application logger. Defaults to log to $stdout.
