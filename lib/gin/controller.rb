@@ -245,9 +245,9 @@ class Gin::Controller
     return path if path =~ /\A[A-z][A-z0-9\+\.\-]*:/
 
     uri  = [host = ""]
-    host << "http#{'s' if request.secure?}://"
+    host << "http#{'s' if request.ssl?}://"
 
-    if request.forwarded? || request.port != (request.secure? ? 443 : 80)
+    if request.forwarded? || request.port != (request.ssl? ? 443 : 80)
       host << request.host_with_port
     else
       host << request.host

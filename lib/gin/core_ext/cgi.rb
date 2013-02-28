@@ -1,5 +1,7 @@
 require 'cgi'
 
+unless RUBY_VERSION >= "2.0"
+
 class CGI
   class << self
     alias_method :__escapeHTML, :escapeHTML
@@ -8,4 +10,6 @@ class CGI
   def self.escapeHTML str
     __escapeHTML(str).gsub!("'", "&#39;")
   end
+end
+
 end

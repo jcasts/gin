@@ -7,11 +7,6 @@ class Gin::Request < Rack::Request
   end
 
 
-  def secure?
-    scheme == 'https'
-  end
-
-
   def forwarded?
     @env.include? "HTTP_X_FORWARDED_HOST"
   end
@@ -20,7 +15,7 @@ class Gin::Request < Rack::Request
   def params
     unless @params
       super
-      @params = indifferent_params @params
+      @params = process_params @params
     end
 
     @params
@@ -29,17 +24,28 @@ class Gin::Request < Rack::Request
 
   private
 
+  M_BOOLEAN = /^true|false$/  #:nodoc:
+  M_FLOAT   = /^\d+\.\d+$/    #:nodoc:
+  M_INTEGER = /^\d+$/         #:nodoc:
+
   ##
   # Enable string or symbol key access to the nested params hash.
+  # Make String numbers into Numerics.
 
-  def indifferent_params(object)
+  def process_params object
     case object
     when Hash
       new_hash = indifferent_hash
-      object.each { |key, value| new_hash[key] = indifferent_params(value) }
+      object.each { |key, value| new_hash[key] = process_params(value) }
       new_hash
     when Array
-      object.map { |item| indifferent_params(item) }
+      object.map { |item| process_params(item) }
+    when M_BOOLEAN
+      object == "true"
+    when M_FLOAT
+      object.to_f
+    when M_INTEGER
+      object.to_i
     else
       object
     end
