@@ -61,18 +61,23 @@ module Gin::Errorable
     # in parent classes if none is found.
 
     def error_handler_for err #:nodoc:
-      case err
-      when Integer
-        return error_handlers[err] || error_handlers[nil]
+      handler =
+        case err
+        when Integer
+          error_handlers[err] || error_handlers[nil]
 
-      when Exception
-        klasses = err.class.ancestors[0...-3]
-        key = klasses.find{|klass| error_handlers[klass] }
+        when Exception
+          klasses = err.class.ancestors[0...-3]
+          key = klasses.find{|klass| error_handlers[klass] }
+          error_handlers[key]
 
-        error_handlers[key] ||
+        else
+          error_handlers[err]
+        end
+
+        handler ||
           self.superclass.respond_to?(:error_handler_for) &&
             self.superclass.error_handler_for(err)
-      end
     end
   end
 
@@ -89,10 +94,12 @@ module Gin::Errorable
     status(500) unless (400..599).include? status
 
     handler = error_handler_for(err)
-    raise err unless handler
-
     instance_exec(err, &handler) if handler
-    instance_exec(err, &error_handlers[:all]) if error_handlers[:all]
+
+    ahandler = error_handler_for(:all)
+    instance_exec(err, &ahandler) if ahandler
+
+    raise err unless handler
   end
 
 
