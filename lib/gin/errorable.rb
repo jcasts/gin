@@ -39,6 +39,7 @@ module Gin::Errorable
     # Run after an error has been raised and optionally handled by an
     # error callback. The block will get run on all errors and is given
     # the exception instance as an argument.
+    # Note: This block will not get run after http status error handlers.
 
     def all_errors &block
       return unless block_given?
