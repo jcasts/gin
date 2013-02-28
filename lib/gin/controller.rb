@@ -353,7 +353,8 @@ class Gin::Controller
 
   def asset_path name
     url = File.join(@app.asset_host_for(name).to_s, name)
-    [url, *@app.asset_version(url)].join("?")
+    url = [url, *@app.asset_version(url)].join("?") if url !~ %r{^https?://}
+    url
   end
 
 
