@@ -128,7 +128,7 @@ class Gin::App
 
   def self.error_delegate ctrl=nil
     @error_delegate = ctrl if ctrl
-    @error_delegate
+    @error_delegate ||= Gin::Controller
   end
 
 
@@ -304,7 +304,9 @@ class Gin::App
   # Call App instance without internal middleware.
 
   def call! env
-    return Rack::File.new(public_dir).call(env) if static?(env)
+    if static?(env)
+      return error_delegate.exec(self, env){ send_file env['gin.static_file'] }
+    end
 
     ctrl, action, env[RACK_KEYS[:path_params]] =
       router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
@@ -333,7 +335,7 @@ class Gin::App
   def static? env
     path_info = env['PATH_INFO'].gsub STATIC_PATH_CLEANER, ""
     filepath  = File.join(public_dir, path_info)
-    File.file?(filepath)
+    env['gin.static_file'] = filepath if File.file?(filepath)
   end
 
 

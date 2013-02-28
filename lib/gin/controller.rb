@@ -34,6 +34,17 @@ class Gin::Controller
   end
 
 
+  ##
+  # Execute arbitrary code in the context of a Gin::Controller instance.
+  # Returns a Rack response Array.
+
+  def self.exec app, env, &block
+    inst = new(app, env)
+    inst.invoke{ inst.instance_exec(&block) }
+    inst.response.finish
+  end
+
+
   class_proxy_reader :controller_name
 
   attr_reader :app, :request, :response, :action, :env
@@ -343,9 +354,6 @@ class Gin::Controller
   end
 
 
-  private
-
-
   ##
   # Taken from Sinatra.
   #
@@ -384,6 +392,9 @@ class Gin::Controller
   ensure
     __call_filters__ after_filters, action
   end
+
+
+  private
 
 
   BAD_REQ_MSG = "Expected param `%s'" #:nodoc:

@@ -52,7 +52,6 @@ end
 
 class AppTest < Test::Unit::TestCase
 
-
   def setup
     FooApp.instance_variable_set("@environment", nil)
     FooApp.instance_variable_set("@asset_host", nil)
