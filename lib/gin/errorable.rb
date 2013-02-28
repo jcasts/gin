@@ -82,7 +82,7 @@ module Gin::Errorable
   end
 
 
-  class_proxy_reader :error_handlers
+  class_proxy :error_handlers, :error_handler_for
 
   ##
   # Calls the appropriate error handlers for the given error.
@@ -100,11 +100,6 @@ module Gin::Errorable
     instance_exec(err, &ahandler) if ahandler
 
     raise err unless handler
-  end
-
-
-  def error_handler_for err #:nodoc:
-    self.class.error_handler_for err
   end
 
 

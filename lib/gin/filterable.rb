@@ -155,7 +155,7 @@ module Gin::Filterable
 
 
 
-  class_proxy_reader :filters, :before_filters, :after_filters
+  class_proxy :filters, :before_filters, :after_filters
 
   ##
   # Chain-call filters from an action. Raises the filter exception if any

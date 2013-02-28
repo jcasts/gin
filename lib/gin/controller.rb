@@ -45,7 +45,7 @@ class Gin::Controller
   end
 
 
-  class_proxy_reader :controller_name
+  class_proxy :controller_name
 
   attr_reader :app, :request, :response, :action, :env
 

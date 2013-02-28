@@ -254,10 +254,11 @@ class Gin::App
   end
 
 
-  class_proxy_reader :protection, :sessions, :session_secret, :middleware
-  class_proxy_reader :error_delegate, :router
-  class_proxy_reader :root_dir, :public_dir, :asset_host
-  class_proxy_reader :development?, :test?, :staging?, :production?
+  class_proxy :protection, :sessions, :session_secret, :middleware
+  class_proxy :error_delegate, :router
+  class_proxy :root_dir, :public_dir, :asset_host
+  class_proxy :mime_type, :asset_host_for
+  class_proxy :development?, :test?, :staging?, :production?
 
   # Application logger. Defaults to log to $stdout.
   attr_accessor :logger
@@ -398,23 +399,6 @@ Please review it and try again."
   def generic_http_response status, title, text
     html = GENERIC_HTML % [title, title, text]
     [status, {"Content-Type" => "text/html"}, [html]]
-  end
-
-
-  ##
-  # Get the asset host for a given resource. Passes the asset name to the
-  # asset_host block if defined.
-
-  def asset_host_for name
-    self.class.asset_host_for name
-  end
-
-
-  ##
-  # Sugar for self.class.mime_type getter.
-
-  def mime_type type
-    self.class.mime_type type
   end
 
 
