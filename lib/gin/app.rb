@@ -333,7 +333,7 @@ class Gin::App
   # Check if the request is for a static file.
 
   def static? env
-    asset env['PATH_INFO']
+    %w{GET HEAD}.include?(env['REQUEST_METHOD']) && asset(env['PATH_INFO'])
   end
 
 
