@@ -337,7 +337,7 @@ class Gin::Controller
 
     if disposition
       @response['Content-Disposition'] =
-        "#{disposition}; filename=\"%s\"" % filename
+        "%s; filename=\"%s\"" % [disposition, filename]
     end
 
     last_modified opts[:last_modified] if opts[:last_modified]
