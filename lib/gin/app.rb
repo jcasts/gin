@@ -123,7 +123,7 @@ class Gin::App
 
   def self.load_config
     return unless File.directory?(config_dir)
-    config.dir = config_dir unless config.dir
+    config.dir = config_dir
     config.load!
   end
 
