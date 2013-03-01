@@ -182,6 +182,7 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_environment
+    FooApp.instance_variable_set("@environment", nil)
     ENV['RACK_ENV'] = 'production'
     assert !FooApp.development?
     assert !FooApp.test?
@@ -191,7 +192,9 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_inst_environment
+    FooApp.instance_variable_set("@environment", nil)
     ENV['RACK_ENV'] = 'production'
+    @app = FooApp.new
     assert !@app.development?
     assert !@app.test?
     assert !@app.staging?

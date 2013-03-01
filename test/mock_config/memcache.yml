@@ -1,0 +1,10 @@
+default: &default
+  host: example.com
+  connections: 5
+  prefix: my_app
+
+development:
+  host: localhost
+  connections: 1
+
+production: *default

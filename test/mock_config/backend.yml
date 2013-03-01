@@ -1,0 +1,7 @@
+default:
+  host: backend.example.com
+  connections: 5
+
+development:
+  host: dev.backend.example.com
+  connections: 1

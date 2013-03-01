@@ -5,8 +5,12 @@ Manifest.txt
 README.rdoc
 Rakefile
 bin/gin
+html/400.html
+html/404.html
+html/500.HTML
 lib/gin.rb
 lib/gin/app.rb
+lib/gin/config.rb
 lib/gin/controller.rb
 lib/gin/core_ext/cgi.rb
 lib/gin/core_ext/gin_class.rb
@@ -19,7 +23,11 @@ lib/gin/stream.rb
 test/app/app_foo.rb
 test/app/controllers/app_controller.rb
 test/app/controllers/foo_controller.rb
+test/mock_config/backend.yml
+test/mock_config/memcache.yml
+test/mock_config/not_a_config.txt
 test/test_app.rb
+test/test_config.rb
 test/test_controller.rb
 test/test_errorable.rb
 test/test_filterable.rb

@@ -79,6 +79,56 @@ class Gin::App
 
 
   ##
+  # Get or set the path to the config directory.
+  # Defaults to root_dir + "config"
+  #
+  # Configs are expected to be YAML files following this pattern:
+  #   default: &default
+  #     key: value
+  #
+  #   development: *default
+  #     other_key: value
+  #
+  #   production: *default
+  #     ...
+  #
+  # Configs will be named according to the filename, and only the config for
+  # the current environment will be accessible.
+
+  def self.config_dir dir=nil
+    @config_dir = dir if dir
+    @config_dir ||= File.join(root_dir, "config")
+  end
+
+
+  ##
+  # Access the config for your application, loaded from the config_dir.
+  #   # config/memcache.yml
+  #   default: &default
+  #     host: example.com
+  #     connections: 1
+  #   development: *default
+  #     host: localhost
+  #
+  #   # access from App class or instance
+  #   config.memcache['host']
+
+  def self.config
+    @config
+  end
+
+
+  ##
+  # Loads all configs from the config_dir.
+
+  def self.load_config
+    return unless File.directory?(config_dir)
+    require 'gin/config'
+    @config = Gin::Config.new config_dir, environment
+  end
+
+
+  ##
   # Get or set the path to the public directory.
   # Defaults to root_dir + "public"
 
@@ -269,7 +319,8 @@ class Gin::App
   class_proxy :error_delegate, :router
   class_proxy :root_dir, :public_dir
   class_proxy :mime_type, :asset_host_for, :asset_host, :asset_version
-  class_proxy :development?, :test?, :staging?, :production?
+  class_proxy :environment, :development?, :test?, :staging?, :production?
+  class_proxy :load_config, :config, :config_dir
 
   # Application logger. Defaults to log to $stdout.
   attr_accessor :logger
@@ -283,6 +334,8 @@ class Gin::App
   # rack_app and logger.
 
   def initialize rack_app=nil, logger=nil
+    load_config
+
     if !rack_app.respond_to?(:call) && rack_app.respond_to?(:log) && logger.nil?
       @rack_app = nil
       @logger   = rack_app
