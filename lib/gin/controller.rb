@@ -522,12 +522,12 @@ class Gin::Controller
 
 
   ##
-  # Returns an HTML page displaying an error.
-  # Shows the full erro, message and backtrace if the app is
-  # in development mode, otherwise shows a generic error page.
+  # In development mode, returns an HTML page displaying the full error
+  # and backtrace, otherwise shows a generic error page.
   #
-  # This method may be overloaded to render custom HTML error pages
-  # for unhandled exceptions or internal Gin::Error instances.
+  # Production error pages are first looked for in the public directory as
+  # <status>.html or 500.html. If none is found, falls back on Gin's internal
+  # error html pages.
 
   def html_error_page err, code=nil
     if @app.development?
@@ -536,7 +536,7 @@ class Gin::Controller
 
     else
       code ||= status
-      filepath = asset("#{code}.html")
+      filepath = asset("#{code}.html") || asset("500.html")
 
       unless filepath
         filepath = File.join(Gin::HTML_DIR, "#{code}.html")
