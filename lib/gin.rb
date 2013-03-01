@@ -9,6 +9,8 @@ require 'active_support/core_ext/object/to_query'
 class Gin
   VERSION = '1.0.0'
 
+  HTML_DIR = File.expand_path("../../html/", __FILE__) #:nodoc:
+
   class Error < StandardError; end
 
   class BadRequest < ArgumentError

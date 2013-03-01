@@ -533,14 +533,14 @@ class Gin::Controller
     if @app.development?
       trace = err.backtrace.join("\n\t")
       DEV_ERROR_HTML % [err.class, err.class, err.message, trace]
+
     else
       code ||= status
       filepath = asset("#{code}.html")
 
       unless filepath
-        gin_html = File.expand_path("../../../html/", __FILE__)
-        filepath = File.join(gin_html, "#{code}.html")
-        filepath = File.join(gin_html, "500.html") if !File.file?(filepath)
+        filepath = File.join(Gin::HTML_DIR, "#{code}.html")
+        filepath = File.join(Gin::HTML_DIR, "500.html") if !File.file?(filepath)
       end
 
       File.open(filepath, "r")
