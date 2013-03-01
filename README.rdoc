@@ -1,6 +1,6 @@
 = Gin
 
-* https://github.com/yaks/gin
+* http://yaks.me/gin
 
 == Description
 
