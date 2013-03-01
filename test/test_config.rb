@@ -9,7 +9,7 @@ class ConfigTest < Test::Unit::TestCase
 
 
   def test_config_dev
-    config = Gin::Config.new config_dir, "development"
+    config = Gin::Config.new "development", config_dir
 
     assert_equal "localhost", config.memcache['host']
     assert_equal 1, config.memcache['connections']
@@ -21,7 +21,7 @@ class ConfigTest < Test::Unit::TestCase
 
 
   def test_config_unknown_env
-    config = Gin::Config.new config_dir, "foo"
+    config = Gin::Config.new "foo", config_dir
 
     assert_equal "example.com", config.memcache['host']
     assert_equal 5, config.memcache['connections']

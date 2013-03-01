@@ -4,7 +4,7 @@ class Gin::Config
 
   attr_reader :dir
 
-  def initialize dir, environment
+  def initialize environment, dir=nil
     self.dir = dir
     @environment = environment
     @meta = class << self; self; end
