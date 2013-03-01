@@ -114,7 +114,7 @@ class Gin::App
   #   config.memcache['host']
 
   def self.config
-    @config ||= Gin::Config.new config_dir, environment
+    @config ||= Gin::Config.new environment, config_dir
   end
 
 
