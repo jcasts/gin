@@ -435,7 +435,7 @@ class Gin::Controller
       max_age = time - Time.now
     end
 
-    values.last.merge!(max_age: max_age) unless values.last[:max_age]
+    values.last.merge!(:max_age => max_age) unless values.last[:max_age]
     cache_control(*values)
 
     @response['Expires'] = time.httpdate
