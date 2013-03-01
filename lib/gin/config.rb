@@ -2,8 +2,10 @@ require 'yaml'
 
 class Gin::Config
 
+  attr_reader :dir
+
   def initialize dir, environment
-    @dir = File.join dir, "*.yml"
+    self.dir = dir
     @environment = environment
     @meta = class << self; self; end
     @data = {}
@@ -11,7 +13,13 @@ class Gin::Config
   end
 
 
+  def dir= val
+    @dir = File.join(val, "*.yml") if val
+  end
+
+
   def load!
+    return unless @dir
     Dir[@dir].each do |filepath|
       c = YAML.load_file(filepath)
       c = (c['default'] || {}).merge (c[@environment] || {})
@@ -19,6 +27,7 @@ class Gin::Config
       name = File.basename(filepath, ".yml")
       set name, c
     end
+    self
   end
 
 

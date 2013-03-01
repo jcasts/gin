@@ -26,6 +26,7 @@ class Gin
 
   require 'gin/app'
   require 'gin/router'
+  require 'gin/config'
   require 'gin/request'
   require 'gin/response'
   require 'gin/stream'

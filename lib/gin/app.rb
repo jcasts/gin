@@ -114,7 +114,7 @@ class Gin::App
   #   config.memcache['host']
 
   def self.config
-    @config
+    @config ||= Gin::Config.new config_dir, environment
   end
 
 
@@ -123,8 +123,8 @@ class Gin::App
 
   def self.load_config
     return unless File.directory?(config_dir)
-    require 'gin/config'
-    @config = Gin::Config.new config_dir, environment
+    config.dir = config_dir unless config.dir
+    config.load!
   end
 
 
