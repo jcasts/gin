@@ -188,7 +188,7 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
-  def test_asset_path
+  def test_asset_url
     old_public_dir = MockApp.public_dir
     MockApp.public_dir File.dirname(__FILE__)
 
@@ -196,27 +196,27 @@ class ControllerTest < Test::Unit::TestCase
     expected = "/test_controller.rb?#{file_id}"
 
     assert_equal 8, file_id.length
-    assert_equal expected, @ctrl.asset_path(File.basename(__FILE__))
+    assert_equal expected, @ctrl.asset_url(File.basename(__FILE__))
 
   ensure
     MockApp.public_dir old_public_dir
   end
 
 
-  def test_asset_path_unknown
-    assert_equal "/foo.jpg", @ctrl.asset_path("foo.jpg")
+  def test_asset_url_unknown
+    assert_equal "/foo.jpg", @ctrl.asset_url("foo.jpg")
   end
 
 
-  def test_asset_path_w_host
+  def test_asset_url_w_host
     MockApp.asset_host "http://example.com"
-    assert_equal "http://example.com/foo.jpg", @ctrl.asset_path("foo.jpg")
+    assert_equal "http://example.com/foo.jpg", @ctrl.asset_url("foo.jpg")
 
     MockApp.asset_host do |file|
       file =~ /\.js$/ ? "http://js.example.com" : "http://img.example.com"
     end
-    assert_equal "http://js.example.com/foo.js",   @ctrl.asset_path("foo.js")
-    assert_equal "http://img.example.com/foo.jpg", @ctrl.asset_path("foo.jpg")
+    assert_equal "http://js.example.com/foo.js",   @ctrl.asset_url("foo.js")
+    assert_equal "http://img.example.com/foo.jpg", @ctrl.asset_url("foo.jpg")
   end
 
 

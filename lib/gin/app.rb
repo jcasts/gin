@@ -333,9 +333,18 @@ class Gin::App
   # Check if the request is for a static file.
 
   def static? env
-    path_info = env['PATH_INFO'].gsub STATIC_PATH_CLEANER, ""
-    filepath  = File.join(public_dir, path_info)
-    filepath if File.file?(filepath)
+    asset env['PATH_INFO']
+  end
+
+
+  ##
+  # Check if an asset exists.
+  # Returns the full path to the asset if found, otherwise nil.
+
+  def asset path
+    path = path.gsub STATIC_PATH_CLEANER, ""
+    path = File.expand_path(File.join(public_dir, path))
+    path if File.file? path
   end
 
 

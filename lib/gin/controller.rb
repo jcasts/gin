@@ -463,12 +463,21 @@ class Gin::Controller
 
 
   ##
-  # Returns the full path to an asset, including predefined asset cdn hosts.
+  # Returns the url to an asset, including predefined asset cdn hosts if set.
 
-  def asset_path name
+  def asset_url name
     url = File.join(@app.asset_host_for(name).to_s, name)
     url = [url, *@app.asset_version(url)].join("?") if url !~ %r{^https?://}
     url
+  end
+
+
+  ##
+  # Check if an asset exists.
+  # Returns the full system path to the asset if found, otherwise nil.
+
+  def asset path
+    @app.asset path
   end
 
 
@@ -526,58 +535,20 @@ class Gin::Controller
       DEV_ERROR_HTML % [err.class, err.class, err.message, trace]
     else
       code ||= status
-      HTML_PAGES[code] || HTML_PAGES[:default]
+      filepath = asset("#{code}.html")
+
+      unless filepath
+        gin_html = File.expand_path("../../../html/", __FILE__)
+        filepath = File.join(gin_html, "#{code}.html")
+        filepath = File.join(gin_html, "500.html") if !File.file?(filepath)
+      end
+
+      File.open(filepath, "r")
     end
   end
 
+
   private
-
-  HTML_404 = <<-HTML.freeze #:nodoc:
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Page Not Found</title>
-  </head>
-  <body>
-    <h1>Page Not Found</h1>
-    <p>The page you requested does not exist.</p>
-  </body>
-</html>
-  HTML
-
-  HTML_400 = <<-HTML.freeze #:nodoc:
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Bad Request</title>
-  </head>
-  <body>
-    <h1>Bad Request</h1>
-    <p>The server could not process your request as formed.</p>
-  </body>
-</html>
-  HTML
-
-  HTML_5XX = <<-HTML.freeze #:nodoc:
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Server Error</title>
-  </head>
-  <body>
-    <h1>Server Error</h1>
-    <p>An unexpected error occurred. We have been notified,
-    please check again later.</p>
-  </body>
-</html>
-  HTML
-
-
-  HTML_PAGES = {
-    400 => HTML_400,
-    404 => HTML_404,
-    :default => HTML_5XX
-  }
 
 
   DEV_ERROR_HTML = <<-HTML.freeze #:nodoc:
