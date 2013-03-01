@@ -1,29 +1,39 @@
-= gin
+= Gin
 
 * https://github.com/yaks/gin
 
-== DESCRIPTION:
+== Description
 
-Something fun coming soon.
+Gin is a small web framework built from the redistillation of
+Sinatra and Rails idioms. Specifically, it uses much of Sinatra's
+request flow and HTTP helper methods with dedicated controller classes
+that support Rails-like filters.
 
-== REQUIREMENTS:
+== Hello World
+
+  # config.ru
+  require 'gin'
+
+  class HelloWorldCtrl < Gin::Controller
+    def index; "Hello World!"; end
+  end
+
+  class MyApp < Gin::App
+    mount HelloWorldCtrl, "/"
+  end
+
+  run MyApp.new
+
+== Requirements
 
 * rack
+* rack-protection
 
-== INSTALL:
+== Install
 
 * gem install gin
 
-== DEVELOPERS:
-
-After checking out the source, run:
-
-  $ rake newb
-
-This task will install any missing dependencies, run the tests/specs,
-and generate the RDoc.
-
-== LICENSE:
+== License
 
 (The MIT License)
 
