@@ -142,6 +142,44 @@ class Gin::Controller
 
 
   ##
+  # Set the ETag header. If the ETag was set in a previous request
+  # and matches the current one, halts the action and returns a 304
+  # on GET and HEAD requests.
+
+  def etag value, opts={}
+    opts         = {:kind => opts} unless Hash === opts
+    kind         = opts[:kind] || :strong
+    new_resource = opts.fetch(:new_resource) { @request.post? }
+
+    unless [:strong, :weak].include?(kind)
+      raise ArgumentError, ":strong or :weak expected"
+    end
+
+    value = '"%s"' % value
+    value = 'W/' + value if kind == :weak
+    @response['ETag'] = value
+
+    if (200..299).include?(status) || status == 304
+      if etag_matches? @env['HTTP_IF_NONE_MATCH'], new_resource
+        halt(request.safe? ? 304 : 412)
+      end
+
+      if @env['HTTP_IF_MATCH']
+        halt 412 unless etag_matches? @env['HTTP_IF_MATCH'], new_resource
+      end
+    end
+  end
+
+
+  def etag_matches? list, new_resource=@request.post? #:nodoc:
+    return !new_resource if list == '*'
+    list.to_s.split(/\s*,\s*/).include? response['ETag']
+  end
+
+
+
+
+  ##
   # Set multiple response headers with Hash.
 
   def headers hash=nil
@@ -345,6 +383,73 @@ class Gin::Controller
       halt 412 if since < time.to_i
     end
   rescue ArgumentError
+  end
+
+
+  ##
+  # Specify response freshness policy for HTTP caches (Cache-Control header).
+  # Any number of non-value directives (:public, :private, :no_cache,
+  # :no_store, :must_revalidate, :proxy_revalidate) may be passed along with
+  # a Hash of value directives (:max_age, :min_stale, :s_max_age).
+  #
+  #   cache_control :public, :must_revalidate, :max_age => 60
+  #   => Cache-Control: public, must-revalidate, max-age=60
+
+  def cache_control *values
+    if Hash === values.last
+      hash = values.pop
+      hash.reject!{|k,v| v == false || v == true && values << k }
+    else
+      hash = {}
+    end
+
+    values.map! { |value| value.to_s.tr('_','-') }
+    hash.each do |key, value|
+      key = key.to_s.tr('_', '-')
+      value = value.to_i if key == "max-age"
+      values << [key, value].join('=')
+    end
+
+    @response['Cache-Control'] = values.join(', ') if values.any?
+  end
+
+
+  ##
+  # Set the Expires header and Cache-Control/max-age directive. Amount
+  # can be an integer number of seconds in the future or a Time object
+  # indicating when the response should be considered "stale". The remaining
+  # "values" arguments are passed to the #cache_control helper:
+  #
+  #   expires 500, :public, :must_revalidate
+  #   => Cache-Control: public, must-revalidate, max-age=60
+  #   => Expires: Mon, 08 Jun 2009 08:50:17 GMT
+
+  def expires amount, *values
+    values << {} unless Hash === values.last
+
+    if Integer === amount
+      time    = Time.now + amount.to_i
+      max_age = amount
+    else
+      time    = Time.parse amount if String === time
+      max_age = time - Time.now
+    end
+
+    values.last.merge!(max_age: max_age) unless values.last[:max_age]
+    cache_control(*values)
+
+    @response['Expires'] = time.httpdate
+  end
+
+
+  ##
+  # Sets Cache-Control, Expires, and Pragma headers to tell the browser
+  # not to cache the response.
+
+  def expire_cache_control!
+    @response['Pragma'] = 'no-cache'
+    expires Time.new("1990","01","01"),
+      :no_cache, :no_store, :must_revalidate, max_age: 0
   end
 
 
