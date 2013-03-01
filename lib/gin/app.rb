@@ -21,16 +21,6 @@ class Gin::App
     :path_params => 'gin.path_query_hash'.freeze,
   }.freeze
 
-  GENERIC_HTML = <<-HTML.freeze #:nodoc:
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>%s</title>
-  </head>
-  <body><h1>%s</h1><p>%s</p></body>
-</html>
-  HTML
-
 
   CALLERS_TO_IGNORE = [ # :nodoc:
     /\/gin(\/(.*?))?\.rb$/,             # all gin code
@@ -141,10 +131,11 @@ class Gin::App
   ##
   # Define a Gin::Controller as a catch-all error rendering controller.
   # This can be a dedicated controller, or a parent controller
-  # such as AppController.
+  # such as AppController. Defaults to Gin::Controller.
   #
-  # If this isn't assigned, errors will be rendered as a plain, generic HTML
-  # page with a stack trace (when available).
+  # The error delegate should handle the following errors
+  # for creating custom pages for Gin errors:
+  #   Gin::NotFound, Gin::BadRequest, ::Exception
 
   def self.error_delegate ctrl=nil
     @error_delegate = ctrl if ctrl
@@ -333,18 +324,6 @@ class Gin::App
       router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
 
     dispatch env, ctrl, action
-
-  rescue Exception => err
-    status = err.respond_to?(:http_status) ? err.http_status : 500
-    trace  = err.backtrace.join("\n")
-    logger.error "#{err.class.name}: #{err.message}\n#{trace}"
-
-    if self.development?
-      body = [err.message].concat(err.backtrace).join("<br/>")
-      generic_http_response status, err.class.name, body
-    else
-      error_http_response status
-    end
   end
 
 
@@ -364,65 +343,38 @@ class Gin::App
   # Dispatch the Rack env to the given controller and action.
 
   def dispatch env, ctrl, action
-    raise Gin::NotFound, "No controller or action" unless ctrl && action
+    raise Gin::NotFound,
+      "No route exists for: #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" unless
+      ctrl && action
 
     ctrl_inst = ctrl.new(self, env)
     resp = ctrl_inst.call_action action
 
   rescue Gin::NotFound => err
-    @rack_app ? @rack_app.call(env) : handle_error(err)
+    @rack_app ? @rack_app.call(env) : handle_error(err, env)
 
-  rescue => err
-    handle_error(err)
+  rescue ::Exception => err
+    handle_error(err, env)
   end
 
 
   ##
   # Handle error with error controller if available, otherwise re-raise.
 
-  def handle_error err
+  def handle_error err, env
     raise err unless error_delegate
 
-    logger.warn("[Handle Error] %s: %s\n%s" %
-      [err.class.name, err.message, Array(err.backtrace).join("\n")])
+    trace = Array(err.backtrace).join("\n")
 
-    delegate = error_delegate.new(self, env)
-    delegate.handle_error(err)
-    delegate.response.finish
-  end
+    logger.warn("[Handled Error] %s: %s\n%s" %
+      [err.class.name, err.message, trace.to_s])
 
-
-  ##
-  # Creates a generic error Rack response from a status code.
-
-  def error_http_response status
-    case status
-    when 404
-      generic_http_response status, "Page Not Found",
-        "The page you requested does not exist."
-
-    when (400..499)
-      generic_http_response status, "Invalid Request",
-        "Your request could not be completed as is. \
-Please review it and try again."
-
-    else
-      generic_http_response status, "Internal Server Error",
-        "There was a problem processing your request. Please try again later."
-    end
-  end
-
-
-  ##
-  # Creates a generic Rack response Array, mostly used for uncaught errors.
-
-  def generic_http_response status, title, text
-    html = GENERIC_HTML % [title, title, text]
-    [status, {"Content-Type" => "text/html"}, [html]]
+    error_delegate.exec(self, env){ handle_error(err) }
   end
 
 
   private
+
 
   def build_app builder
     setup_sessions   builder

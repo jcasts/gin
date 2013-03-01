@@ -165,17 +165,6 @@ class AppTest < Test::Unit::TestCase
   end
 
 
-  def test_generic_http_response
-    resp = @app.generic_http_response 404, "Not Found", "OH NOES"
-    assert_equal 3, resp.length
-    assert_equal 404, resp[0]
-    assert_equal "text/html", resp[1]['Content-Type']
-    assert resp[2][0].include?("<title>Not Found</title>"), "HTML title missing"
-    assert resp[2][0].include?("<h1>Not Found</h1>"), "Page title missing"
-    assert resp[2][0].include?("<p>OH NOES</p>"), "Message should be present"
-  end
-
-
   def test_default_environment
     assert FooApp.development?
     assert !FooApp.test?

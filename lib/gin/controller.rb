@@ -1,7 +1,16 @@
 class Gin::Controller
-  extend GinClass
+  extend  GinClass
   include Gin::Filterable
   include Gin::Errorable
+
+
+  error Gin::NotFound, Gin::BadRequest, ::Exception do |err|
+    status( err.respond_to?(:http_status) ? err.http_status : 500 )
+    @response.headers.clear
+    content_type :html
+    body html_error_page(err)
+  end
+
 
   ##
   # Array of action names for this controller.
@@ -503,8 +512,87 @@ class Gin::Controller
   end
 
 
+  ##
+  # Returns an HTML page displaying an error.
+  # Shows the full erro, message and backtrace if the app is
+  # in development mode, otherwise shows a generic error page.
+  #
+  # This method may be overloaded to render custom HTML error pages
+  # for unhandled exceptions or internal Gin::Error instances.
+
+  def html_error_page err, code=nil
+    if @app.development?
+      trace = err.backtrace.join("\n\t")
+      DEV_ERROR_HTML % [err.class, err.class, err.message, trace]
+    else
+      code ||= status
+      HTML_PAGES[code] || HTML_PAGES[:default]
+    end
+  end
+
   private
 
+  HTML_404 = <<-HTML.freeze #:nodoc:
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Page Not Found</title>
+  </head>
+  <body>
+    <h1>Page Not Found</h1>
+    <p>The page you requested does not exist.</p>
+  </body>
+</html>
+  HTML
+
+  HTML_400 = <<-HTML.freeze #:nodoc:
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Bad Request</title>
+  </head>
+  <body>
+    <h1>Bad Request</h1>
+    <p>The server could not process your request as formed.</p>
+  </body>
+</html>
+  HTML
+
+  HTML_5XX = <<-HTML.freeze #:nodoc:
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Server Error</title>
+  </head>
+  <body>
+    <h1>Server Error</h1>
+    <p>An unexpected error occurred. We have been notified,
+    please check again later.</p>
+  </body>
+</html>
+  HTML
+
+
+  HTML_PAGES = {
+    400 => HTML_400,
+    404 => HTML_404,
+    :default => HTML_5XX
+  }
+
+
+  DEV_ERROR_HTML = <<-HTML.freeze #:nodoc:
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>%s</title>
+  </head>
+  <body>
+    <h1>%s</h1>
+    <h3>%s</h3>
+    <pre>\t%s</pre>
+  </body>
+</html>
+  HTML
 
   BAD_REQ_MSG = "Expected param `%s'" #:nodoc:
 

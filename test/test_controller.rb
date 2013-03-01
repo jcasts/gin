@@ -104,7 +104,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_call_action_error
-    assert_raises(RuntimeError){ @ctrl.call_action(:index) }
+    @ctrl.call_action(:index)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
   end
 
@@ -134,11 +134,14 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_dispatch_error
-    assert_raises(RuntimeError){ @ctrl.send(:dispatch, :index) }
+    @ctrl.content_type :json
+    @ctrl.send(:dispatch, :index)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
     assert_equal 500, @ctrl.response.status
     assert RuntimeError === @ctrl.env['gin.errors'].first
-    assert_equal [], @ctrl.response.body
+    assert_equal String, @ctrl.response.body[0].class
+    assert_equal "text/html;charset=UTF-8", @ctrl.response['Content-Type']
+    assert @ctrl.response.body[0].include?('<h1>RuntimeError</h1>')
   end
 
 
