@@ -37,10 +37,15 @@ class Gin::Response < Rack::Response
   private
 
   def update_content_length
-    if header[H_CTYPE] && !header[H_CLENGTH] && Array === body
-      header[H_CLENGTH] = body.inject(0) do |l, p|
-                            l + Rack::Utils.bytesize(p)
-                          end.to_s
+    if header[H_CTYPE] && !header[H_CLENGTH]
+      case body
+      when Array
+        header[H_CLENGTH] = body.inject(0) do |l, p|
+                              l + Rack::Utils.bytesize(p)
+                            end.to_s
+      when File
+        body.size
+      end
     end
   end
 end
