@@ -12,6 +12,21 @@ class Gin::Request < Rack::Request
   end
 
 
+  def ssl?
+    scheme == 'https'
+  end
+
+
+  def safe?
+    get? or head? or options? or trace?
+  end
+
+
+  def idempotent?
+    safe? or put? or delete?
+  end
+
+
   def params
     unless @params
       super

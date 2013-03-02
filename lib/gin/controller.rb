@@ -170,7 +170,7 @@ class Gin::Controller
 
     if (200..299).include?(status) || status == 304
       if etag_matches? @env['HTTP_IF_NONE_MATCH'], new_resource
-        halt(request.safe? ? 304 : 412)
+        halt(@request.safe? ? 304 : 412)
       end
 
       if @env['HTTP_IF_MATCH']
@@ -201,7 +201,7 @@ class Gin::Controller
   # Assigns a Gin::Stream to the response body, which is yielded to the block.
   # The block execution is delayed until the action returns.
   #   stream do |io|
-  #     file = File.open "somefile", "r"
+  #     file = File.open "somefile", "rb"
   #     io << file.read(1024) until file.eof?
   #     file.close
   #   end
@@ -292,15 +292,15 @@ class Gin::Controller
     return path if path =~ /\A[A-z][A-z0-9\+\.\-]*:/
 
     uri  = [host = ""]
-    host << "http#{'s' if request.ssl?}://"
+    host << "http#{'s' if @request.ssl?}://"
 
-    if request.forwarded? || request.port != (request.ssl? ? 443 : 80)
-      host << request.host_with_port
+    if @request.forwarded? || @request.port != (@request.ssl? ? 443 : 80)
+      host << @request.host_with_port
     else
-      host << request.host
+      host << @request.host
     end
 
-    uri << request.script_name.to_s
+    uri << @request.script_name.to_s
     uri << path
     File.join uri
   end
@@ -349,14 +349,11 @@ class Gin::Controller
         "%s; filename=\"%s\"" % [disposition, filename]
     end
 
-    last_modified opts[:last_modified] if opts[:last_modified]
+    last_modified opts[:last_modified] || File.mtime(path).httpdate
+    halt 200 if @request.head?
 
-    file      = Rack::File.new nil
-    file.path = path
-    result    = file.serving env
-    result[1].each { |k,v| headers[k] ||= v }
-    headers[Gin::Response::H_CLENGTH] = result[1][Gin::Response::H_CLENGTH]
-    halt opts[:status] || result[0], result[2]
+    @response['Content-Length'] = File.size?(path).to_s
+    halt 200, File.open(path, "rb")
 
   rescue Errno::ENOENT
     halt 404
@@ -543,7 +540,7 @@ class Gin::Controller
         filepath = File.join(Gin::HTML_DIR, "500.html") if !File.file?(filepath)
       end
 
-      File.open(filepath, "r")
+      File.open(filepath, "rb")
     end
   end
 

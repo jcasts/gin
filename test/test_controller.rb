@@ -458,7 +458,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_send_file
     res = catch(:halt){ @ctrl.send_file "./Manifest.txt" }
     assert_equal 200, res[0]
-    assert Rack::File === res[1]
+    assert File === res[1]
 
     @ctrl.status 404
     @ctrl.send(:invoke){ @ctrl.send_file "./Manifest.txt" }
@@ -467,7 +467,7 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal File.size("./Manifest.txt").to_s, @ctrl.headers["Content-Length"]
     assert(Time.parse(@ctrl.headers["Last-Modified"]) >
            Time.parse("Fri, 22 Feb 2012 18:51:31 GMT"))
-    assert Rack::File === @ctrl.body
+    assert File === @ctrl.body
 
     read_body = ""
     @ctrl.body.each{|data| read_body << data}
