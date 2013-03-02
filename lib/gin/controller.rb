@@ -27,7 +27,7 @@ class Gin::Controller
   #   #=> "my_app/foo"
 
   def self.controller_name
-    @ctrl_name ||= self.to_s.underscore.gsub(/_?controller_?/,'')
+    @ctrl_name ||= Gin.underscore(self.to_s).gsub(/_?controller_?/,'')
   end
 
 
@@ -261,7 +261,7 @@ class Gin::Controller
   #   #=> "/foo/123"
 
   def path_to *args
-    return "#{args[0]}#{"?" << args[1].to_query if args[1]}" if String === args[0]
+    return "#{args[0]}#{"?" << Gin.build_query(args[1]) if args[1]}" if String === args[0]
     args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
     @app.router.path_to(*args)
   end

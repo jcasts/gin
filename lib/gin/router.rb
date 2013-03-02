@@ -166,7 +166,7 @@ class Gin::Router
         raise(PathArgumentError, "Missing param #{k}")
     end unless param_keys.empty?
 
-    route << "?#{params.to_query}" unless params.empty?
+    route << "?#{Gin.build_query(params)}" unless params.empty?
 
     route
   end

@@ -2,8 +2,6 @@ require 'logger'
 
 require 'rack'
 require 'rack-protection'
-require 'active_support/core_ext/string/conversions'
-require 'active_support/core_ext/object/to_query'
 
 
 class Gin
@@ -20,6 +18,38 @@ class Gin
   class NotFound < NameError
     def http_status; 404; end
   end
+
+
+  def self.underscore str
+    str = str.dup
+    str.gsub!('::', '/')
+    str.gsub!(/([a-z\d])([A-Z])/, '\1_\2')
+    str.downcase
+  end
+
+
+  def self.build_query value, prefix=nil
+    case value
+    when Array
+      value.map { |v|
+        build_query(v, "#{prefix}[]")
+      }.join("&")
+
+    when Hash
+      value.map { |k, v|
+        build_query(v, prefix ?
+          "#{prefix}[#{CGI.escape(k.to_s)}]" : CGI.escape(k.to_s))
+      }.join("&")
+
+    when String, Integer, Float
+      raise ArgumentError, "value must be a Hash" if prefix.nil?
+      "#{prefix}=#{CGI.escape(value.to_s)}"
+
+    else
+      prefix
+    end
+  end
+
 
   require 'gin/core_ext/cgi'
   require 'gin/core_ext/gin_class'
