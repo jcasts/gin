@@ -528,7 +528,7 @@ class Gin::Controller
 
   def html_error_page err, code=nil
     if @app.development?
-      trace = err.backtrace.join("\n\t")
+      trace = err.backtrace.join("\n")
       DEV_ERROR_HTML % [err.class, err.class, err.message, trace]
 
     else
@@ -553,11 +553,46 @@ class Gin::Controller
 <html>
   <head>
     <title>%s</title>
+    <style>
+body {
+  font-family: Helvetica Neue, Helvetica, Sans-Serif;
+  background-color: #eee;
+}
+
+.canvas {
+  border: 1px solid #ccc;
+  padding: 20px;
+  padding-top: 10px;
+  border-radius: 15px;
+  box-shadow: 3px 3px 10px #aaa;
+  background-color: #fff;
+  margin: 0 auto;
+  margin-top: 50px;
+  max-width: 1200px;
+}
+
+.canvas h1 {
+  margin-top: 0;
+  border-bottom: 1px solid #ccc;
+}
+
+.canvas pre {
+  margin: 15px;
+  padding: 15px;
+  border: 1px solid #ccc;
+  overflow: scroll;
+  background-color: #efefef;
+  border-radius: 10px;
+  box-shadow: 3px 3px -10px #aaa;
+}
+    </style>
   </head>
   <body>
-    <h1>%s</h1>
-    <h3>%s</h3>
-    <pre>\t%s</pre>
+    <div class="canvas">
+      <h1>%s</h1>
+      <p>%s</p>
+      <pre>%s</pre>
+    </div>
   </body>
 </html>
   HTML
