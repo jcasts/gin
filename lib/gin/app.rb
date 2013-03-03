@@ -386,7 +386,8 @@ class Gin::App
   # Check if the request is for a static file.
 
   def static? env
-    %w{GET HEAD}.include?(env['REQUEST_METHOD']) && asset(env['PATH_INFO'])
+    %w{GET HEAD}.include?(env['REQUEST_METHOD']) &&
+    (asset(env['PATH_INFO']) || gin_asset(env['PATH_INFO']))
   end
 
 
@@ -397,6 +398,13 @@ class Gin::App
   def asset path
     path = path.gsub STATIC_PATH_CLEANER, ""
     path = File.expand_path(File.join(public_dir, path))
+    path if File.file? path
+  end
+
+
+  def gin_asset path #:nodoc:
+    path = path.gsub STATIC_PATH_CLEANER, ""
+    path = File.expand_path(File.join(Gin::HTML_DIR, path))
     path if File.file? path
   end
 

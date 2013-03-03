@@ -557,6 +557,7 @@ class Gin::Controller
 body {
   font-family: Helvetica Neue, Helvetica, Sans-Serif;
   background-color: #eee;
+  margin: 50px;
 }
 
 .canvas {
@@ -577,6 +578,7 @@ body {
 }
 
 .canvas pre {
+  clear: both;
   margin: 15px;
   padding: 15px;
   border: 1px solid #ccc;
@@ -585,10 +587,20 @@ body {
   border-radius: 10px;
   box-shadow: 3px 3px -10px #aaa;
 }
+
+img.logo {
+  float: left;
+  position: relative;
+  top: -35px;
+  left: -35px;
+  margin-bottom: -50px;
+  margin-right: -25px;
+}
     </style>
   </head>
   <body>
     <div class="canvas">
+      <img src="/gin_sm.png" class="logo"/>
       <h1>%s</h1>
       <p>%s</p>
       <pre>%s</pre>
