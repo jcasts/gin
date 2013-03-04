@@ -619,13 +619,24 @@ img.logo {
     raise Gin::NotFound, "No action #{self.class}##{action}" unless
       self.class.actions.include? action.to_sym
 
-    m = method(action)
-
     args = []
-    m.parameters.each do |(type, name)|
+    temp = []
+
+    method(action).parameters.each do |(type, name)|
       raise Gin::BadRequest, BAD_REQ_MSG % name if
         type == :req && !params[name]
-      args << params[name]
+
+      break if type == :rest || name.nil?
+
+      val = params[name]
+
+      if val.nil?
+        temp << val
+      else
+        args.concat temp
+        temp.clear
+        args << params[name]
+      end
     end
 
     args

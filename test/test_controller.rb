@@ -369,7 +369,7 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal [], @ctrl.send("action_arguments", "index")
 
     assert_equal [123], @ctrl.send("action_arguments", "show")
-    assert_equal [123, nil, nil], @ctrl.send("action_arguments", "delete")
+    assert_equal [123], @ctrl.send("action_arguments", "delete")
 
     @ctrl.params.update 'name' => 'bob'
     assert_equal [123,nil,'bob'], @ctrl.send("action_arguments", "delete")
