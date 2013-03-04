@@ -8,6 +8,7 @@ bin/gin
 html/400.html
 html/404.html
 html/500.html
+html/gin_sm.png
 lib/gin.rb
 lib/gin/app.rb
 lib/gin/config.rb
