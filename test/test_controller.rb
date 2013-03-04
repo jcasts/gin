@@ -20,7 +20,7 @@ class AppController < Gin::Controller
   end
 end
 
-class FooController < Gin::Controller
+class TestController < Gin::Controller
   def show id
     "SHOW #{id}!"
   end
@@ -314,7 +314,7 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_dispatch_bad_request_nondev
     MockApp.environment "prod"
-    @ctrl = FooController.new @app, rack_env
+    @ctrl = TestController.new @app, rack_env
     @ctrl.params.delete('id')
     @ctrl.send(:dispatch, :show)
 
@@ -327,7 +327,7 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_dispatch_not_found_nondev
     MockApp.environment "prod"
-    @ctrl = FooController.new @app, rack_env
+    @ctrl = TestController.new @app, rack_env
     @ctrl.params.delete('id')
     @ctrl.send(:dispatch, :not_found)
 

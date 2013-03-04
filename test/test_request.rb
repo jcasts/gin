@@ -34,6 +34,36 @@ class RequestTest < Test::Unit::TestCase
   end
 
 
+  def test_ssl
+    assert !@req.ssl?
+
+    @env['HTTPS'] = 'on'
+    assert @req.ssl?
+  end
+
+
+  def test_safe
+    @env['REQUEST_METHOD'] = 'POST'
+    assert !@req.safe?, "Verb POST should NOT be safe"
+
+    %w{GET HEAD OPTIONS TRACE}.each do |verb|
+      @env['REQUEST_METHOD'] = verb
+      assert @req.safe?, "Verb #{verb} should be safe"
+    end
+  end
+
+
+  def test_idempotent
+    @env['REQUEST_METHOD'] = 'POST'
+    assert !@req.idempotent?, "Verb POST should NOT be idempotent"
+
+    %w{GET HEAD OPTIONS TRACE PUT DELETE}.each do |verb|
+      @env['REQUEST_METHOD'] = verb
+      assert @req.idempotent?, "Verb #{verb} should be idempotent"
+    end
+  end
+
+
   def test_process_params
     assert_equal true,  @req.send(:process_params, "true")
     assert_equal false, @req.send(:process_params, "false")
