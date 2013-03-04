@@ -437,7 +437,7 @@ class Gin::Controller
       time    = Time.now + amount.to_i
       max_age = amount
     else
-      time    = Time.parse amount if String === time
+      time    = String === amount ? Time.parse(amount) : amount
       max_age = time - Time.now
     end
 
@@ -452,7 +452,7 @@ class Gin::Controller
   # Sets Cache-Control, Expires, and Pragma headers to tell the browser
   # not to cache the response.
 
-  def expire_cache_control!
+  def expire_cache_control
     @response['Pragma'] = 'no-cache'
     expires Time.new("1990","01","01"),
       :no_cache, :no_store, :must_revalidate, max_age: 0

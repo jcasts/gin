@@ -88,6 +88,153 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_etag
+    @ctrl.etag("my-etag")
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    @ctrl.etag("my-etag", kind: :strong)
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    @ctrl.etag("my-etag", :strong)
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+  end
+
+
+  def test_etag_weak
+    @ctrl.etag("my-etag", kind: :weak)
+    assert_equal 'W/"my-etag"', @ctrl.response['ETag']
+
+    @ctrl.etag("my-etag", :weak)
+    assert_equal 'W/"my-etag"', @ctrl.response['ETag']
+  end
+
+
+  def test_etag_if_match
+    rack_env['HTTP_IF_MATCH'] = '"other-etag"'
+    resp = catch(:halt){ @ctrl.etag "my-etag" }
+    assert_equal 412, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    rack_env['HTTP_IF_MATCH'] = '*'
+    resp = catch(:halt){ @ctrl.etag "my-etag" }
+    assert_equal nil, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    rack_env['HTTP_IF_MATCH'] = '*'
+    resp = catch(:halt){ @ctrl.etag "my-etag", new_resource: true }
+    assert_equal 412, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    rack_env['REQUEST_METHOD'] = 'POST'
+    rack_env['HTTP_IF_MATCH'] = '*'
+    resp = catch(:halt){ @ctrl.etag "my-etag" }
+    assert_equal 412, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+  end
+
+
+  def test_etag_if_none_match
+    rack_env['REQUEST_METHOD'] = 'GET'
+
+    rack_env['HTTP_IF_NONE_MATCH'] = '"other-etag"'
+    resp = catch(:halt){ @ctrl.etag "my-etag" }
+    assert_equal nil, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    rack_env['HTTP_IF_NONE_MATCH'] = '"other-etag", "my-etag"'
+    resp = catch(:halt){ @ctrl.etag "my-etag" }
+    assert_equal 304, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    rack_env['HTTP_IF_NONE_MATCH'] = '*'
+    resp = catch(:halt){ @ctrl.etag "my-etag" }
+    assert_equal 304, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+
+    rack_env['REQUEST_METHOD'] = 'POST'
+    rack_env['HTTP_IF_NONE_MATCH'] = '*'
+    resp = catch(:halt){ @ctrl.etag "my-etag", new_resource: false }
+    assert_equal 412, resp
+    assert_equal "my-etag".inspect, @ctrl.response['ETag']
+  end
+
+
+  def test_etag_non_error_status
+    [200, 201, 202, 304].each do |code|
+      @ctrl.status code
+      rack_env['HTTP_IF_MATCH'] = '"other-etag"'
+      resp = catch(:halt){ @ctrl.etag "my-etag" }
+      assert_equal 412, resp
+      assert_equal "my-etag".inspect, @ctrl.response['ETag']
+    end
+  end
+
+
+  def test_etag_error_status
+    [301, 302, 303, 400, 404, 500, 502, 503].each do |code|
+      @ctrl.status code
+      rack_env['HTTP_IF_MATCH'] = '"other-etag"'
+      resp = catch(:halt){ @ctrl.etag "my-etag" }
+      assert_equal nil, resp
+      assert_equal "my-etag".inspect, @ctrl.response['ETag']
+    end
+  end
+
+
+  def test_cache_control
+    @ctrl.cache_control :public, :must_revalidate, max_age: 60
+    assert_equal "public, must-revalidate, max-age=60",
+                 @ctrl.response['Cache-Control']
+
+    @ctrl.cache_control public:true, must_revalidate:false, max_age:'foo'
+    assert_equal "public, max-age=0", @ctrl.response['Cache-Control']
+  end
+
+
+  def test_expires_int
+    time = Time.now
+    @ctrl.expires 60, :public, :must_revalidate
+
+    assert_equal "public, must-revalidate, max-age=60",
+                 @ctrl.response['Cache-Control']
+
+    assert_equal (time + 60).httpdate, @ctrl.response['Expires']
+  end
+
+
+  def test_expires_time
+    time = Time.now + 60
+    @ctrl.expires time, :public, must_revalidate:false, max_age:20
+
+    assert_equal "public, max-age=20",
+                 @ctrl.response['Cache-Control']
+
+    assert_equal time.httpdate, @ctrl.response['Expires']
+  end
+
+
+  def test_expires_str
+    time = Time.now + 60
+    @ctrl.expires time.strftime("%Y/%m/%d %H:%M:%S"),
+                  :public, must_revalidate:false, max_age:20
+
+    assert_equal "public, max-age=20",
+                 @ctrl.response['Cache-Control']
+
+    assert_equal time.httpdate, @ctrl.response['Expires']
+  end
+
+
+  def test_expire_cache_control
+    @ctrl.expire_cache_control
+    assert_equal 'no-cache', @ctrl.response['Pragma']
+    assert_equal 'no-cache, no-store, must-revalidate, max-age=0',
+                  @ctrl.response['Cache-Control']
+    assert_equal Time.new("1990","01","01").httpdate,
+                  @ctrl.response['Expires']
+  end
+
+
   def test_set_cookie
     cookie = {:value => "user@example.com", :expires => Time.now + 360}
     @ctrl.cookies['test'] = cookie
