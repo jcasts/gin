@@ -20,6 +20,12 @@ class AppController < Gin::Controller
   end
 end
 
+class FooController < Gin::Controller
+  def show id
+    "SHOW #{id}!"
+  end
+end
+
 class BarController < AppController
   before_filter :stop, :only => :delete do
     FILTERS_RUN << :stop
@@ -61,6 +67,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def setup
+    MockApp.instance_variable_set("@environment", nil)
     MockApp.instance_variable_set("@asset_host", nil)
     @app  = MockApp.new
     @ctrl = BarController.new(@app, rack_env)
@@ -142,6 +149,45 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal String, @ctrl.response.body[0].class
     assert_equal "text/html;charset=UTF-8", @ctrl.response['Content-Type']
     assert @ctrl.response.body[0].include?('<h1>RuntimeError</h1>')
+    assert @ctrl.response.body[0].include?('<pre>')
+  end
+
+
+  def test_dispatch_error_nondev
+    MockApp.environment "prod"
+    @ctrl.send(:dispatch, :index)
+
+    assert_equal 500, @ctrl.response.status
+    assert RuntimeError === @ctrl.env['gin.errors'].first
+
+    assert_equal File.read(File.join(Gin::HTML_DIR, "500.html")),
+                 @ctrl.body.read
+  end
+
+
+  def test_dispatch_bad_request_nondev
+    MockApp.environment "prod"
+    @ctrl = FooController.new @app, rack_env
+    @ctrl.params.delete('id')
+    @ctrl.send(:dispatch, :show)
+
+    assert_equal 400, @ctrl.response.status
+    assert Gin::BadRequest === @ctrl.env['gin.errors'].first
+    assert_equal File.read(File.join(Gin::HTML_DIR, "400.html")),
+                 @ctrl.body.read
+  end
+
+
+  def test_dispatch_not_found_nondev
+    MockApp.environment "prod"
+    @ctrl = FooController.new @app, rack_env
+    @ctrl.params.delete('id')
+    @ctrl.send(:dispatch, :not_found)
+
+    assert_equal 404, @ctrl.response.status
+    assert Gin::NotFound === @ctrl.env['gin.errors'].first
+    assert_equal File.read(File.join(Gin::HTML_DIR, "404.html")),
+                 @ctrl.body.read
   end
 
 
@@ -172,7 +218,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_action_arguments
-    assert_raises(NameError){ @ctrl.send("action_arguments", "nonaction") }
+    assert_raises(Gin::NotFound){ @ctrl.send("action_arguments", "nonaction") }
     assert_equal [], @ctrl.send("action_arguments", "index")
 
     assert_equal [123], @ctrl.send("action_arguments", "show")

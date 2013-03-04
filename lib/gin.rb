@@ -20,17 +20,25 @@ class Gin
   end
 
 
+  ##
+  # Change string to underscored version.
+
   def self.underscore str
     str = str.dup
     str.gsub!('::', '/')
+    str.gsub!(/([A-Z]+?)([A-Z][a-z])/, '\1_\2')
     str.gsub!(/([a-z\d])([A-Z])/, '\1_\2')
     str.downcase
   end
 
 
+  ##
+  # Create a URI query from a Hash.
+
   def self.build_query value, prefix=nil
     case value
     when Array
+      raise ArgumentError, "no prefix given" if prefix.nil?
       value.map { |v|
         build_query(v, "#{prefix}[]")
       }.join("&")
@@ -41,7 +49,7 @@ class Gin
           "#{prefix}[#{CGI.escape(k.to_s)}]" : CGI.escape(k.to_s))
       }.join("&")
 
-    when String, Integer, Float
+    when String, Integer, Float, TrueClass, FalseClass
       raise ArgumentError, "value must be a Hash" if prefix.nil?
       "#{prefix}=#{CGI.escape(value.to_s)}"
 

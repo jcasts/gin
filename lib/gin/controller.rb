@@ -616,7 +616,8 @@ img.logo {
   # Raises Gin::BadRequest if a required argument has no matching param.
 
   def action_arguments action=@action
-    m = method(action)
+    m = method(action) rescue nil
+    raise Gin::NotFound, "No action #{self.class}##{action}" unless m
 
     args = []
     m.parameters.each do |(type, name)|
