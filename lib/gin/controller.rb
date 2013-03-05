@@ -627,7 +627,7 @@ img.logo {
       val = params[name.to_s]
 
       raise Gin::BadRequest, BAD_REQ_MSG % name if type == :req && !val
-      break if [:rest, :block].include?(type) || name.nil?
+      break if type == :rest || type == :block || name.nil?
 
       if type == :key
         # Ruby 2.0 hash keys arguments
