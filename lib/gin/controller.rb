@@ -633,7 +633,7 @@ img.logo {
         # Ruby 2.0 hash keys arguments
         args.concat temp
         args << {} if prev_type != :key
-        args.last[name] = val
+        args.last[name] = val unless val.nil?
 
       elsif val.nil?
         temp << val
