@@ -621,22 +621,30 @@ img.logo {
 
     args = []
     temp = []
+    prev_type = nil
 
     method(action).parameters.each do |(type, name)|
-      raise Gin::BadRequest, BAD_REQ_MSG % name if
-        type == :req && !params[name]
+      val = params[name.to_s]
 
-      break if type == :rest || name.nil?
+      raise Gin::BadRequest, BAD_REQ_MSG % name if type == :req && !val
+      break if [:rest, :block].include?(type) || name.nil?
 
-      val = params[name]
+      if type == :key
+        # Ruby 2.0 hash keys arguments
+        args.concat temp
+        args << {} if prev_type != :key
+        args.last[name] = val
 
-      if val.nil?
+      elsif val.nil?
         temp << val
+
       else
         args.concat temp
         temp.clear
-        args << params[name]
+        args << val
       end
+
+      prev_type = type
     end
 
     args
