@@ -381,6 +381,20 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+if RUBY_VERSION =~ /^2.0/
+  eval <<-EVAL
+  class SpecialCtrl < Gin::Controller
+    def find(q, title_only:false, count: 10); end
+  end
+  EVAL
+
+  def test_action_arguments_key_parameters
+    @ctrl = SpecialCtrl.new nil, rack_env.merge('QUERY_STRING'=>'q=pizza&count=20')
+    assert_equal ["pizza", {count: 20}], @ctrl.send("action_arguments", "find")
+  end
+end
+
+
   def test_asset_url
     old_public_dir = MockApp.public_dir
     MockApp.public_dir File.dirname(__FILE__)
