@@ -13,12 +13,14 @@
 
 class Gin::App
   extend GinClass
+  include Gin::Reloadable
 
   class RouterError < Gin::Error; end
 
   RACK_KEYS = { #:nodoc:
     :stack       => 'gin.stack'.freeze,
     :path_params => 'gin.path_query_hash'.freeze,
+    :reloaded    => 'gin.reloaded'.freeze
   }.freeze
 
 
@@ -36,8 +38,11 @@ class Gin::App
 
   def self.inherited subclass   #:nodoc:
     caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
-    dir = File.expand_path("..", caller_line.split(/:\d+:in `</).first)
+    filepath = File.expand_path(caller_line.split(/:\d+:in `</).first)
+    dir      = File.dirname(filepath)
     subclass.root_dir dir
+    subclass.instance_variable_set("@source_file", filepath)
+    subclass.instance_variable_set("@source_class", subclass.to_s)
   end
 
 
@@ -65,6 +70,26 @@ class Gin::App
 
   def self.mount ctrl, base_path=nil, &block
     router.add ctrl, base_path, &block
+  end
+
+
+  ##
+  # Returns the source file of the current app.
+
+  def self.source_file
+    @source_file
+  end
+
+
+  def self.namespace #:nodoc:
+    # Parent namespace of the App class. Used for reloading purposes.
+    Gin.const_find(@source_class.split("::")[0..-2]) if @source_class
+  end
+
+
+  def self.source_class #:nodoc:
+    # Lookup the class from its name. Used for reloading purposes.
+    Gin.const_find(@source_class) if @source_class
   end
 
 
@@ -346,7 +371,19 @@ class Gin::App
 
     validate_all_controllers!
 
+    @app   = self
     @stack = build_app Rack::Builder.new
+  end
+
+
+  def reload!
+    self.class.erase! [self.class.source_file],
+                      [self.class.name.split("::").last],
+                      self.class.namespace
+
+    self.class.erase_dependencies!
+    Object.send(:require, self.class.source_file)
+    @app = self.class.source_class.new @rack_app, @logger
   end
 
 
@@ -354,9 +391,14 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    if env[RACK_KEYS[:stack]]
+    if auto_reload && !env[RACK_KEYS[:reloaded]]
+      env[RACK_KEYS[:reloaded]] = true
+      reload!
+      @app.call env
+
+    elsif env[RACK_KEYS[:stack]]
       env.delete RACK_KEYS[:stack]
-      call! env
+      @app.call! env
 
     else
       env[RACK_KEYS[:stack]] = true

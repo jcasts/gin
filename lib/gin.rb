@@ -59,9 +59,42 @@ class Gin
   end
 
 
+  ##
+  # Returns the full path to the file given based on the load paths.
+
+  def self.find_loadpath file
+    name = file.dup
+    name << ".rb" unless name[-3..-1] == ".rb"
+    filepath = nil
+
+    dir = $:.find do |path|
+      filepath = File.expand_path(name, path)
+      File.file? filepath
+    end
+
+    dir && filepath
+  end
+
+
+  ##
+  # Get a namespaced constant.
+
+  def self.const_find str_or_ary, parent=Object
+    const = nil
+    names = Array === str_or_ary ? str_or_ary : str_or_ary.split("::")
+    names.each do |name|
+      const  = parent.const_get(name)
+      parent = const
+    end
+
+    const
+  end
+
+
   require 'gin/core_ext/cgi'
   require 'gin/core_ext/gin_class'
 
+  require 'gin/reloadable'
   require 'gin/app'
   require 'gin/router'
   require 'gin/config'
