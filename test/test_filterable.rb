@@ -43,6 +43,13 @@ class FilterableTest < Test::Unit::TestCase
 
     after_filter :log_action
     after_filter :set_login_cookie, :other_filter, :except => :foo
+
+
+    private
+
+    def __call_filters__ type, action #:nodoc:
+      filter(*__send__(:"#{type}_filters_for", action))
+    end
   end
 
 
@@ -79,59 +86,35 @@ class FilterableTest < Test::Unit::TestCase
 
   def test_filter_chain_inheritance
     assert_equal [:logged_in, :find_device],
-      AppCtrl.before_filters.map{|(n,_)| n }
+      AppCtrl.before_filters[nil]
 
     assert_equal [:logged_in, :custom_thing],
-      SessionCtrl.before_filters.map{|(n,_)| n }
+      SessionCtrl.before_filters[nil]
 
     assert_equal [:log_action, :set_login_cookie, :other_filter],
-      AppCtrl.after_filters.map{|(n,_)| n }
+      AppCtrl.after_filters[nil]
 
-    assert_equal [:log_action, :set_login_cookie, :other_filter],
-      SessionCtrl.after_filters.map{|(n,_)| n }
-  end
-
-
-  def test_filter_rule_inheritance
-    assert_nil AppCtrl.before_filters.first[1]
-    assert_equal({:except => [:foo]}, AppCtrl.after_filters.last[1])
-
-    assert_equal({:except => [:create, :new]},
-      SessionCtrl.before_filters.first[1])
-    assert_equal({:except => [:foo], :only => [:logout]},
-      SessionCtrl.after_filters[-2][1])
-    assert_equal({:except => [:foo]},
-      SessionCtrl.after_filters[-1][1])
-  end
-
-
-  def test_filter_action_validation
-    assert @session_ctrl.send(:__valid_filter__, :action, nil)
-
-    assert @session_ctrl.send(:__valid_filter__, :action, :only => [:action])
-    assert @session_ctrl.send(:__valid_filter__, :action, :except => [:other])
-
-    assert !@session_ctrl.send(:__valid_filter__, :action, :except => [:action])
-    assert !@session_ctrl.send(:__valid_filter__, :action, :only => [:other])
+    assert_equal [:log_action, :other_filter],
+      SessionCtrl.after_filters[nil]
   end
 
 
   def test_call_filters
-    @app_ctrl.send(:__call_filters__, @app_ctrl.before_filters, :action)
+    @app_ctrl.send(:__call_filters__, :before, :action)
     assert_equal [:logged_in, :find_device], FILTER_CALLS
 
     FILTER_CALLS.clear
-    @session_ctrl.send(:__call_filters__, @session_ctrl.before_filters, :action)
+    @session_ctrl.send(:__call_filters__, :before, :action)
     assert_equal [:logged_in, :custom_thing], FILTER_CALLS
   end
 
 
   def test_call_filters_with_restrictions
-    @app_ctrl.send(:__call_filters__, @app_ctrl.before_filters, :create)
+    @app_ctrl.send(:__call_filters__, :before, :create)
     assert_equal [:logged_in, :find_device], FILTER_CALLS
 
     FILTER_CALLS.clear
-    @session_ctrl.send(:__call_filters__, @session_ctrl.before_filters, :create)
+    @session_ctrl.send(:__call_filters__, :before, :create)
     assert_equal [:custom_thing], FILTER_CALLS
   end
 

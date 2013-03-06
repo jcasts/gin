@@ -506,7 +506,7 @@ class Gin::Controller
     @action = action
 
     invoke do
-      __call_filters__ before_filters, action
+      filter(*before_filters_for(action))
       args = action_arguments action
       __send__(action, *args)
     end
@@ -514,7 +514,7 @@ class Gin::Controller
   rescue => err
     invoke{ handle_error err }
   ensure
-    __call_filters__ after_filters, action
+    filter(*after_filters_for(action))
   end
 
 

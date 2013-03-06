@@ -35,49 +35,48 @@ module Gin::Filterable
     end
 
 
-    def append_filters filter_ary, name, *names #:nodoc:
-      names = [name].concat names
-      opts  = normalize_filter_opts names.delete_at(-1) if Hash === names[-1]
+    def modify_filter_stack filter_hsh, name, *names #:nodoc:
+      names = [name].concat(names)
+      opts  = Hash === names[-1] ? names.pop : {}
+      names.map!(&:to_sym)
 
-      filter_ary.concat names.map{|n| [n.to_sym, opts] }
-    end
-
-
-    def skip_filters filter_ary, name, *names #:nodoc:
-      names = [name].concat names
-
-      if Hash === names[-1]
-        opts = normalize_filter_opts names.delete_at(-1)
-        opts[:except], opts[:only] = opts[:only], opts[:except]
-
-        filter_ary.length.times do |i|
-          fname, old_opts = filter_ary[i]
-          next unless names.include? fname
-
-          old_opts ||= {}
-          new_opts   = {}
-
-          new_opts[:only] =
-            Array(opts[:only]).concat Array(old_opts[:only]) if
-            old_opts[:only] || opts[:only]
-
-          new_opts[:except] =
-            Array(opts[:except]).concat Array(old_opts[:except]) if
-            old_opts[:except] || opts[:except]
-
-          filter_ary[i] = [fname, new_opts]
+      if opts[:only]
+        Array(opts[:only]).each do |action|
+          action = action.to_sym
+          filter_hsh[action] ||= filter_hsh[nil].dup
+          yield filter_hsh, action, names
         end
 
+      elsif opts[:except]
+        except = Array(opts[:except])
+        filter_hsh.keys.each do |action|
+          next if action.nil?
+          filter_hsh[action] ||= filter_hsh[nil].dup and next if
+            except.include?(action)
+
+          yield filter_hsh, action, names
+        end
+        yield filter_hsh, nil, names
+
       else
-        filter_ary.delete_if{|(fname,_)| names.include? fname }
+        filter_hsh.keys.each do |action|
+          yield filter_hsh, action, names
+        end
       end
     end
 
 
-    def normalize_filter_opts opts #:nodoc:
-      opts[:only]   = Array(opts[:only])   if opts[:only]
-      opts[:except] = Array(opts[:except]) if opts[:except]
-      opts
+    def append_filters filter_hsh, name, *names #:nodoc:
+      modify_filter_stack(filter_hsh, name, *names) do |h,k,n|
+        h[k].concat n
+      end
+    end
+
+
+    def skip_filters filter_hsh, name, *names #:nodoc:
+      modify_filter_stack(filter_hsh, name, *names) do |h,k,n|
+        h[k] -= n
+      end
     end
 
 
@@ -94,7 +93,7 @@ module Gin::Filterable
 
     def before_filter name, *opts, &block
       filter(name, &block) if block_given?
-      append_filters(self.before_filters, name, *opts)
+      append_filters(before_filters, name, *opts)
     end
 
 
@@ -103,8 +102,14 @@ module Gin::Filterable
     # This attribute is inherited.
 
     def before_filters
-      @before_filters ||= self.superclass.respond_to?(:before_filters) ?
-                     self.superclass.before_filters.dup : []
+      return @before_filters if @before_filters
+      @before_filters ||= {nil => []}
+
+      if superclass.respond_to?(:before_filters)
+        superclass.before_filters.each{|k,v| @before_filters[k] = v.dup }
+      end
+
+      @before_filters
     end
 
 
@@ -136,11 +141,16 @@ module Gin::Filterable
 
     ##
     # List of after filters.
-    # This attribute is inherited.
 
     def after_filters
-      @after_filters ||= self.superclass.respond_to?(:after_filters) ?
-                     self.superclass.after_filters.dup : []
+      return @after_filters if @after_filters
+      @after_filters ||= {nil => []}
+
+      if superclass.respond_to?(:after_filters)
+        superclass.after_filters.each{|k,v| @after_filters[k] = v.dup }
+      end
+
+      @after_filters
     end
 
 
@@ -151,41 +161,36 @@ module Gin::Filterable
     def skip_after_filter name, *names
       skip_filters(self.after_filters, name, *names)
     end
+
+
+    ##
+    # Get an Array of before filter names for the given action.
+
+    def before_filters_for action
+      before_filters[action] || before_filters[nil] || []
+    end
+
+
+    ##
+    # Get an Array of after filter names for the given action.
+
+    def after_filters_for action
+      after_filters[action] || after_filters[nil] || []
+    end
   end
 
 
-
-  class_proxy :filters, :before_filters, :after_filters
+  class_proxy :filters, :before_filters, :after_filters,
+              :before_filters_for, :after_filters_for
 
   ##
   # Chain-call filters from an action. Raises the filter exception if any
   # filter in the chain fails.
   #   filter :logged_in, :admin
 
-  def filter name, *names
-    names.unshift name
+  def filter *names
     names.each do |n|
       instance_eval(&self.filters[n.to_sym])
     end
-  end
-
-
-  private
-
-
-  def __call_filters__ filter_ary, action #:nodoc:
-    filter_ary.each do |name, opts|
-      filter(name) if __valid_filter__ action, opts
-    end
-  end
-
-
-  def __valid_filter__ action, opts #:nodoc:
-    return true unless opts
-
-    return false if opts[:only] && !opts[:only].include?(action) ||
-                    opts[:except] && opts[:except].include?(action)
-
-    true
   end
 end
