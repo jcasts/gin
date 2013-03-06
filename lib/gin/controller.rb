@@ -548,66 +548,7 @@ class Gin::Controller
   private
 
 
-  DEV_ERROR_HTML = <<-HTML.freeze #:nodoc:
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>%s</title>
-    <style>
-body {
-  font-family: Helvetica Neue, Helvetica, Sans-Serif;
-  background-color: #eee;
-  margin: 50px;
-}
-
-.canvas {
-  border: 1px solid #ccc;
-  padding: 20px;
-  padding-top: 10px;
-  border-radius: 15px;
-  box-shadow: 3px 3px 10px #aaa;
-  background-color: #fff;
-  margin: 0 auto;
-  margin-top: 50px;
-  max-width: 1200px;
-}
-
-.canvas h1 {
-  margin-top: 0;
-  border-bottom: 1px solid #ccc;
-}
-
-.canvas pre {
-  clear: both;
-  margin: 15px;
-  padding: 15px;
-  border: 1px solid #ccc;
-  overflow: scroll;
-  background-color: #efefef;
-  border-radius: 10px;
-  box-shadow: 3px 3px -10px #aaa;
-}
-
-img.logo {
-  float: left;
-  position: relative;
-  top: -35px;
-  left: -35px;
-  margin-bottom: -50px;
-  margin-right: -25px;
-}
-    </style>
-  </head>
-  <body>
-    <div class="canvas">
-      <img src="/gin_sm.png" class="logo"/>
-      <h1>%s</h1>
-      <p>%s</p>
-      <pre>%s</pre>
-    </div>
-  </body>
-</html>
-  HTML
+  DEV_ERROR_HTML = File.read(File.join(Gin::PUBLIC_DIR, "error.html"))
 
   BAD_REQ_MSG = "Expected param `%s'" #:nodoc:
 
