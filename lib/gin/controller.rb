@@ -536,8 +536,8 @@ class Gin::Controller
       filepath = asset("#{code}.html") || asset("500.html")
 
       unless filepath
-        filepath = File.join(Gin::HTML_DIR, "#{code}.html")
-        filepath = File.join(Gin::HTML_DIR, "500.html") if !File.file?(filepath)
+        filepath = File.join(Gin::PUBLIC_DIR, "#{code}.html")
+        filepath = File.join(Gin::PUBLIC_DIR, "500.html") if !File.file?(filepath)
       end
 
       File.open(filepath, "rb")

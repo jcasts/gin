@@ -307,7 +307,7 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal 500, @ctrl.response.status
     assert RuntimeError === @ctrl.env['gin.errors'].first
 
-    assert_equal File.read(File.join(Gin::HTML_DIR, "500.html")),
+    assert_equal File.read(File.join(Gin::PUBLIC_DIR, "500.html")),
                  @ctrl.body.read
   end
 
@@ -320,7 +320,7 @@ class ControllerTest < Test::Unit::TestCase
 
     assert_equal 400, @ctrl.response.status
     assert Gin::BadRequest === @ctrl.env['gin.errors'].first
-    assert_equal File.read(File.join(Gin::HTML_DIR, "400.html")),
+    assert_equal File.read(File.join(Gin::PUBLIC_DIR, "400.html")),
                  @ctrl.body.read
   end
 
@@ -333,7 +333,7 @@ class ControllerTest < Test::Unit::TestCase
 
     assert_equal 404, @ctrl.response.status
     assert Gin::NotFound === @ctrl.env['gin.errors'].first
-    assert_equal File.read(File.join(Gin::HTML_DIR, "404.html")),
+    assert_equal File.read(File.join(Gin::PUBLIC_DIR, "404.html")),
                  @ctrl.body.read
   end
 

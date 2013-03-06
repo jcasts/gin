@@ -442,7 +442,7 @@ class Gin::App
     filepath = File.expand_path(File.join(public_dir, path))
     return filepath if File.file? filepath
 
-    filepath = File.expand_path(File.join(Gin::HTML_DIR, path))
+    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
     return filepath if File.file? filepath
   end
 

@@ -7,7 +7,7 @@ require 'rack-protection'
 class Gin
   VERSION = '1.0.0'
 
-  HTML_DIR = File.expand_path("../../html/", __FILE__) #:nodoc:
+  PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
 
   class Error < StandardError; end
 
