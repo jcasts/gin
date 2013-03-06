@@ -9,7 +9,30 @@
       <img src="/gin_sm.png" class="logo"/>
       <h1>%s</h1>
       <p>%s</p>
-      <pre>%s</pre>
+      <div id="apptrace" class="trace">
+        <a href="#" onclick="show_fulltrace()">Show Full Trace</a>
+        %s
+      </div>
+      <div id="fulltrace" onclick="hide_fulltrace()" class="trace">
+        <a href="#">Hide Full Trace</a>
+        %s
+      </div>
     </div>
+    <script>
+var apptrace  = document.getElementById('apptrace');
+var fulltrace = document.getElementById('fulltrace');
+
+function show_fulltrace(){
+  apptrace.style.display  = "none";
+  fulltrace.style.display = "block";
+  return true;
+}
+
+function hide_fulltrace(){
+  apptrace.style.display  = "block";
+  fulltrace.style.display = "none";
+  return true;
+}
+    </script>
   </body>
 </html>

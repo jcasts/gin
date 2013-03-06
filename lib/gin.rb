@@ -7,6 +7,7 @@ require 'rack-protection'
 class Gin
   VERSION = '1.0.0'
 
+  ROOT_DIR   = File.expand_path("../..", __FILE__)         #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
 
   class Error < StandardError; end
@@ -88,6 +89,18 @@ class Gin
     end
 
     const
+  end
+
+
+  ##
+  # Get the application backtrace only.
+  # Removes gem and Gin paths from the trace.
+
+  def self.app_trace trace
+    trace.dup.delete_if do |line|
+      line.start_with?(Gin::ROOT_DIR) ||
+      Gem.path.any?{|dir| line.start_with?(dir) }
+    end
   end
 
 

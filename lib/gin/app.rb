@@ -472,10 +472,8 @@ class Gin::App
   def handle_error err, env
     raise err unless error_delegate
 
-    trace = Array(err.backtrace).join("\n")
-
-    logger.warn("[Handled Error] %s: %s\n%s" %
-      [err.class.name, err.message, trace.to_s])
+    trace = Gin.app_trace(Array(err.backtrace)).join("\n")
+    logger.error("%s: %s\n%s" % [err.class.name, err.message, trace])
 
     error_delegate.exec(self, env){ handle_error(err) }
   end

@@ -528,8 +528,13 @@ class Gin::Controller
 
   def html_error_page err, code=nil
     if @app.development?
-      trace = err.backtrace.join("\n")
-      DEV_ERROR_HTML % [err.class, err.class, err.message, trace]
+      fulltrace = err.backtrace.join("\n")
+      fulltrace = "<pre>#{fulltrace}</pre>"
+
+      apptrace  = Gin.app_trace(err.backtrace).join("\n")
+      apptrace  = "<pre>#{apptrace}</pre>" unless apptrace.empty?
+
+      DEV_ERROR_HTML % [err.class, err.class, err.message, apptrace, fulltrace]
 
     else
       code ||= status
