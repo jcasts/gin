@@ -278,7 +278,7 @@ class Gin::App
 
 
   ##
-  # Get or set the session secret.
+  # Get or set the session secret String.
   # Defaults to a new random value on boot.
 
   def self.session_secret val=nil
@@ -292,7 +292,7 @@ class Gin::App
   # hash for options. Defaults to true.
 
   def self.protection opts=nil
-    @protection = opts if opts
+    @protection = opts unless opts.nil?
     @protection = true if @protection.nil?
     @protection
   end
@@ -351,7 +351,7 @@ class Gin::App
   attr_accessor :logger
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
-  attr_reader :rack_app
+  attr_reader :rack_app, :stack
 
 
   ##

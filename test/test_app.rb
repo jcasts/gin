@@ -51,11 +51,18 @@ end
 
 
 class AppTest < Test::Unit::TestCase
+  class NamespacedApp < Gin::App; end
 
   def setup
     FooApp.instance_variable_set("@environment", nil)
     FooApp.instance_variable_set("@asset_host", nil)
     FooApp.instance_variable_set("@middleware", nil)
+    FooApp.instance_variable_set("@instance", nil)
+    FooApp.instance_variable_set("@config", nil)
+    FooApp.instance_variable_set("@config_dir", nil)
+    FooApp.instance_variable_set("@error_delegate", nil)
+    FooApp.instance_variable_set("@public_dir", nil)
+
     @app  = FooApp.new Logger.new($stdout)
     @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}
   end
@@ -63,6 +70,110 @@ class AppTest < Test::Unit::TestCase
 
   def teardown
     ENV.delete 'RACK_ENV'
+  end
+
+
+  def test_class_proxies
+    proxies = [:protection, :sessions, :session_secret, :middleware,
+      :error_delegate, :router, :root_dir, :public_dir, :load_config, :config,
+      :config_dir, :environment, :development?, :test?, :staging?, :production?,
+      :mime_type, :asset_host_for, :asset_host, :asset_version]
+
+    proxies.each do |name|
+      assert FooApp.respond_to?(name), "Gin::App should respond to #{name}"
+      assert @app.respond_to?(name), "Gin::App instance should respond to #{name}"
+    end
+  end
+
+
+  def test_class_call
+    assert_nil FooApp.instance_variable_get("@instance")
+
+    env  = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
+    resp = FooApp.call env
+    assert_equal 200, resp[0]
+    assert_equal "0", resp[1]['Content-Length']
+    assert_equal [],  resp[2]
+
+    assert FooApp === FooApp.instance_variable_get("@instance")
+    app = FooApp.instance_variable_get("@instance")
+
+    FooApp.call env
+    assert_equal app, FooApp.instance_variable_get("@instance")
+  end
+
+
+  def test_namespace
+    assert_nil FooApp.namespace
+    assert_equal self.class, NamespacedApp.namespace
+  end
+
+
+  def test_protection
+    assert_equal true, FooApp.protection
+
+    FooApp.protection(test: "thing")
+    assert_equal({test:"thing"}, FooApp.protection)
+
+    FooApp.protection false
+    assert_equal false, FooApp.protection
+  end
+
+
+  def test_sessions
+    assert_equal true, FooApp.sessions
+
+    FooApp.sessions(test: "thing")
+    assert_equal({test:"thing"}, FooApp.sessions)
+
+    FooApp.sessions false
+    assert_equal false, FooApp.sessions
+  end
+
+
+  def test_session_secret
+    assert_equal 64, FooApp.session_secret.length
+    FooApp.session_secret "this is my secret!"
+    assert_equal "this is my secret!", FooApp.session_secret
+  end
+
+
+  def test_source_class
+    old_name = FooApp.instance_variable_get("@source_class")
+    assert_equal FooApp, FooApp.source_class
+
+    FooApp.instance_variable_set("@source_class", "MissingRouteApp")
+    assert_equal MissingRouteApp, FooApp.source_class
+
+  ensure
+    FooApp.instance_variable_set("@source_class", old_name)
+  end
+
+
+  def test_config_dir
+    assert_equal File.join(FooApp.root_dir, "config"), FooApp.config_dir
+
+    FooApp.config_dir "/foo/blah"
+    assert_equal "/foo/blah", FooApp.config_dir
+  end
+
+
+  def test_config
+    assert Gin::Config === FooApp.config
+    assert FooApp.config.instance_variable_get("@data").empty?
+  end
+
+
+  def test_config_with_dir
+    FooApp.config_dir "./test/mock_config"
+    assert_equal 1, FooApp.config.backend['connections']
+  end
+
+
+  def test_error_delegate
+    assert_equal Gin::Controller, FooApp.error_delegate
+    FooApp.error_delegate FooController
+    assert_equal FooController, FooApp.error_delegate
   end
 
 
@@ -129,6 +240,41 @@ class AppTest < Test::Unit::TestCase
     FooApp.asset_host{ "https://foo.com" }
     assert_equal "https://foo.com", FooApp.asset_host
     assert_equal "https://foo.com", @app.asset_host
+  end
+
+
+  def test_asset
+    FooApp.public_dir "./test/mock_config"
+    assert @app.asset("backend.yml") =~ %r{/gin/test/mock_config/backend\.yml$}
+    assert @app.asset("500.html") =~ %r{/gin/public/500\.html$}
+    assert_nil @app.asset("bad_file")
+    assert_nil @app.asset("../../History.rdoc")
+  end
+
+
+  def test_static
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
+    assert !@app.static?(env)
+
+    env['PATH_INFO'] = '/500.html'
+    assert @app.static?(env) =~ %r{/gin/public/500\.html$}
+
+    env['PATH_INFO'] = '../../../500.html'
+    assert @app.static?(env) =~ %r{/gin/public/500\.html$}
+
+    env['REQUEST_METHOD'] = 'HEAD'
+    assert @app.static?(env) =~ %r{/gin/public/500\.html$}
+
+    env['PATH_INFO'] = '/backend.yml'
+    assert !@app.static?(env)
+
+    FooApp.public_dir "./test/mock_config"
+    assert @app.static?(env) =~ %r{/gin/test/mock_config/backend\.yml$}
+
+    %w{POST PUT DELETE TRACE OPTIONS}.each do |verb|
+      env['REQUEST_METHOD'] = verb
+      assert !@app.static?(env), "#{verb} should not be a static request"
+    end
   end
 
 
