@@ -66,6 +66,9 @@ class Gin
   def self.find_loadpath file
     name = file.dup
     name << ".rb" unless name[-3..-1] == ".rb"
+
+    return name if name[0] == ?/ && File.file?(name)
+
     filepath = nil
 
     dir = $:.find do |path|

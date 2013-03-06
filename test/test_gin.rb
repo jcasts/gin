@@ -27,4 +27,31 @@ class GinTest < Test::Unit::TestCase
       end
     end
   end
+
+
+  def test_find_loadpath
+    assert_equal __FILE__, Gin.find_loadpath("test/test_gin")
+    assert_equal __FILE__, Gin.find_loadpath("test/test_gin.rb")
+    assert_equal __FILE__, Gin.find_loadpath(__FILE__)
+    assert_nil Gin.find_loadpath("FUUUUU")
+  end
+
+
+  def test_const_find
+    assert_equal Test::Unit, Gin.const_find("Test::Unit")
+    assert_equal Test::Unit, Gin.const_find("Unit", Test)
+    assert_raises(NameError){ Gin.const_find("Unit", Gin) }
+  end
+
+
+  def test_app_trace
+    trace = [
+      Gin::ROOT_DIR + "/blah",
+      Gem.path[0]   + "/foo",
+      Gin::ROOT_DIR + "/more",
+      "/path/to/app/thing"
+    ]
+
+    assert_equal ["/path/to/app/thing"], Gin.app_trace(trace)
+  end
 end
