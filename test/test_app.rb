@@ -7,6 +7,15 @@ class FooController < Gin::Controller;
   def error; raise "Something bad happened"; end
 end
 
+class BadErrDelegate < Gin::Controller
+  error{ raise "Bad error handler, bad!" }
+end
+
+class ErrDelegate < Gin::Controller
+  error{|err| body err.message }
+end
+
+
 class FooApp < Gin::App
   mount FooController do
     get  :index,  "/"
@@ -264,7 +273,7 @@ class AppTest < Test::Unit::TestCase
 
     resp = @app.dispatch env, FooController, :bad
     assert_equal 404, resp[0]
-    assert_equal "287", resp[1]['Content-Length']
+    assert_equal "288", resp[1]['Content-Length']
     assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
     assert_equal @app.asset("404.html"), resp[2].path
   end
@@ -276,7 +285,7 @@ class AppTest < Test::Unit::TestCase
 
     resp = @app.dispatch env, FooController, nil
     assert_equal 404, resp[0]
-    assert_equal "287", resp[1]['Content-Length']
+    assert_equal "288", resp[1]['Content-Length']
     assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
     assert_equal @app.asset("404.html"), resp[2].path
 
@@ -310,17 +319,57 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_handle_error
-    
+    FooApp.error_delegate ErrDelegate
+    env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    err = ArgumentError.new("Unexpected Argument")
+
+    resp = @app.handle_error err, env
+
+    assert_equal 500, resp[0]
+    assert_equal ["Unexpected Argument"], resp[2]
+    assert_equal({"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"19"}, resp[1])
+
+    assert_equal err, env['gin.errors'].first
   end
 
 
   def test_handle_error_no_delegate
-    
+    FooApp.environment "production"
+    env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    resp = @app.handle_error ArgumentError.new("Unexpected Argument"), env
+
+    assert_equal 500, resp[0]
+    assert_equal File.read(@app.asset("500.html")), resp[2].read
+    assert_equal({"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"348"}, resp[1])
   end
 
 
   def test_handle_error_bad_delegate
-    
+    FooApp.environment "production"
+    FooApp.error_delegate BadErrDelegate
+
+    env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    err = ArgumentError.new("Unexpected Argument")
+
+    resp = @app.handle_error ArgumentError.new("Unexpected Argument"), env
+    assert_equal 500, resp[0]
+    assert_equal File.read(@app.asset("500.html")), resp[2].read
+    assert_equal({"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"348"}, resp[1])
+
+    assert_equal err, env['gin.errors'].first
+    assert RuntimeError === env['gin.errors'].last
+  end
+
+
+  def test_handle_error_gin_controller_issue
+    env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    err = ArgumentError.new("Unexpected Argument")
+    old_handler = Gin::Controller.error_handlers[Exception]
+    Gin::Controller.error_handlers[Exception] = lambda{|err| raise Gin::Error, "FRAMEWORK IST KAPUT"}
+
+    assert_raises(Gin::Error){ @app.handle_error err, env }
+  ensure
+    Gin::Controller.error_handlers[Exception] = old_handler
   end
 
 

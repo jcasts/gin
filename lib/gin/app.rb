@@ -249,7 +249,9 @@ class Gin::App
 
 
   ##
-  # Add middleware internal to the app.
+  # Add middleware internally to the app.
+  # Middleware statuses and Exceptions will NOT be
+  # handled by the error_delegate.
 
   def self.use middleware, *args, &block
     ary = [middleware, *args]
@@ -473,16 +475,17 @@ class Gin::App
   # Handle error with error controller if available, otherwise re-raise.
 
   def handle_error err, env
-    trace = Gin.app_trace(Array(err.backtrace)).join("\n")
-    logger.error("#{err.class.name}: #{err.message}\n#{trace}")
+    delegate = error_delegate
 
-    error_delegate.exec(self, env){ handle_error(err) }
+    begin
+      trace = Gin.app_trace(Array(err.backtrace)).join("\n")
+      logger.error("#{err.class.name}: #{err.message}\n#{trace}")
+      delegate.exec(self, env){ handle_error(err) }
 
-  rescue ::Exception => err
-    trace = Gin.app_trace(Array(err.backtrace)).join("\n")
-    logger.error("#{err.class.name}: #{err.message}\n#{trace}")
-
-    Gin::Controller.exec(self, env){ handle_error(err) }
+    rescue ::Exception => err
+      delegate = Gin::Controller and retry unless delegate == Gin::Controller
+      raise
+    end
   end
 
 

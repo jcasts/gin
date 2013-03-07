@@ -24,7 +24,7 @@ class ResponseTest < Test::Unit::TestCase
   def test_finish
     @res.body = "foo"
     expected = [200,
-      {"Content-Type"=>"text/html", "Content-Length"=>"3"},
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"3"},
       ["foo"]]
 
     assert_equal expected, @res.finish
