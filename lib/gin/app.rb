@@ -58,6 +58,9 @@ class Gin::App
   ##
   # Enable or disable auto-app reloading.
   # On by default in development mode.
+  #
+  # In order for an app to be reloadable, the libs and controllers must be
+  # required from the Gin::App class context, or use MyApp.require("lib").
 
   def self.autoreload val=nil
     @autoreload = val unless val.nil?
@@ -84,6 +87,11 @@ class Gin::App
   #   end
   #
   # Controllers with non-mounted actions will throw a warning at boot time.
+  # Restful routes are automatically mounted, unless otherwise specified.
+  # Mounting a completely restful controller doesn't take a block:
+  #
+  #   mount UserController
+  #   # restfully mounted to /user
 
   def self.mount ctrl, base_path=nil, &block
     router.add ctrl, base_path, &block
@@ -319,7 +327,7 @@ class Gin::App
 
   ##
   # Get or set the current environment name,
-  # by default ENV['RACK_ENV'], or "development".
+  # by default ENV ['RACK_ENV'], or "development".
 
   def self.environment env=nil
     @environment = env if env
@@ -370,7 +378,10 @@ class Gin::App
   attr_accessor :logger
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
-  attr_reader :rack_app, :stack
+  attr_reader :rack_app
+
+  # Internal Rack stack.
+  attr_reader :stack
 
 
   ##
@@ -434,7 +445,7 @@ class Gin::App
 
 
   ##
-  # Call App instance without internal middleware.
+  # Call App instance without internal middleware or reloading.
 
   def call! env
     if filename = static?(env)
@@ -492,7 +503,7 @@ class Gin::App
 
 
   ##
-  # Handle error with error controller if available, otherwise re-raise.
+  # Handle error with error_delegate if available, otherwise re-raise.
 
   def handle_error err, env
     delegate = error_delegate

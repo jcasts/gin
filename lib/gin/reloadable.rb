@@ -1,4 +1,4 @@
-module Gin::Reloadable
+module Gin::Reloadable #:nodoc:
   extend GinClass
 
   def self.included klass
@@ -6,7 +6,7 @@ module Gin::Reloadable
   end
 
 
-  module ClassMethods
+  module ClassMethods #:nodoc:
     def reloadables
       @reloadables ||= {}
     end

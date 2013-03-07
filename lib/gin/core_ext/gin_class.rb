@@ -1,4 +1,4 @@
-module GinClass
+module GinClass #:nodoc:
   private
 
   def class_proxy name, *names

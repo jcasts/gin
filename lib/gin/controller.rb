@@ -133,6 +133,10 @@ class Gin::Controller
 
   ##
   # Stop the execution of an action and return the response.
+  # May be given a status code, string, header Hash, or a combination:
+  #   halt 400, "Badly formed request"
+  #   halt "Done early! WOOO!"
+  #   halt 302, {'Location' => 'http://example.com'}, "You are being redirected"
 
   def halt *resp
     resp = resp.first if resp.length == 1
@@ -314,8 +318,8 @@ class Gin::Controller
   #   redirect "http://google.com"
   #   redirect "/foo"
   #   redirect "/foo", 301, "You are being redirected..."
-  #   redirect to(MyController, :action)
-  #   redirect to(:show_foo)
+  #   redirect to(MyController, :action, :id => 123)
+  #   redirect to(:show_foo, :id => 123)
 
   def redirect uri, *args
     if @env['HTTP_VERSION'] == 'HTTP/1.1' && @env["REQUEST_METHOD"] != 'GET'
@@ -399,7 +403,7 @@ class Gin::Controller
   # a Hash of value directives (:max_age, :min_stale, :s_max_age).
   #
   #   cache_control :public, :must_revalidate, :max_age => 60
-  #   => Cache-Control: public, must-revalidate, max-age=60
+  #   #=> Cache-Control: public, must-revalidate, max-age=60
 
   def cache_control *values
     if Hash === values.last
@@ -553,7 +557,7 @@ class Gin::Controller
   private
 
 
-  DEV_ERROR_HTML = File.read(File.join(Gin::PUBLIC_DIR, "error.html"))
+  DEV_ERROR_HTML = File.read(File.join(Gin::PUBLIC_DIR, "error.html")) #:nodoc:
 
   BAD_REQ_MSG = "Expected param `%s'" #:nodoc:
 

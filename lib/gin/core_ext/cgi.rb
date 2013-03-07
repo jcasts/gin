@@ -2,7 +2,7 @@ require 'cgi'
 
 unless RUBY_VERSION >= "2.0"
 
-class CGI
+class CGI #:nodoc:
   class << self
     alias_method :__escapeHTML, :escapeHTML
   end

@@ -116,6 +116,8 @@ module Gin::Filterable
     ##
     # Skip a before filter in the context of the controller.
     # This attribute is inherited.
+    # Supports an options hash as the last argument with :only and :except
+    # keys.
 
     def skip_before_filter name, *names
       skip_filters(self.before_filters, name, *names)
@@ -157,6 +159,8 @@ module Gin::Filterable
     ##
     # Skip an after filter in the context of the controller.
     # This attribute is inherited.
+    # Supports an options hash as the last argument with :only and :except
+    # keys.
 
     def skip_after_filter name, *names
       skip_filters(self.after_filters, name, *names)

@@ -49,7 +49,6 @@ module Gin::Errorable
 
     ##
     # Hash of error handlers defined by Gin::Controller.error.
-    # This attribute is inherited.
 
     def error_handlers
       @err_handlers ||= {}
