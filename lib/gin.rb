@@ -96,7 +96,7 @@ class Gin
   end
 
 
-  SITE_RUBY_PATH = Config::CONFIG["sitedir"] #:nodoc:
+  SITE_RUBY_PATH = ::Config::CONFIG["sitedir"] #:nodoc:
 
   ##
   # Get the application backtrace only.
