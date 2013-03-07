@@ -102,6 +102,7 @@ class Gin
   # Removes gem and Gin paths from the trace.
 
   def self.app_trace trace
+    trace = trace.dup
     trace.pop until trace.last.nil? || trace.last =~ APP_START_MATCH
     trace.pop while trace.last && trace.last.start_with?(LIB_DIR)
     trace
