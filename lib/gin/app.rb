@@ -92,11 +92,20 @@ class Gin::App
   #   end
   #
   # Controllers with non-mounted actions will throw a warning at boot time.
-  # Restful routes are automatically mounted, unless otherwise specified.
-  # Mounting a completely restful controller doesn't take a block:
+  #
+  # Restful routes are automatically mounted when no block is given:
   #
   #   mount UserController
   #   # restfully mounted to /user
+  #   # non-canonical actions are mounted to /user/action_name
+  #
+  # Mount blocks also support routing whatever actions are left to their restful
+  # defaults:
+  #
+  #   mount UserController do
+  #     get :foo, "/"
+  #     route_misc
+  #   end
   #
   # All Gin::Controller methods are considered actions and will be mounted in
   # restful mode. For helper methods, include a module into your controller.
