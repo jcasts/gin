@@ -48,7 +48,7 @@ class GinTest < Test::Unit::TestCase
     trace = [
       Gin::LIB_DIR + "/thing",
       "/path/to/app/thing",
-      Gin::LIB_DIR + "/blah",
+      Gin::LIB_DIR + "/gin/app.rb:123:in `dispatch'",
       Gem.path[0]  + "/foo",
       "/stuff/to/ignore"
     ]

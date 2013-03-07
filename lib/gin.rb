@@ -7,7 +7,6 @@ require 'rack-protection'
 class Gin
   VERSION = '1.0.0'
 
-  ROOT_DIR   = File.expand_path("../..", __FILE__)         #:nodoc:
   LIB_DIR    = File.expand_path("..", __FILE__)            #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
 
@@ -96,13 +95,15 @@ class Gin
   end
 
 
+  APP_START_MATCH = %r{/gin/app\.rb:\d+:in `dispatch'} #:nodoc:
+
   ##
   # Get the application backtrace only.
   # Removes gem and Gin paths from the trace.
 
   def self.app_trace trace
-    trace.pop until !trace.last || trace.last.start_with?(Gin::LIB_DIR)
-    trace.pop while trace.last && trace.last.start_with?(Gin::LIB_DIR)
+    trace.pop until trace.last.nil? || trace.last =~ APP_START_MATCH
+    trace.pop while trace.last && trace.last.start_with?(LIB_DIR)
     trace
   end
 
