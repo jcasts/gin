@@ -5,7 +5,7 @@ require 'rack-protection'
 
 
 class Gin
-  VERSION = '1.0.0'
+  VERSION = '1.0.1'
 
   LIB_DIR    = File.expand_path("..", __FILE__)            #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
