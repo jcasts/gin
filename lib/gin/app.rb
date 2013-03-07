@@ -38,7 +38,7 @@ class Gin::App
 
   def self.inherited subclass   #:nodoc:
     caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
-    filepath = File.expand_path(caller_line.split(/:\d+:in `</).first)
+    filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
     dir      = File.dirname(filepath)
     subclass.root_dir dir
     subclass.instance_variable_set("@source_file", filepath)
@@ -61,10 +61,15 @@ class Gin::App
   #
   # In order for an app to be reloadable, the libs and controllers must be
   # required from the Gin::App class context, or use MyApp.require("lib").
+  #
+  # Reloading is not supported for applications defined in the config.ru file.
 
   def self.autoreload val=nil
     @autoreload = val unless val.nil?
-    @autoreload = development? if @autoreload.nil?
+
+    if @autoreload.nil?
+      @autoreload = File.extname(source_file) != ".ru" && development?
+    end
 
     if @autoreload && (!defined?(Gin::Reloadable) || !include?(Gin::Reloadable))
       require 'gin/reloadable'
