@@ -28,7 +28,7 @@ class Gin::Router
       @base_path = base_path.split(@sep)
 
       instance_eval(&block) if block_given?
-      defaults block_given?
+      defaults unless block_given?
     end
 
 

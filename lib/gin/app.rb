@@ -97,7 +97,7 @@ class Gin::App
   #
   #   mount UserController
   #   # restfully mounted to /user
-  #   # non-canonical actions are mounted to /user/action_name
+  #   # non-canonical actions are mounted to /user/<action_name>
   #
   # Mount blocks also support routing whatever actions are left to their restful
   # defaults:

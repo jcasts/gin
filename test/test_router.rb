@@ -98,9 +98,7 @@ class RouterTest < Test::Unit::TestCase
     assert_equal [MyCtrl, :bar, {}],
       @router.resources_for("GET", "/")
 
-    assert_equal [MyCtrl, :show, {'id' => '123'}],
-      @router.resources_for("GET", "/123")
-
+    assert !@router.has_route?(MyCtrl, :show)
     assert !@router.has_route?(MyCtrl, :index)
   end
 
@@ -110,7 +108,7 @@ class RouterTest < Test::Unit::TestCase
       get :show, "/:id"
     end
 
-    assert @router.has_route?(MyCtrl, :index)
+    assert !@router.has_route?(MyCtrl, :index)
     assert !@router.has_route?(MyCtrl, :unmounted_action)
   end
 
