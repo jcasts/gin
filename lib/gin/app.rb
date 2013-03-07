@@ -445,6 +445,10 @@ class Gin::App
   # Default Rack call method.
 
   def call env
+    if filename = static?(env)
+      return error_delegate.exec(self, env){ send_file filename }
+    end
+
     if autoreload && !env[RACK_KEYS[:reloaded]]
       env[RACK_KEYS[:reloaded]] = true
       reload!
@@ -465,10 +469,6 @@ class Gin::App
   # Call App instance without internal middleware or reloading.
 
   def call! env
-    if filename = static?(env)
-      return error_delegate.exec(self, env){ send_file filename }
-    end
-
     ctrl, action, env[RACK_KEYS[:path_params]] =
       router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
 

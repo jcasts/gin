@@ -264,9 +264,9 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_call_static
-    resp = @app.call! 'rack.input' => "",
-                      'PATH_INFO' => '/gin.css',
-                      'REQUEST_METHOD' => 'GET'
+    resp = @app.call 'rack.input' => "",
+                     'PATH_INFO' => '/gin.css',
+                     'REQUEST_METHOD' => 'GET'
 
     assert_equal 200, resp[0]
     assert_equal File.read(@app.asset("gin.css")), resp[2].read
