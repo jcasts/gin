@@ -19,7 +19,8 @@ class Gin::App
   RACK_KEYS = { #:nodoc:
     :stack       => 'gin.stack'.freeze,
     :path_params => 'gin.path_query_hash'.freeze,
-    :reloaded    => 'gin.reloaded'.freeze
+    :reloaded    => 'gin.reloaded'.freeze,
+    :errors      => 'gin.errors'.freeze
   }.freeze
 
 

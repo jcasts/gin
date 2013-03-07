@@ -90,7 +90,7 @@ module Gin::Errorable
   # Re-raises the error if no handler is found.
 
   def handle_error err
-    (@env['gin.errors'] ||= []) << err
+    (@env[Gin::App::RACK_KEYS[:errors]] ||= []) << err
     status(err.http_status) if err.respond_to?(:http_status)
     status(500) unless (400..599).include? status
 
