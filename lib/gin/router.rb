@@ -28,12 +28,12 @@ class Gin::Router
       @base_path = base_path.split(@sep)
 
       instance_eval(&block) if block_given?
-      route_misc block_given?
+      defaults block_given?
     end
 
 
     # Create restful routes if they aren't taken already.
-    def route_misc restful_only=false
+    def defaults restful_only=false
       (@ctrl.actions - @actions).each do |action|
         verb, path = DEFAULT_ACTION_MAP[action]
         verb, path = ['get', "/#{action}"] if !restful_only && verb.nil?

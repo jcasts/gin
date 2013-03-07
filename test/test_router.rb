@@ -118,7 +118,7 @@ class RouterTest < Test::Unit::TestCase
   def test_add_all_restful_routes
     @router.add MyCtrl, "/" do
       get :show, "/:id"
-      route_misc
+      defaults
     end
 
     assert @router.has_route?(MyCtrl, :index)

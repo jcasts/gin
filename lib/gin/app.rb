@@ -104,7 +104,7 @@ class Gin::App
   #
   #   mount UserController do
   #     get :foo, "/"
-  #     route_misc
+  #     defaults
   #   end
   #
   # All Gin::Controller methods are considered actions and will be mounted in
