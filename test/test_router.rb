@@ -1,6 +1,8 @@
 require "test/test_helper"
 
 class MyCtrl < Gin::Controller;
+  def index; end
+  def show; end
   def unmounted_action; end
 end
 
@@ -95,6 +97,46 @@ class RouterTest < Test::Unit::TestCase
 
     assert_equal [MyCtrl, :bar, {}],
       @router.resources_for("GET", "/")
+
+    assert_equal [MyCtrl, :show, {'id' => '123'}],
+      @router.resources_for("GET", "/123")
+
+    assert !@router.has_route?(MyCtrl, :index)
+  end
+
+
+  def test_add_default_restful_routes
+    @router.add MyCtrl, "/" do
+      get :show, "/:id"
+    end
+
+    assert @router.has_route?(MyCtrl, :index)
+    assert !@router.has_route?(MyCtrl, :unmounted_action)
+  end
+
+
+  def test_add_all_restful_routes
+    @router.add MyCtrl, "/" do
+      get :show, "/:id"
+      route_misc
+    end
+
+    assert @router.has_route?(MyCtrl, :index)
+    assert @router.has_route?(MyCtrl, :unmounted_action)
+  end
+
+
+  def test_add_all
+    @router.add MyCtrl, "/"
+
+    assert_equal [MyCtrl, :index, {}],
+      @router.resources_for("GET", "/")
+
+    assert_equal [MyCtrl, :show, {'id' => '123'}],
+      @router.resources_for("GET", "/123")
+
+    assert_equal [MyCtrl, :unmounted_action, {}],
+      @router.resources_for("GET", "/unmounted_action")
   end
 
 

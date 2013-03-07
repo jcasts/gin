@@ -3,7 +3,7 @@ class Gin::Router
   class PathArgumentError < Gin::Error; end
 
   class Mount
-    DEFAULT_ACTION_MAP = Hash.new{|h,k| ['get', "/#{k}"] }.merge!(
+    DEFAULT_ACTION_MAP = {
       :index   => %w{get /},
       :show    => %w{get /:id},
       :new     => %w{get /new},
@@ -11,7 +11,7 @@ class Gin::Router
       :edit    => %w{get /:id/edit},
       :update  => %w{put /:id},
       :destroy => %w{delete /:id}
-    )
+    }
 
     VERBS = %w{get post put delete head options trace}
 
@@ -24,15 +24,22 @@ class Gin::Router
       @sep       = sep
       @ctrl      = ctrl
       @routes    = []
+      @actions   = []
       @base_path = base_path.split(@sep)
 
-      if block_given?
-        instance_eval(&block)
-      else
-        ctrl.actions.each do |action|
-          verb, path = DEFAULT_ACTION_MAP[action]
-          add(verb, action, path)
-        end
+      instance_eval(&block) if block_given?
+      route_misc block_given?
+    end
+
+
+    # Create restful routes if they aren't taken already.
+    def route_misc restful_only=false
+      (@ctrl.actions - @actions).each do |action|
+        verb, path = DEFAULT_ACTION_MAP[action]
+        verb, path = ['get', "/#{action}"] if !restful_only && verb.nil?
+
+        add(verb, action, path) unless verb.nil? ||
+          @routes.any?{|(r,n,(c,a,p))| r == make_route(verb, path)[0] }
       end
     end
 
@@ -42,14 +49,8 @@ class Gin::Router
     end
 
 
-    def add verb, action, *args
-      path = args.shift        if String === args[0]
-      name = args.shift.to_sym if args[0]
-
-      path ||= action.to_s
-      name ||= :"#{action}_#{@ctrl.controller_name}"
+    def make_route verb, path
       param_keys = []
-
       route = [verb].concat @base_path
       route.concat path.split(@sep)
       route.delete_if{|part| part.empty?}
@@ -63,7 +64,20 @@ class Gin::Router
         end
       end
 
+      [route, param_keys]
+    end
+
+
+    def add verb, action, *args
+      path = args.shift        if String === args[0]
+      name = args.shift.to_sym if args[0]
+
+      path ||= action.to_s
+      name ||= :"#{action}_#{@ctrl.controller_name}"
+
+      route, param_keys = make_route(verb, path)
       @routes << [route, name, [@ctrl, action, param_keys]]
+      @actions << action.to_sym
     end
 
 

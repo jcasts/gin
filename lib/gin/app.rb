@@ -92,6 +92,9 @@ class Gin::App
   #
   #   mount UserController
   #   # restfully mounted to /user
+  #
+  # All Gin::Controller methods are considered actions and will be mounted in
+  # restful mode. For helper methods, include a module into your controller.
 
   def self.mount ctrl, base_path=nil, &block
     router.add ctrl, base_path, &block
