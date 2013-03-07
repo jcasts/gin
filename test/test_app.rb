@@ -82,6 +82,9 @@ class AppTest < Test::Unit::TestCase
     FooApp.instance_variable_set("@config_dir", nil)
     FooApp.instance_variable_set("@error_delegate", nil)
     FooApp.instance_variable_set("@public_dir", nil)
+    FooApp.instance_variable_set("@session", nil)
+    FooApp.instance_variable_set("@protection", nil)
+    FooApp.instance_variable_set("@autoreload", nil)
 
     @error_io = StringIO.new
     @app  = FooApp.new Logger.new(@error_io)
@@ -138,6 +141,32 @@ class AppTest < Test::Unit::TestCase
 
     FooApp.protection false
     assert_equal false, FooApp.protection
+  end
+
+
+  def test_autoreload
+    FooApp.environment "production"
+    assert_equal false, FooApp.autoreload
+    assert_equal false, @app.autoreload
+
+    FooApp.autoreload true
+    assert_equal true, FooApp.autoreload
+    assert_equal true, @app.autoreload
+
+    FooApp.autoreload false
+    assert_equal false, FooApp.autoreload
+    assert_equal false, @app.autoreload
+  end
+
+
+  def test_autoreload_dev
+    FooApp.environment "development"
+    assert_equal true, FooApp.autoreload
+    assert_equal true, @app.autoreload
+
+    FooApp.autoreload false
+    assert_equal false, FooApp.autoreload
+    assert_equal false, @app.autoreload
   end
 
 
@@ -224,7 +253,7 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_call_reload
-    FooApp.auto_reload true
+    FooApp.autoreload true
     myapp = FooApp.new
 
     assert !myapp.reloaded?
@@ -536,5 +565,28 @@ class AppTest < Test::Unit::TestCase
       assert @app.send(mname), "Instance environment should be #{name}"
       assert FooApp.send(mname), "Class environment should be #{name}"
     end
+  end
+
+
+  def test_build_default_middleware
+    stack = @app.instance_variable_get("@stack")
+    assert Rack::Session::Cookie === stack
+    assert Rack::Protection::FrameOptions === stack.instance_variable_get("@app")
+
+    while stack = stack.instance_variable_get("@app")
+      app = stack
+      break if @app == app
+    end
+
+    assert_equal @app, app
+  end
+
+
+  def test_build_no_middleware
+    FooApp.sessions false
+    FooApp.protection false
+    @app = FooApp.new
+    stack = @app.instance_variable_get("@stack")
+    assert_equal @app, stack
   end
 end

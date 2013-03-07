@@ -6,18 +6,9 @@ module Gin::Reloadable
   end
 
 
-  class_proxy :auto_reload
-
-
   module ClassMethods
     def reloadables
       @reloadables ||= {}
-    end
-
-
-    def auto_reload val=nil
-      @auto_reload = val unless val.nil?
-      @auto_reload
     end
 
 
@@ -83,14 +74,14 @@ module Gin::Reloadable
         $LOADED_FEATURES - old_features,
         Object.constants - old_consts
       ] if success
+
       success
     end
 
 
     def require file
-      if auto_reload
+      if autoreload
         track_require file
-
       else
         super file
       end

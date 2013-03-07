@@ -112,7 +112,6 @@ class Gin
   require 'gin/core_ext/cgi'
   require 'gin/core_ext/gin_class'
 
-  require 'gin/reloadable'
   require 'gin/app'
   require 'gin/router'
   require 'gin/config'

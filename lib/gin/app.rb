@@ -13,7 +13,6 @@
 
 class Gin::App
   extend GinClass
-  include Gin::Reloadable
 
   class RouterError < Gin::Error; end
 
@@ -52,6 +51,23 @@ class Gin::App
   def self.call env
     @instance ||= self.new
     @instance.call env
+  end
+
+
+  ##
+  # Enable or disable auto-app reloading.
+  # On by default in development mode.
+
+  def self.autoreload val=nil
+    @autoreload = val unless val.nil?
+    @autoreload = development? if @autoreload.nil?
+
+    if @autoreload && (!defined?(Gin::Reloadable) || !include?(Gin::Reloadable))
+      require 'gin/reloadable'
+      self.class.send :include, Gin::Reloadable
+    end
+
+    @autoreload
   end
 
 
@@ -342,7 +358,7 @@ class Gin::App
   end
 
 
-  class_proxy :protection, :sessions, :session_secret, :middleware
+  class_proxy :protection, :sessions, :session_secret, :middleware, :autoreload
   class_proxy :error_delegate, :router
   class_proxy :root_dir, :public_dir
   class_proxy :mime_type, :asset_host_for, :asset_host, :asset_version
@@ -379,10 +395,13 @@ class Gin::App
 
 
   ##
-  # Used for auto reloading the whole app in dev mode.
+  # Used for auto reloading the whole app in development mode.
+  # Will only reload if Gin::App.autoreload is set to true.
+  #
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
+    return unless autoreload
     self.class.erase! [self.class.source_file],
                       [self.class.name.split("::").last],
                       self.class.namespace
@@ -397,7 +416,7 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    if auto_reload && !env[RACK_KEYS[:reloaded]]
+    if autoreload && !env[RACK_KEYS[:reloaded]]
       env[RACK_KEYS[:reloaded]] = true
       reload!
       @app.call env
