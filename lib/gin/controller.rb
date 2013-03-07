@@ -139,6 +139,11 @@ class Gin::Controller
   #   halt 302, {'Location' => 'http://example.com'}, "You are being redirected"
 
   def halt *resp
+    if @app.development?
+      line = caller.find{|l| !l.start_with?(Gin::LIB_DIR) && !l.include?("/ruby/gems/")}
+      logger << "[HALT] #{line}\n" if line
+    end
+
     resp = resp.first if resp.length == 1
     throw :halt, resp
   end
