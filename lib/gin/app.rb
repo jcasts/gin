@@ -64,7 +64,7 @@ class Gin::App
 
     if @autoreload && (!defined?(Gin::Reloadable) || !include?(Gin::Reloadable))
       require 'gin/reloadable'
-      self.class.send :include, Gin::Reloadable
+      include Gin::Reloadable
     end
 
     @autoreload
