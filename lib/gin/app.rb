@@ -376,6 +376,10 @@ class Gin::App
   end
 
 
+  ##
+  # Used for auto reloading the whole app in dev mode.
+  # If you use this in production, you're gonna have a bad time.
+
   def reload!
     self.class.erase! [self.class.source_file],
                       [self.class.name.split("::").last],
@@ -455,8 +459,7 @@ class Gin::App
       "No route exists for: #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" unless
       ctrl && action
 
-    ctrl_inst = ctrl.new(self, env)
-    resp = ctrl_inst.call_action action
+    ctrl.new(self, env).call_action action
 
   rescue Gin::NotFound => err
     @rack_app ? @rack_app.call(env) : handle_error(err, env)
@@ -470,12 +473,16 @@ class Gin::App
   # Handle error with error controller if available, otherwise re-raise.
 
   def handle_error err, env
-    raise err unless error_delegate
-
     trace = Gin.app_trace(Array(err.backtrace)).join("\n")
-    logger.error("%s: %s\n%s" % [err.class.name, err.message, trace])
+    logger.error("#{err.class.name}: #{err.message}\n#{trace}")
 
     error_delegate.exec(self, env){ handle_error(err) }
+
+  rescue ::Exception => err
+    trace = Gin.app_trace(Array(err.backtrace)).join("\n")
+    logger.error("#{err.class.name}: #{err.message}\n#{trace}")
+
+    Gin::Controller.exec(self, env){ handle_error(err) }
   end
 
 

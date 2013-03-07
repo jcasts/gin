@@ -1,14 +1,25 @@
 require "test/test_helper"
+require "stringio"
 
 class FooController < Gin::Controller;
-  def index; end
+  def index; "FOO"; end
   def create; end
+  def error; raise "Something bad happened"; end
 end
 
 class FooApp < Gin::App
   mount FooController do
     get  :index,  "/"
     post :create, "/"
+    get  :error,  "/error"
+  end
+
+  def reloaded?
+    @reloaded ||= false
+  end
+
+  def reload!
+    @reloaded = true
   end
 end
 
@@ -63,7 +74,8 @@ class AppTest < Test::Unit::TestCase
     FooApp.instance_variable_set("@error_delegate", nil)
     FooApp.instance_variable_set("@public_dir", nil)
 
-    @app  = FooApp.new Logger.new($stdout)
+    @error_io = StringIO.new
+    @app  = FooApp.new Logger.new(@error_io)
     @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}
   end
 
@@ -92,8 +104,8 @@ class AppTest < Test::Unit::TestCase
     env  = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
     resp = FooApp.call env
     assert_equal 200, resp[0]
-    assert_equal "0", resp[1]['Content-Length']
-    assert_equal [],  resp[2]
+    assert_equal "3", resp[1]['Content-Length']
+    assert_equal ["FOO"],  resp[2]
 
     assert FooApp === FooApp.instance_variable_get("@instance")
     app = FooApp.instance_variable_get("@instance")
@@ -170,6 +182,16 @@ class AppTest < Test::Unit::TestCase
   end
 
 
+  def test_load_config
+    FooApp.config
+    FooApp.config_dir "./test/mock_config"
+    assert_raises(NoMethodError){ FooApp.config.backend }
+
+    FooApp.load_config
+    assert FooApp.config.backend
+  end
+
+
   def test_error_delegate
     assert_equal Gin::Controller, FooApp.error_delegate
     FooApp.error_delegate FooController
@@ -189,6 +211,115 @@ class AppTest < Test::Unit::TestCase
     FooMiddleware.reset!
     myapp.call!({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
     assert !FooMiddleware.called?
+  end
+
+
+  def test_call_reload
+    FooApp.auto_reload true
+    myapp = FooApp.new
+
+    assert !myapp.reloaded?
+    myapp.call 'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'
+
+    assert myapp.reloaded?
+  end
+
+
+  def test_call_static
+    resp = @app.call! 'rack.input' => "",
+                      'PATH_INFO' => '/gin.css',
+                      'REQUEST_METHOD' => 'GET'
+
+    assert_equal 200, resp[0]
+    assert_equal File.read(@app.asset("gin.css")), resp[2].read
+  end
+
+
+  def test_call!
+    resp = @app.call! 'rack.input' => "",
+                      'PATH_INFO' => '/foo',
+                      'REQUEST_METHOD' => 'GET'
+    assert_equal 200, resp[0]
+    assert_equal "3", resp[1]['Content-Length']
+    assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
+    assert_equal ["FOO"], resp[2]
+  end
+
+
+  def test_dispatch
+    FooApp.environment 'test'
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
+
+    resp = @app.dispatch env, FooController, :index
+    assert_equal 200, resp[0]
+    assert_equal "3", resp[1]['Content-Length']
+    assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
+    assert_equal ["FOO"], resp[2]
+  end
+
+
+  def test_dispatch_not_found
+    FooApp.environment 'test'
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
+
+    resp = @app.dispatch env, FooController, :bad
+    assert_equal 404, resp[0]
+    assert_equal "287", resp[1]['Content-Length']
+    assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
+    assert_equal @app.asset("404.html"), resp[2].path
+  end
+
+
+  def test_dispatch_no_handler
+    FooApp.environment 'test'
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
+
+    resp = @app.dispatch env, FooController, nil
+    assert_equal 404, resp[0]
+    assert_equal "287", resp[1]['Content-Length']
+    assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
+    assert_equal @app.asset("404.html"), resp[2].path
+
+    msg = "ERROR -- : Gin::NotFound: No route exists for: GET /foo"
+    @error_io.rewind
+    assert @error_io.read.include?(msg)
+  end
+
+
+  def test_dispatch_rack_app
+    env   = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    expected = [200, {'Content-Length'=>"5"}, "AHOY!"]
+    myapp = lambda{|env| expected }
+    @app = FooApp.new myapp
+
+    resp = @app.dispatch env, nil, nil
+    assert_equal expected, resp
+  end
+
+
+  def test_dispatch_error
+    FooApp.environment 'test'
+    msg = "ERROR -- : RuntimeError: Something bad happened"
+    env  = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    resp = @app.dispatch env, FooController, :error
+
+    assert_equal 500, resp[0]
+    assert_equal @app.asset("500.html"), resp[2].path
+  end
+
+
+  def test_handle_error
+    
+  end
+
+
+  def test_handle_error_no_delegate
+    
+  end
+
+
+  def test_handle_error_bad_delegate
+    
   end
 
 

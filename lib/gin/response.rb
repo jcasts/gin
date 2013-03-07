@@ -44,7 +44,7 @@ class Gin::Response < Rack::Response
                               l + Rack::Utils.bytesize(p)
                             end.to_s
       when File
-        body.size
+        header[H_CLENGTH] = body.size.to_s
       end
     end
   end

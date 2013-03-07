@@ -31,6 +31,16 @@ class ResponseTest < Test::Unit::TestCase
   end
 
 
+  def test_finish_file
+    path = File.join(Gin::PUBLIC_DIR, "404.html")
+    file = File.open(path, "rb")
+    @res.body = file
+    resp = @res.finish
+
+    assert_equal file.size.to_s, resp[1]['Content-Length']
+  end
+
+
   def test_finish_bodyless
     [204, 205, 304].each do |code|
       @res['Content-Type']   = "application/json"
