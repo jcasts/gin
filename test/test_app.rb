@@ -299,12 +299,13 @@ class AppTest < Test::Unit::TestCase
 
   def test_dispatch_error
     FooApp.environment 'test'
-    msg = "ERROR -- : RuntimeError: Something bad happened"
     env  = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     resp = @app.dispatch env, FooController, :error
 
     assert_equal 500, resp[0]
     assert_equal @app.asset("500.html"), resp[2].path
+    @error_io.rewind
+    assert @error_io.read.empty?
   end
 
 

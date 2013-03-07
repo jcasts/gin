@@ -1,4 +1,5 @@
 require 'logger'
+require 'rbconfig'
 
 require 'rack'
 require 'rack-protection'
@@ -95,6 +96,8 @@ class Gin
   end
 
 
+  SITE_RUBY_PATH = Config::CONFIG["sitedir"] #:nodoc:
+
   ##
   # Get the application backtrace only.
   # Removes gem and Gin paths from the trace.
@@ -102,6 +105,7 @@ class Gin
   def self.app_trace trace
     trace.dup.delete_if do |line|
       line.start_with?(Gin::ROOT_DIR) ||
+      line.include?(SITE_RUBY_PATH)   ||
       Gem.path.any?{|dir| line.start_with?(dir) }
     end
   end
