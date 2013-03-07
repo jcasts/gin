@@ -1,5 +1,4 @@
 require 'logger'
-require 'rbconfig'
 
 require 'rack'
 require 'rack-protection'
@@ -9,6 +8,7 @@ class Gin
   VERSION = '1.0.0'
 
   ROOT_DIR   = File.expand_path("../..", __FILE__)         #:nodoc:
+  LIB_DIR    = File.expand_path("..", __FILE__)            #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
 
   class Error < StandardError; end
@@ -96,18 +96,14 @@ class Gin
   end
 
 
-  SITE_RUBY_PATH = ::Config::CONFIG["sitedir"] #:nodoc:
-
   ##
   # Get the application backtrace only.
   # Removes gem and Gin paths from the trace.
 
   def self.app_trace trace
-    trace.dup.delete_if do |line|
-      line.start_with?(Gin::ROOT_DIR) ||
-      line.start_with?(SITE_RUBY_PATH)   ||
-      Gem.path.any?{|dir| line.start_with?(dir) }
-    end
+    trace.pop until !trace.last || trace.last.start_with?(Gin::LIB_DIR)
+    trace.pop while trace.last && trace.last.start_with?(Gin::LIB_DIR)
+    trace
   end
 
 

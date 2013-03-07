@@ -46,12 +46,14 @@ class GinTest < Test::Unit::TestCase
 
   def test_app_trace
     trace = [
-      Gin::ROOT_DIR + "/blah",
-      Gem.path[0]   + "/foo",
-      Gin::ROOT_DIR + "/more",
-      "/path/to/app/thing"
+      Gin::LIB_DIR + "/thing",
+      "/path/to/app/thing",
+      Gin::LIB_DIR + "/blah",
+      Gem.path[0]  + "/foo",
+      "/stuff/to/ignore"
     ]
 
-    assert_equal ["/path/to/app/thing"], Gin.app_trace(trace)
+    assert_equal [Gin::LIB_DIR + "/thing", "/path/to/app/thing"],
+                  Gin.app_trace(trace)
   end
 end
