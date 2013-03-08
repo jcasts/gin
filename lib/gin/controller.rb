@@ -259,7 +259,7 @@ class Gin::Controller
   #   set_cookie "mycookie", "FOO", :expires => 600, :path => "/"
   #   set_cookie "mycookie", :expires => 600
 
-  def set_cookie name, value, opts={}
+  def set_cookie name, value=nil, opts={}
     if Hash === value
       opts = value
     else
