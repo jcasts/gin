@@ -254,6 +254,17 @@ class Gin::Controller
 
 
   ##
+  # Set a cookie on the Rack response.
+  #
+  #   set_cookie "mycookie", "FOO", :expires => 600, :path => "/"
+
+  def set_cookie name, value, opts={}
+    opts[:value] = value
+    @response.set_cookie name, opts
+  end
+
+
+  ##
   # Build a path to the given controller and action or route name,
   # with any expected params. If no controller is specified and the
   # current controller responds to the symbol given, uses the current

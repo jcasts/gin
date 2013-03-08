@@ -236,10 +236,12 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_set_cookie
-    cookie = {:value => "user@example.com", :expires => Time.now + 360}
-    @ctrl.cookies['test'] = cookie
-    assert_equal cookie, @ctrl.env["rack.request.cookie_hash"]["test"]
-    assert_equal "user@example.com", @ctrl.cookies['test'][:value]
+    exp = Time.now + 360
+    cookie = {:value => "user@example.com", :expires => exp}
+    @ctrl.set_cookie "test", "user@example.com", :expires => exp
+
+    expected = "test=user%40example.com; expires=#{exp.gmtime.strftime("%a, %d %b %Y %H:%M:%S -0000")}"
+    assert_equal expected, @ctrl.response['Set-Cookie']
   end
 
 
