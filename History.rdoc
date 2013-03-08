@@ -1,3 +1,8 @@
+=== 1.0.2 / 2013-03-08
+
+* Minor Enhancements
+  * Set Cookie Controller helper
+
 === 1.0.1 / 2013-03-07
 
 * Minor Enhancements
