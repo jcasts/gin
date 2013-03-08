@@ -257,9 +257,15 @@ class Gin::Controller
   # Set a cookie on the Rack response.
   #
   #   set_cookie "mycookie", "FOO", :expires => 600, :path => "/"
+  #   set_cookie "mycookie", :expires => 600
 
   def set_cookie name, value, opts={}
-    opts[:value] = value
+    if Hash === value
+      opts = value
+    else
+      opts[:value] = value
+    end
+
     @response.set_cookie name, opts
   end
 
