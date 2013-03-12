@@ -316,11 +316,11 @@ class Gin::App
 
   ##
   # Use rack sessions or not. Supports assigning
-  # hash for options. Defaults to true.
+  # hash for options. Defaults to false.
 
   def self.sessions opts=nil
     @session = opts unless opts.nil?
-    @session = true if @session.nil?
+    @session = false if @session.nil?
     @session
   end
 
@@ -337,11 +337,11 @@ class Gin::App
 
   ##
   # Use rack-protection or not. Supports assigning
-  # hash for options. Defaults to true.
+  # hash for options. Defaults to false.
 
   def self.protection opts=nil
     @protection = opts unless opts.nil?
-    @protection = true if @protection.nil?
+    @protection = false if @protection.nil?
     @protection
   end
 

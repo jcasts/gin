@@ -134,7 +134,7 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_protection
-    assert_equal true, FooApp.protection
+    assert_equal false, FooApp.protection
 
     FooApp.protection(test: "thing")
     assert_equal({test:"thing"}, FooApp.protection)
@@ -171,7 +171,7 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_sessions
-    assert_equal true, FooApp.sessions
+    assert_equal false, FooApp.sessions
 
     FooApp.sessions(test: "thing")
     assert_equal({test:"thing"}, FooApp.sessions)
@@ -601,7 +601,10 @@ class AppTest < Test::Unit::TestCase
   end
 
 
-  def test_build_default_middleware
+  def test_build_w_middleware
+    FooApp.sessions true
+    FooApp.protection true
+    @app = FooApp.new
     stack = @app.instance_variable_get("@stack")
     assert Rack::Session::Cookie === stack
     assert Rack::Protection::FrameOptions === stack.instance_variable_get("@app")
@@ -616,9 +619,6 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_build_no_middleware
-    FooApp.sessions false
-    FooApp.protection false
-    @app = FooApp.new
     stack = @app.instance_variable_get("@stack")
     assert_equal @app, stack
   end
