@@ -247,7 +247,7 @@ class AppTest < Test::Unit::TestCase
     assert FooMiddleware.called?
 
     FooMiddleware.reset!
-    myapp.call!({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
+    myapp.dispatch({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}, FooController, :index)
     assert !FooMiddleware.called?
   end
 
@@ -271,6 +271,18 @@ class AppTest < Test::Unit::TestCase
     assert_equal 200, resp[0]
     assert_equal File.read(@app.asset("gin.css")), resp[2].read
   end
+
+
+  def test_call_rack_app
+    env   = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
+    expected = [200, {'Content-Length'=>"5"}, "AHOY!"]
+    myapp = lambda{|env| expected }
+    @app = FooApp.new myapp
+
+    resp = @app.call env
+    assert_equal expected, resp
+  end
+
 
 
   def test_call!
@@ -321,17 +333,6 @@ class AppTest < Test::Unit::TestCase
     msg = "ERROR -- : Gin::NotFound: No route exists for: GET /foo"
     @error_io.rewind
     assert @error_io.read.include?(msg)
-  end
-
-
-  def test_dispatch_rack_app
-    env   = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
-    expected = [200, {'Content-Length'=>"5"}, "AHOY!"]
-    myapp = lambda{|env| expected }
-    @app = FooApp.new myapp
-
-    resp = @app.dispatch env, nil, nil
-    assert_equal expected, resp
   end
 
 
@@ -462,28 +463,48 @@ class AppTest < Test::Unit::TestCase
   end
 
 
-  def test_static
+  def test_static_no_file
     env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
-    assert !@app.static?(env)
+    assert !@app.static!(env)
+  end
 
+
+  def test_static
+    env = {'rack.input' => "", 'REQUEST_METHOD' => 'GET'}
     env['PATH_INFO'] = '/500.html'
-    assert @app.static?(env) =~ %r{/gin/public/500\.html$}
+    assert @app.static!(env)
+    assert env['gin.static'] =~ %r{/gin/public/500\.html$}
+  end
 
+
+  def test_static_updir
+    env = {'rack.input' => "", 'REQUEST_METHOD' => 'GET'}
     env['PATH_INFO'] = '../../../500.html'
-    assert @app.static?(env) =~ %r{/gin/public/500\.html$}
+    assert @app.static!(env)
+    assert env['gin.static'] =~ %r{/gin/public/500\.html$}
+  end
 
+
+  def test_static_head
+    env = {'rack.input' => "", 'REQUEST_METHOD' => 'GET'}
     env['REQUEST_METHOD'] = 'HEAD'
-    assert @app.static?(env) =~ %r{/gin/public/500\.html$}
+    env['PATH_INFO'] = '/500.html'
+    assert @app.static!(env)
+    assert env['gin.static'] =~ %r{/gin/public/500\.html$}
+  end
 
+
+  def test_non_static_verbs
+    env = {'rack.input' => "", 'REQUEST_METHOD' => 'GET'}
     env['PATH_INFO'] = '/backend.yml'
-    assert !@app.static?(env)
 
     FooApp.public_dir "./test/mock_config"
-    assert @app.static?(env) =~ %r{/gin/test/mock_config/backend\.yml$}
+    assert @app.static!(env)
+    assert env['gin.static'] =~ %r{/gin/test/mock_config/backend\.yml$}
 
     %w{POST PUT DELETE TRACE OPTIONS}.each do |verb|
       env['REQUEST_METHOD'] = verb
-      assert !@app.static?(env), "#{verb} should not be a static request"
+      assert !@app.static!(env), "#{verb} should not be a static request"
     end
   end
 

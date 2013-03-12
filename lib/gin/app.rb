@@ -18,7 +18,11 @@ class Gin::App
 
   RACK_KEYS = { #:nodoc:
     :stack       => 'gin.stack'.freeze,
+    :http_route  => 'gin.http_route'.freeze,
     :path_params => 'gin.path_query_hash'.freeze,
+    :controller  => 'gin.controller'.freeze,
+    :action      => 'gin.action'.freeze,
+    :static      => 'gin.static'.freeze,
     :reloaded    => 'gin.reloaded'.freeze,
     :errors      => 'gin.errors'.freeze
   }.freeze
@@ -445,18 +449,40 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    if filename = static?(env)
-      return error_delegate.exec(self, env){ send_file filename }
+    try_autoreload(env)
+
+    if @app.route!(env)
+      @app.call!(env)
+
+    elsif @app.static!(env)
+      @app.call_static(env)
+
+    elsif @rack_app
+      @rack_app.call(env)
+
+    else
+      @app.call!(env)
     end
+  end
 
-    if autoreload && !env[RACK_KEYS[:reloaded]]
-      env[RACK_KEYS[:reloaded]] = true
-      reload!
-      @app.call env
 
-    elsif env[RACK_KEYS[:stack]]
+  ##
+  # Check if autoreload is needed and reload.
+
+  def try_autoreload env
+    return if env[RACK_KEYS[:reloaded]]
+    env[RACK_KEYS[:reloaded]] = true
+    reload!
+  end
+
+
+  ##
+  # Call App instance stack without static file lookup or reloading.
+
+  def call! env
+    if env[RACK_KEYS[:stack]]
       env.delete RACK_KEYS[:stack]
-      @app.call! env
+      dispatch env, env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]]
 
     else
       env[RACK_KEYS[:stack]] = true
@@ -466,23 +492,46 @@ class Gin::App
 
 
   ##
-  # Call App instance without internal middleware or reloading.
+  # Returns a static file Rack response Array from the given gin.static
+  # env filename.
 
-  def call! env
-    ctrl, action, env[RACK_KEYS[:path_params]] =
-      router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
-
-    dispatch env, ctrl, action
+  def call_static env
+    error_delegate.exec(self, env){ send_file env[RACK_KEYS[:static]] }
   end
 
 
   STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
 
-  ##
-  # Check if the request is for a static file.
 
-  def static? env
-    %w{GET HEAD}.include?(env['REQUEST_METHOD']) && asset(env['PATH_INFO'])
+  ##
+  # Check if the request is for a static file and set the gin.static env
+  # variable to the filepath.
+
+  def static! env
+    env.delete(RACK_KEYS[:static])
+    filepath = %w{GET HEAD}.include?(env['REQUEST_METHOD']) &&
+               asset(env['PATH_INFO'])
+
+    env[RACK_KEYS[:static]] = filepath if filepath
+    !!env[RACK_KEYS[:static]]
+  end
+
+
+  ##
+  # Check if the request routes to a controller and action and set
+  # gin.controller, gin.action, gin.path_query_hash,
+  # and gin.http_route env variables.
+
+  def route! env
+    http_route = "#{env['REQUEST_METHOD']} #{env['PATH_INFO']}"
+    return true if env[RACK_KEYS[:http_route]] == http_route
+
+    env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]], env[RACK_KEYS[:path_params]] =
+      router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
+
+    env[RACK_KEYS[:http_route]] = http_route
+
+    !!(env[RACK_KEYS[:controller]] && env[RACK_KEYS[:action]])
   end
 
 
@@ -510,9 +559,6 @@ class Gin::App
       ctrl && action
 
     ctrl.new(self, env).call_action action
-
-  rescue Gin::NotFound => err
-    @rack_app ? @rack_app.call(env) : handle_error(err, env)
 
   rescue ::Exception => err
     handle_error(err, env)
