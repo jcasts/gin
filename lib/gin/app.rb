@@ -500,19 +500,17 @@ class Gin::App
   end
 
 
-  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
-
-
   ##
   # Check if the request is for a static file and set the gin.static env
   # variable to the filepath.
 
   def static! env
-    env.delete(RACK_KEYS[:static])
     filepath = %w{GET HEAD}.include?(env['REQUEST_METHOD']) &&
                asset(env['PATH_INFO'])
 
-    env[RACK_KEYS[:static]] = filepath if filepath
+    filepath ? (env[RACK_KEYS[:static]] = filepath) :
+                env.delete(RACK_KEYS[:static])
+
     !!env[RACK_KEYS[:static]]
   end
 
@@ -535,9 +533,12 @@ class Gin::App
   end
 
 
+  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
+
   ##
   # Check if an asset exists.
   # Returns the full path to the asset if found, otherwise nil.
+  # Does not support ./ or ../ for security reasons.
 
   def asset path
     path = path.gsub STATIC_PATH_CLEANER, ""

@@ -458,8 +458,20 @@ class AppTest < Test::Unit::TestCase
     FooApp.public_dir "./test/mock_config"
     assert @app.asset("backend.yml") =~ %r{/gin/test/mock_config/backend\.yml$}
     assert @app.asset("500.html") =~ %r{/gin/public/500\.html$}
+
+    assert !@app.asset("foo/../../mock_config/backend.yml")
+    assert !@app.asset("foo/../../public/500.html")
+  end
+
+
+  def test_bad_asset
+    FooApp.public_dir "./test/mock_config"
     assert_nil @app.asset("bad_file")
     assert_nil @app.asset("../../History.rdoc")
+
+    path = File.join(FooApp.public_dir, "../.././test/mock_config/../../History.rdoc")
+    assert File.file?(path)
+    assert_nil @app.asset("../.././test/mock_config/../../History.rdoc")
   end
 
 
@@ -479,9 +491,9 @@ class AppTest < Test::Unit::TestCase
 
   def test_static_updir
     env = {'rack.input' => "", 'REQUEST_METHOD' => 'GET'}
-    env['PATH_INFO'] = '../../../500.html'
-    assert @app.static!(env)
-    assert env['gin.static'] =~ %r{/gin/public/500\.html$}
+    env['PATH_INFO'] = '../../gin/public/500.html'
+    assert !@app.static!(env)
+    assert !env['gin.static']
   end
 
 
