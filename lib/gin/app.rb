@@ -435,13 +435,17 @@ class Gin::App
 
   def reload!
     return unless autoreload
-    self.class.erase! [self.class.source_file],
-                      [self.class.name.split("::").last],
-                      self.class.namespace
+    @mutex ||= Mutex.new
 
-    self.class.erase_dependencies!
-    Object.send(:require, self.class.source_file)
-    @app = self.class.source_class.new @rack_app, @logger
+    @mutex.synchronize do
+      self.class.erase! [self.class.source_file],
+                        [self.class.name.split("::").last],
+                        self.class.namespace
+
+      self.class.erase_dependencies!
+      Object.send(:require, self.class.source_file)
+      @app = self.class.source_class.new @rack_app, @logger
+    end
   end
 
 
