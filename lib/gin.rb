@@ -1,8 +1,5 @@
 require 'logger'
-
 require 'rack'
-require 'rack-protection'
-
 
 class Gin
   VERSION = '1.0.2'
