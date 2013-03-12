@@ -2,7 +2,7 @@ require 'logger'
 require 'rack'
 
 class Gin
-  VERSION = '1.0.2'
+  VERSION = '1.0.3'
 
   LIB_DIR    = File.expand_path("..", __FILE__)            #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:

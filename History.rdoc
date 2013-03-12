@@ -1,3 +1,14 @@
+=== 1.0.2 / 2013-03-12
+
+* Minor Enhancements
+  * Routes have priority over static assets
+  * Rack::Session and Rack::Protection are off by default
+  * When running as middleware, don't run internal middleware
+    if going to next rack app
+
+* Bugfixes
+  * Block on reloading to avoid multi-threading issues
+
 === 1.0.2 / 2013-03-08
 
 * Minor Enhancements
