@@ -271,6 +271,15 @@ class Gin::Controller
 
 
   ##
+  # Delete the response cookie with the given name.
+  # Does not affect request cookies.
+
+  def delete_cookie name
+    @response.delete_cookie name
+  end
+
+
+  ##
   # Build a path to the given controller and action or route name,
   # with any expected params. If no controller is specified and the
   # current controller responds to the symbol given, uses the current
