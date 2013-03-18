@@ -28,12 +28,7 @@ class Gin::Request < Rack::Request
 
 
   def params
-    unless @params
-      super
-      @params = process_params @params
-    end
-
-    @params
+    @params ||= process_params(super) || {}
   end
 
 

@@ -194,6 +194,7 @@ class Gin::Router
   def resources_for http_verb, path
     param_vals = []
     curr_node  = @routes_tree[http_verb.to_s.downcase]
+    return unless curr_node
 
     path.scan(%r{/([^/]+|$)}) do |(key)|
       next if key.empty?
