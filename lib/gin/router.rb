@@ -33,10 +33,12 @@ class Gin::Router
 
 
     # Create restful routes if they aren't taken already.
-    def defaults restful_only=false
+    def defaults default_verb=nil
+      default_verb = (default_verb || 'get').to_s.downcase
+
       (@ctrl.actions - @actions).each do |action|
         verb, path = DEFAULT_ACTION_MAP[action]
-        verb, path = ['get', "/#{action}"] if !restful_only && verb.nil?
+        verb, path = [default_verb, "/#{action}"] if verb.nil?
 
         add(verb, action, path) unless verb.nil? ||
           @routes.any?{|(r,n,(c,a,p))| r == make_route(verb, path)[0] }

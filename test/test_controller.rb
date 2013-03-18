@@ -249,6 +249,15 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_delete_cookie
+    test_set_cookie
+
+    @ctrl.delete_cookie "test"
+    assert_equal "test=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 -0000",
+                 @ctrl.response['Set-Cookie']
+  end
+
+
   def test_set_session
     @ctrl.session['test'] = 'user@example.com'
     assert_equal({"test"=>"user@example.com"}, @ctrl.env['rack.session'])

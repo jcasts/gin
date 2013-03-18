@@ -113,7 +113,7 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
-  def test_add_all_restful_routes
+  def test_add_all_routes_as_defaults
     @router.add MyCtrl, "/" do
       get :show, "/:id"
       defaults
@@ -121,6 +121,23 @@ class RouterTest < Test::Unit::TestCase
 
     assert @router.has_route?(MyCtrl, :index)
     assert @router.has_route?(MyCtrl, :unmounted_action)
+  end
+
+
+  def test_add_all_with_default_verb
+    @router.add MyCtrl, "/" do
+      get :show, "/:id"
+      defaults :post
+    end
+
+    assert_equal [MyCtrl, :index, {}],
+      @router.resources_for("GET", "/")
+
+    assert_equal [MyCtrl, :show, {'id' => '123'}],
+      @router.resources_for("GET", "/123")
+
+    assert_equal [MyCtrl, :unmounted_action, {}],
+      @router.resources_for("POST", "/unmounted_action")
   end
 
 
