@@ -8,7 +8,7 @@ class CGI #:nodoc:
   end
 
   def self.escapeHTML str
-    __escapeHTML(str).gsub!("'", "&#39;")
+    __escapeHTML(str).gsub("'", "&#39;")
   end
 end
 
