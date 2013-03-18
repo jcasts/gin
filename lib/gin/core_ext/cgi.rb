@@ -1,6 +1,6 @@
 require 'cgi'
 
-unless RUBY_VERSION >= "2.0"
+unless CGI.escapeHTML("'") == "&#39;"
 
 class CGI #:nodoc:
   class << self
