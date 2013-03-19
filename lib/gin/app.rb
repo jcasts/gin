@@ -24,7 +24,8 @@ class Gin::App
     :action      => 'gin.action'.freeze,
     :static      => 'gin.static'.freeze,
     :reloaded    => 'gin.reloaded'.freeze,
-    :errors      => 'gin.errors'.freeze
+    :errors      => 'gin.errors'.freeze,
+    :timestamp   => 'gin.timestamp'.freeze
   }.freeze
 
 
@@ -412,12 +413,12 @@ class Gin::App
   def initialize rack_app=nil, logger=nil
     load_config
 
-    if !rack_app.respond_to?(:call) && rack_app.respond_to?(:log) && logger.nil?
+    if !rack_app.respond_to?(:call) && rack_app.respond_to?(:<<) && logger.nil?
       @rack_app = nil
       @logger   = rack_app
     else
       @rack_app = rack_app
-      @logger   = Logger.new $stdout
+      @logger   = $stdout
     end
 
     validate_all_controllers!
@@ -485,12 +486,13 @@ class Gin::App
 
   def call! env
     if env[RACK_KEYS[:stack]]
-      env.delete RACK_KEYS[:stack]
       dispatch env, env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]]
 
     else
       env[RACK_KEYS[:stack]] = true
-      @stack.call env
+      with_log_request(env) do
+        @stack.call env
+      end
     end
   end
 
@@ -500,7 +502,9 @@ class Gin::App
   # env filename.
 
   def call_static env
-    error_delegate.exec(self, env){ send_file env[RACK_KEYS[:static]] }
+    with_log_request(env) do
+      error_delegate.exec(self, env){ send_file env[RACK_KEYS[:static]] }
+    end
   end
 
 
@@ -578,7 +582,7 @@ class Gin::App
 
     begin
       trace = Gin.app_trace(Array(err.backtrace)).join("\n")
-      logger.error("#{err.class.name}: #{err.message}\n#{trace}")
+      logger << "[ERROR] #{err.class.name}: #{err.message}\n#{trace}"
       delegate.exec(self, env){ handle_error(err) }
 
     rescue ::Exception => err
@@ -589,6 +593,38 @@ class Gin::App
 
 
   private
+
+
+  LOG_FORMAT = %{%s - %s [%s] %s "%s %s%s" %d %s %0.4f %s\n}
+
+  def log_request env, resp
+    now  = Time.now
+    time = now - env[RACK_KEYS[:timestamp]] if env[RACK_KEYS[:timestamp]]
+
+    ctrl, action = env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]]
+    target = "#{ctrl}##{action}" if ctrl && action
+
+    @logger << ( LOG_FORMAT % [
+        env['HTTP_X_FORWARDED_FOR'] || env["REMOTE_ADDR"] || "-",
+        env["REMOTE_USER"] || "-",
+        now.strftime("%d/%b/%Y %H:%M:%S"),
+        env["HTTP_VERSION"] || "HTTP/1.1",
+        env["REQUEST_METHOD"],
+        env["PATH_INFO"],
+        env["QUERY_STRING"].to_s.empty? ? "" : "?#{env["QUERY_STRING"]}",
+        resp[0].to_s[0..3],
+        resp[1]['Content-Length'] || "-",
+        time || "-",
+        target || "-" ] )
+  end
+
+
+  def with_log_request env
+    env[RACK_KEYS[:timestamp]] ||= Time.now
+    resp = yield
+    log_request env, resp
+    resp
+  end
 
 
   def build_app builder

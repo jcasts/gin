@@ -69,7 +69,7 @@ class ControllerTest < Test::Unit::TestCase
   def setup
     MockApp.instance_variable_set("@environment", nil)
     MockApp.instance_variable_set("@asset_host", nil)
-    @app  = MockApp.new Logger.new(StringIO.new)
+    @app  = MockApp.new StringIO.new
     @ctrl = BarController.new(@app, rack_env)
   end
 

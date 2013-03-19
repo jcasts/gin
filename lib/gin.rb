@@ -1,4 +1,3 @@
-require 'logger'
 require 'rack'
 
 class Gin
@@ -108,6 +107,7 @@ class Gin
 
   require 'gin/core_ext/cgi'
   require 'gin/core_ext/gin_class'
+  require 'gin/core_ext/rack_commonlogger'
 
   require 'gin/app'
   require 'gin/router'

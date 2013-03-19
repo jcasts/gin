@@ -87,8 +87,8 @@ class AppTest < Test::Unit::TestCase
     FooApp.instance_variable_set("@autoreload", nil)
 
     @error_io = StringIO.new
-    @app  = FooApp.new Logger.new(@error_io)
-    @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}
+    @app  = FooApp.new @error_io
+    @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}, @error_io
   end
 
 
@@ -242,7 +242,7 @@ class AppTest < Test::Unit::TestCase
     assert_equal [FooMiddleware, :foo, :bar], FooApp.middleware[0]
     assert !FooMiddleware.called?
 
-    myapp = FooApp.new
+    myapp = FooApp.new @error_io
     myapp.call({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
     assert FooMiddleware.called?
 
@@ -254,7 +254,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_call_reload
     FooApp.autoreload true
-    myapp = FooApp.new
+    myapp = FooApp.new @error_io
 
     assert !myapp.reloaded?
     myapp.call 'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'
@@ -277,7 +277,7 @@ class AppTest < Test::Unit::TestCase
     env   = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     expected = [200, {'Content-Length'=>"5"}, "AHOY!"]
     myapp = lambda{|env| expected }
-    @app = FooApp.new myapp
+    @app = FooApp.new myapp, @error_io
 
     resp = @app.call env
     assert_equal expected, resp
@@ -330,7 +330,7 @@ class AppTest < Test::Unit::TestCase
     assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
     assert_equal @app.asset("404.html"), resp[2].path
 
-    msg = "ERROR -- : Gin::NotFound: No route exists for: GET /foo"
+    msg = "[ERROR] Gin::NotFound: No route exists for: GET /foo"
     @error_io.rewind
     assert @error_io.read.include?(msg)
   end
@@ -530,8 +530,9 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_init
-    assert Logger === @app.logger, "logger attribute should be a Logger"
-    assert Logger === @rapp.logger, "logger attribute should be a Logger"
+    @app = FooApp.new
+    assert_equal $stdout, @app.logger, "logger should default to $stdout"
+    assert_equal $stdout, @rapp.logger, "logger should default to $stdout"
     assert_nil @app.rack_app, "Rack application should be nil by default"
     assert Proc === @rapp.rack_app, "Rack application should be a Proc"
     assert Gin::Router === @app.router, "Should have a Gin::Router"
