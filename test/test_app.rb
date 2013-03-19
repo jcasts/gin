@@ -344,7 +344,7 @@ class AppTest < Test::Unit::TestCase
     assert_equal 500, resp[0]
     assert_equal @app.asset("500.html"), resp[2].path
     @error_io.rewind
-    assert @error_io.read.empty?
+    assert @error_io.read.include?("[ERROR] RuntimeError: Something bad happened\n")
   end
 
 

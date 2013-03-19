@@ -581,8 +581,6 @@ class Gin::App
     delegate = error_delegate
 
     begin
-      trace = Gin.app_trace(Array(err.backtrace)).join("\n")
-      logger << "[ERROR] #{err.class.name}: #{err.message}\n#{trace}"
       delegate.exec(self, env){ handle_error(err) }
 
     rescue ::Exception => err

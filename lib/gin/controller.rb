@@ -5,6 +5,10 @@ class Gin::Controller
 
 
   error Gin::NotFound, Gin::BadRequest, ::Exception do |err|
+    trace = Gin.app_trace(Array(err.backtrace)).join("  \n")
+    trace = "  " << trace << "\n\n" unless trace.empty?
+    logger << "[ERROR] #{err.class.name}: #{err.message}\n#{trace}"
+
     status( err.respond_to?(:http_status) ? err.http_status : 500 )
     @response.headers.clear
     content_type :html
