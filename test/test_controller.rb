@@ -230,7 +230,7 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal 'no-cache', @ctrl.response['Pragma']
     assert_equal 'no-cache, no-store, must-revalidate, max-age=0',
                   @ctrl.response['Cache-Control']
-    assert_equal Time.new("1990","01","01").httpdate,
+    assert_equal Gin::Constants::EPOCH.httpdate,
                   @ctrl.response['Expires']
   end
 

@@ -13,21 +13,9 @@
 
 class Gin::App
   extend GinClass
+  include Gin::Constants
 
   class RouterError < Gin::Error; end
-
-  RACK_KEYS = { #:nodoc:
-    :stack       => 'gin.stack'.freeze,
-    :http_route  => 'gin.http_route'.freeze,
-    :path_params => 'gin.path_query_hash'.freeze,
-    :controller  => 'gin.controller'.freeze,
-    :action      => 'gin.action'.freeze,
-    :static      => 'gin.static'.freeze,
-    :reloaded    => 'gin.reloaded'.freeze,
-    :errors      => 'gin.errors'.freeze,
-    :timestamp   => 'gin.timestamp'.freeze
-  }.freeze
-
 
   CALLERS_TO_IGNORE = [ # :nodoc:
     /\/gin(\/(.*?))?\.rb$/,             # all gin code
@@ -77,11 +65,23 @@ class Gin::App
     end
 
     if @autoreload && (!defined?(Gin::Reloadable) || !include?(Gin::Reloadable))
-      require 'gin/reloadable'
+      Object.send :require, 'gin/reloadable'
       include Gin::Reloadable
     end
 
     @autoreload
+  end
+
+
+  ##
+  # Custom require used for auto-reloading.
+
+  def self.require file
+    if autoreload
+      track_require file
+    else
+      super file
+    end
   end
 
 
@@ -353,7 +353,7 @@ class Gin::App
 
   def self.environment env=nil
     @environment = env if env
-    @environment ||= ENV['RACK_ENV'] || "development"
+    @environment ||= ENV['RACK_ENV'] || ENV_DEV
   end
 
 
@@ -361,7 +361,7 @@ class Gin::App
   # Check if running in development mode.
 
   def self.development?
-    self.environment == "development"
+    self.environment == ENV_DEV
   end
 
 
@@ -369,7 +369,7 @@ class Gin::App
   # Check if running in test mode.
 
   def self.test?
-    self.environment == "test"
+    self.environment == ENV_TEST
   end
 
 
@@ -377,7 +377,7 @@ class Gin::App
   # Check if running in staging mode.
 
   def self.staging?
-    self.environment == "staging"
+    self.environment == ENV_STAGE
   end
 
 
@@ -385,7 +385,7 @@ class Gin::App
   # Check if running in production mode.
 
   def self.production?
-    self.environment == "production"
+    self.environment == ENV_PROD
   end
 
 
@@ -444,7 +444,7 @@ class Gin::App
                         self.class.namespace
 
       self.class.erase_dependencies!
-      Object.send(:require, self.class.source_file)
+      require self.class.source_file
       @app = self.class.source_class.new @rack_app, @logger
     end
   end
@@ -475,8 +475,8 @@ class Gin::App
   # Check if autoreload is needed and reload.
 
   def try_autoreload env
-    return if env[RACK_KEYS[:reloaded]]
-    env[RACK_KEYS[:reloaded]] = true
+    return if env[GIN_RELOADED]
+    env[GIN_RELOADED] = true
     reload!
   end
 
@@ -485,11 +485,11 @@ class Gin::App
   # Call App instance stack without static file lookup or reloading.
 
   def call! env
-    if env[RACK_KEYS[:stack]]
-      dispatch env, env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]]
+    if env[GIN_STACK]
+      dispatch env, env[GIN_CTRL], env[GIN_ACTION]
 
     else
-      env[RACK_KEYS[:stack]] = true
+      env[GIN_STACK] = true
       with_log_request(env) do
         @stack.call env
       end
@@ -503,7 +503,7 @@ class Gin::App
 
   def call_static env
     with_log_request(env) do
-      error_delegate.exec(self, env){ send_file env[RACK_KEYS[:static]] }
+      error_delegate.exec(self, env){ send_file env[GIN_STATIC] }
     end
   end
 
@@ -513,13 +513,13 @@ class Gin::App
   # variable to the filepath.
 
   def static! env
-    filepath = %w{GET HEAD}.include?(env['REQUEST_METHOD']) &&
-               asset(env['PATH_INFO'])
+    filepath = %w{GET HEAD}.include?(env[REQ_METHOD]) &&
+               asset(env[PATH_INFO])
 
-    filepath ? (env[RACK_KEYS[:static]] = filepath) :
-                env.delete(RACK_KEYS[:static])
+    filepath ? (env[GIN_STATIC] = filepath) :
+                env.delete(GIN_STATIC)
 
-    !!env[RACK_KEYS[:static]]
+    !!env[GIN_STATIC]
   end
 
 
@@ -529,15 +529,15 @@ class Gin::App
   # and gin.http_route env variables.
 
   def route! env
-    http_route = "#{env['REQUEST_METHOD']} #{env['PATH_INFO']}"
-    return true if env[RACK_KEYS[:http_route]] == http_route
+    http_route = "#{env[REQ_METHOD]} #{env[PATH_INFO]}"
+    return true if env[GIN_ROUTE] == http_route
 
-    env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]], env[RACK_KEYS[:path_params]] =
-      router.resources_for env['REQUEST_METHOD'], env['PATH_INFO']
+    env[GIN_CTRL], env[GIN_ACTION], env[GIN_PATH_PARAMS] =
+      router.resources_for env[REQ_METHOD], env[PATH_INFO]
 
-    env[RACK_KEYS[:http_route]] = http_route
+    env[GIN_ROUTE] = http_route
 
-    !!(env[RACK_KEYS[:controller]] && env[RACK_KEYS[:action]])
+    !!(env[GIN_CTRL] && env[GIN_ACTION])
   end
 
 
@@ -564,7 +564,7 @@ class Gin::App
 
   def dispatch env, ctrl, action
     raise Gin::NotFound,
-      "No route exists for: #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" unless
+      "No route exists for: #{env[REQ_METHOD]} #{env[PATH_INFO]}" unless
       ctrl && action
 
     ctrl.new(self, env).call_action action
@@ -593,32 +593,32 @@ class Gin::App
   private
 
 
-  LOG_FORMAT = %{%s - %s [%s] %s "%s %s%s" %d %s %0.4f %s\n}
+  LOG_FORMAT = %{%s - %s [%s] "%s %s%s" %s %d %s %0.4f %s\n}.freeze #:nodoc:
 
   def log_request env, resp
     now  = Time.now
-    time = now - env[RACK_KEYS[:timestamp]] if env[RACK_KEYS[:timestamp]]
+    time = now - env[GIN_TIMESTAMP] if env[GIN_TIMESTAMP]
 
-    ctrl, action = env[RACK_KEYS[:controller]], env[RACK_KEYS[:action]]
+    ctrl, action = env[GIN_CTRL], env[GIN_ACTION]
     target = "#{ctrl}##{action}" if ctrl && action
 
     @logger << ( LOG_FORMAT % [
-        env['HTTP_X_FORWARDED_FOR'] || env["REMOTE_ADDR"] || "-",
-        env["REMOTE_USER"] || "-",
+        env[FWD_FOR] || env[REMOTE_ADDR] || "-",
+        env[REMOTE_USER] || "-",
         now.strftime("%d/%b/%Y %H:%M:%S"),
-        env["HTTP_VERSION"] || "HTTP/1.1",
-        env["REQUEST_METHOD"],
-        env["PATH_INFO"],
-        env["QUERY_STRING"].to_s.empty? ? "" : "?#{env["QUERY_STRING"]}",
-        resp[0].to_s[0..3],
-        resp[1]['Content-Length'] || "-",
+        env[REQ_METHOD],
+        env[PATH_INFO],
+        env[QUERY_STRING].to_s.empty? ? "" : "?#{env[QUERY_STRING]}",
+        env[HTTP_VERSION] || "HTTP/1.1",
+        resp[0],
+        resp[1][CNT_LENGTH] || "-",
         time || "-",
         target || "-" ] )
   end
 
 
   def with_log_request env
-    env[RACK_KEYS[:timestamp]] ||= Time.now
+    env[GIN_TIMESTAMP] ||= Time.now
     resp = yield
     log_request env, resp
     resp

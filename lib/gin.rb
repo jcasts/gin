@@ -109,6 +109,7 @@ class Gin
   require 'gin/core_ext/gin_class'
   require 'gin/core_ext/rack_commonlogger'
 
+  require 'gin/constants'
   require 'gin/app'
   require 'gin/router'
   require 'gin/config'

@@ -1,14 +1,14 @@
 class Gin::Request < Rack::Request
+  include Gin::Constants
 
   def initialize env
     super
-    self.params.update env[Gin::App::RACK_KEYS[:path_params]] if
-      env[Gin::App::RACK_KEYS[:path_params]]
+    self.params.update env[GIN_PATH_PARAMS] if env[GIN_PATH_PARAMS]
   end
 
 
   def forwarded?
-    @env.include? "HTTP_X_FORWARDED_HOST"
+    @env.include? FWD_HOST
   end
 
 

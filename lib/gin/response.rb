@@ -1,8 +1,7 @@
 class Gin::Response < Rack::Response
+  include Gin::Constants
 
   NO_HEADER_STATUSES = [100, 101, 204, 205, 304].freeze #:nodoc:
-  H_CTYPE   = "Content-Type".freeze   #:nodoc:
-  H_CLENGTH = "Content-Length".freeze #:nodoc:
 
   attr_accessor :status
   attr_reader :body
@@ -16,11 +15,11 @@ class Gin::Response < Rack::Response
 
   def finish
     body_out = body
-    header[H_CTYPE] ||= 'text/html;charset=UTF-8'
+    header[CNT_TYPE] ||= 'text/html;charset=UTF-8'
 
     if NO_HEADER_STATUSES.include?(status.to_i)
-      header.delete H_CTYPE
-      header.delete H_CLENGTH
+      header.delete CNT_TYPE
+      header.delete CNT_LENGTH
 
       if status.to_i > 200
         close
@@ -37,14 +36,14 @@ class Gin::Response < Rack::Response
   private
 
   def update_content_length
-    if header[H_CTYPE] && !header[H_CLENGTH]
+    if header[CNT_TYPE] && !header[CNT_LENGTH]
       case body
       when Array
-        header[H_CLENGTH] = body.inject(0) do |l, p|
-                              l + Rack::Utils.bytesize(p)
-                            end.to_s
+        header[CNT_LENGTH] = body.inject(0) do |l, p|
+                               l + Rack::Utils.bytesize(p)
+                             end.to_s
       when File
-        header[H_CLENGTH] = body.size.to_s
+        header[CNT_LENGTH] = body.size.to_s
       end
     end
   end

@@ -1,5 +1,6 @@
 class Gin::Controller
   extend  GinClass
+  include Gin::Constants
   include Gin::Filterable
   include Gin::Errorable
 
@@ -75,8 +76,7 @@ class Gin::Controller
   def call_action action #:nodoc:
     invoke{ dispatch action }
     invoke{ handle_status(@response.status) }
-    content_type self.class.content_type unless
-      @response[Gin::Response::H_CTYPE]
+    content_type self.class.content_type unless @response[CNT_TYPE]
     @response.finish
   end
 
@@ -111,7 +111,7 @@ class Gin::Controller
   # Get or set the HTTP response Content-Type header.
 
   def content_type type=nil, params={}
-    return @response[Gin::Response::H_CTYPE] unless type
+    return @response[CNT_TYPE] unless type
 
     default   = params.delete(:default)
     mime_type = mime_type(type) || default
@@ -131,7 +131,7 @@ class Gin::Controller
       end.join(', ')
     end
 
-    @response[Gin::Response::H_CTYPE] = mime_type
+    @response[CNT_TYPE] = mime_type
   end
 
 
@@ -179,15 +179,15 @@ class Gin::Controller
 
     value = '"%s"' % value
     value = 'W/' + value if kind == :weak
-    @response['ETag'] = value
+    @response[ETAG] = value
 
     if (200..299).include?(status) || status == 304
-      if etag_matches? @env['HTTP_IF_NONE_MATCH'], new_resource
+      if etag_matches? @env[IF_NONE_MATCH], new_resource
         halt(@request.safe? ? 304 : 412)
       end
 
-      if @env['HTTP_IF_MATCH']
-        halt 412 unless etag_matches? @env['HTTP_IF_MATCH'], new_resource
+      if @env[IF_MATCH]
+        halt 412 unless etag_matches? @env[IF_MATCH], new_resource
       end
     end
   end
@@ -195,7 +195,7 @@ class Gin::Controller
 
   def etag_matches? list, new_resource=@request.post? #:nodoc:
     return !new_resource if list == '*'
-    list.to_s.split(/\s*,\s*/).include? response['ETag']
+    list.to_s.split(/\s*,\s*/).include? response[ETAG]
   end
 
 
@@ -220,7 +220,7 @@ class Gin::Controller
   #   end
 
   def stream keep_open=false, &block
-    scheduler = env['async.callback'] ? EventMachine : Gin::Stream
+    scheduler = env[ASYNC_CALLBACK] ? EventMachine : Gin::Stream
     body Gin::Stream.new(scheduler, keep_open){ |out| yield(out) }
   end
 
@@ -357,13 +357,13 @@ class Gin::Controller
   #   redirect to(:show_foo, :id => 123)
 
   def redirect uri, *args
-    if @env['HTTP_VERSION'] == 'HTTP/1.1' && @env["REQUEST_METHOD"] != 'GET'
+    if @env[HTTP_VERSION] == 'HTTP/1.1' && @env[REQ_METHOD] != 'GET'
       status 303
     else
       status 302
     end
 
-    @response['Location'] = url_to(uri.to_s)
+    @response[LOCATION] = url_to(uri.to_s)
     halt(*args)
   end
 
@@ -373,7 +373,7 @@ class Gin::Controller
   # Produces a 404 response if no file is found.
 
   def send_file path, opts={}
-    if opts[:type] || !@response[Gin::Response::H_CTYPE]
+    if opts[:type] || !@response[CNT_TYPE]
       content_type opts[:type] || File.extname(path),
                     :default => 'application/octet-stream'
     end
@@ -384,14 +384,14 @@ class Gin::Controller
     filename    = File.basename(path) if filename.nil?
 
     if disposition
-      @response['Content-Disposition'] =
+      @response[CNT_DISPOSITION] =
         "%s; filename=\"%s\"" % [disposition, filename]
     end
 
     last_modified opts[:last_modified] || File.mtime(path).httpdate
     halt 200 if @request.head?
 
-    @response['Content-Length'] = File.size?(path).to_s
+    @response[CNT_LENGTH] = File.size?(path).to_s
     halt 200, File.open(path, "rb")
 
   rescue Errno::ENOENT
@@ -411,20 +411,20 @@ class Gin::Controller
     time = Time.parse(time) if String === time
     time = time.to_time     if time.respond_to?(:to_time)
 
-    @response['Last-Modified'] = time.httpdate
-    return if @env['HTTP_IF_NONE_MATCH']
+    @response[LAST_MOD] = time.httpdate
+    return if @env[IF_NONE_MATCH]
 
-    if status == 200 && @env['HTTP_IF_MODIFIED_SINCE']
+    if status == 200 && @env[IF_MOD_SINCE]
       # compare based on seconds since epoch
-      since = Time.httpdate(@env['HTTP_IF_MODIFIED_SINCE']).to_i
+      since = Time.httpdate(@env[IF_MOD_SINCE]).to_i
       halt 304 if since >= time.to_i
     end
 
-    if @env['HTTP_IF_UNMODIFIED_SINCE'] &&
+    if @env[IF_UNMOD_SINCE] &&
       ((200..299).include?(status) || status == 412)
 
       # compare based on seconds since epoch
-      since = Time.httpdate(@env['HTTP_IF_UNMODIFIED_SINCE']).to_i
+      since = Time.httpdate(@env[IF_UNMOD_SINCE]).to_i
       halt 412 if since < time.to_i
     end
   rescue ArgumentError
@@ -455,7 +455,7 @@ class Gin::Controller
       values << [key, value].join('=')
     end
 
-    @response['Cache-Control'] = values.join(', ') if values.any?
+    @response[CACHE_CTRL] = values.join(', ') if values.any?
   end
 
 
@@ -483,7 +483,7 @@ class Gin::Controller
     values.last.merge!(:max_age => max_age) unless values.last[:max_age]
     cache_control(*values)
 
-    @response['Expires'] = time.httpdate
+    @response[EXPIRES] = time.httpdate
   end
 
 
@@ -492,9 +492,8 @@ class Gin::Controller
   # not to cache the response.
 
   def expire_cache_control
-    @response['Pragma'] = 'no-cache'
-    expires Time.new("1990","01","01"),
-      :no_cache, :no_store, :must_revalidate, max_age: 0
+    @response[PRAGMA] = 'no-cache'
+    expires EPOCH, :no_cache, :no_store, :must_revalidate, max_age: 0
   end
 
 
@@ -592,7 +591,7 @@ class Gin::Controller
   private
 
 
-  DEV_ERROR_HTML = File.read(File.join(Gin::PUBLIC_DIR, "error.html")) #:nodoc:
+  DEV_ERROR_HTML = File.read(File.join(Gin::PUBLIC_DIR, "error.html")).freeze #:nodoc:
 
   BAD_REQ_MSG = "Expected param `%s'" #:nodoc:
 
