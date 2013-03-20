@@ -4,10 +4,8 @@
 
 == Description
 
-Gin is a small web framework built from the redistillation of
-Sinatra and Rails idioms. Specifically, it uses much of Sinatra's
-request flow and HTTP helper methods with dedicated controller classes
-that support Rails-like filters.
+Gin is a small Ruby web framework, built on Rack, which borrows from
+Sinatra expressiveness, and targets larger applications.
 
 == Hello World
 

@@ -1,4 +1,16 @@
-=== 1.0.2 / 2013-03-12
+=== 1.0.4 / 2013-03-19
+
+* Minor Enhancements
+  * Gin no longer relies on Rack::CommonLogger
+  * Allow routes to default with a custom HTTP verb
+  * Gin::Controller#delete_cookie helper method
+
+* Bugfixes
+  * Fix for reloading of required files
+  * Fix for routing HTTP verbs that don't have routes mounted to them
+  * Better check before extending the CGI class
+
+=== 1.0.3 / 2013-03-12
 
 * Minor Enhancements
   * Routes have priority over static assets
