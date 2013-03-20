@@ -435,7 +435,6 @@ class Gin::App
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
-    return unless autoreload
     @mutex ||= Mutex.new
 
     @mutex.synchronize do
@@ -475,7 +474,7 @@ class Gin::App
   # Check if autoreload is needed and reload.
 
   def try_autoreload env
-    return if env[GIN_RELOADED]
+    return if env[GIN_RELOADED] || !autoreload
     env[GIN_RELOADED] = true
     reload!
   end
@@ -594,6 +593,7 @@ class Gin::App
 
 
   LOG_FORMAT = %{%s - %s [%s] "%s %s%s" %s %d %s %0.4f %s\n}.freeze #:nodoc:
+  TIME_FORMAT = "%d/%b/%Y %H:%M:%S".freeze #:nodoc:
 
   def log_request env, resp
     now  = Time.now
@@ -605,7 +605,7 @@ class Gin::App
     @logger << ( LOG_FORMAT % [
         env[FWD_FOR] || env[REMOTE_ADDR] || "-",
         env[REMOTE_USER] || "-",
-        now.strftime("%d/%b/%Y %H:%M:%S"),
+        now.strftime(TIME_FORMAT),
         env[REQ_METHOD],
         env[PATH_INFO],
         env[QUERY_STRING].to_s.empty? ? "" : "?#{env[QUERY_STRING]}",
