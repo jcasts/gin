@@ -32,6 +32,17 @@ class Gin::Request < Rack::Request
   end
 
 
+  def ip
+    if addr = @env['HTTP_X_FORWARDED_FOR']
+      (addr.split(',').grep(/\d\./).first || @env['REMOTE_ADDR']).to_s.strip
+    else
+      @env['REMOTE_ADDR']
+    end
+  end
+
+  alias remote_ip ip
+
+
   private
 
   M_BOOLEAN = /^true|false$/  #:nodoc:
