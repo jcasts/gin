@@ -567,12 +567,13 @@ class Gin::Controller
   def html_error_page err, code=nil
     if @app.development?
       fulltrace = err.backtrace.join("\n")
-      fulltrace = "<pre>#{fulltrace}</pre>"
+      fulltrace = "<pre>#{h(fulltrace)}</pre>"
 
       apptrace  = Gin.app_trace(err.backtrace).join("\n")
-      apptrace  = "<pre>#{apptrace}</pre>" unless apptrace.empty?
+      apptrace  = "<pre>#{h(apptrace)}</pre>" unless apptrace.empty?
 
-      DEV_ERROR_HTML % [err.class, err.class, err.message, apptrace, fulltrace]
+      DEV_ERROR_HTML %
+        [h(err.class), h(err.class), h(err.message), apptrace, fulltrace]
 
     else
       code ||= status
@@ -585,6 +586,14 @@ class Gin::Controller
 
       File.open(filepath, "rb")
     end
+  end
+
+
+  ##
+  # HTML-escape the given String.
+
+  def h obj
+    CGI.escapeHTML obj.to_s
   end
 
 
