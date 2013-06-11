@@ -88,6 +88,11 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_config
+    assert_equal @ctrl.app.config.object_id, @ctrl.config.object_id
+  end
+
+
   def test_etag
     @ctrl.etag("my-etag")
     assert_equal "my-etag".inspect, @ctrl.response['ETag']

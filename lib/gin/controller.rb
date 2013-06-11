@@ -100,6 +100,14 @@ class Gin::Controller
 
 
   ##
+  # Accessor for @app.config.
+
+  def config
+    @app.config
+  end
+
+
+  ##
   # Get the normalized mime-type matching the given input.
 
   def mime_type type
