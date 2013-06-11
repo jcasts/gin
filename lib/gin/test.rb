@@ -1,3 +1,6 @@
+require 'time'
+
+
 class Gin::App
   def self.TestHelper
     return @test_helper if defined?(@test_helper)
@@ -97,26 +100,25 @@ module Gin::Test::Assertions
   # xpath, otherwise a Ruby-Path format.
   #
   #   # With XPath
-  #   assert_body './/address[@domestic=Yes]'
+  #   assert_data './/address[@domestic=Yes]'
   #
-  #   # With Ruby-Path
-  #   assert_body '**/address/domestic=YES/../value'
+  #   # With ruby-path
+  #   assert_data '**/address/domestic=YES/../value'
 
-  def assert_body key_or_path, value=nil, opts={}, msg=nil
+  def assert_data key_or_path, value=nil, opts={}, msg=nil
     data = parsed_body
     val_msg = " with value #{value.inspect}" if !value.nil?
     count = 0
 
     case data
     when Array, Hash
-      require 'path'
+      use_lib 'path', 'ruby-path'
       data.find_data(key_or_path) do |p,k,pa|
         count += 1 if value.nil? || value === p[k]
         break unless opts[:count]
       end
 
     when Nokogiri::XML::Document, Nokogiri::HTML::Document
-      count = 0
       data.each do |node|
         count += 1 if value.nil? || value === node.text
         break unless opts[:count]
@@ -146,7 +148,16 @@ module Gin::Test::Assertions
   # :path::       String  - Path cookie applies to
 
   def assert_cookie name, value=nil, opts={}, msg=nil
-    
+    opts ||= {}
+    opts[:value] = value
+    cookie = cookies[name]
+
+    assert cookie, msg || "Expected cookie #{name} but could not exist"
+
+    opts.each do |k,v|
+      assert_equal v, cookie[k],
+        msg || "Expected cookie #{k} to be #{v} but was #{cookie[k]}"
+    end
   end
 
 
@@ -216,6 +227,10 @@ end
 #       assert_response :success
 #     end
 #   end
+#
+# All requests are full stack, meaning any in-app middleware will be run as
+# a part of a request. The goal is to test controllers in the context of the
+# whole app, and easily do integration-level tests as well.
 
 module Gin::Test::Helpers
 
@@ -240,6 +255,18 @@ module Gin::Test::Helpers
         @default_controller
       end
     end
+  end
+
+
+  def use_lib lib, gemname=nil # :nodoc:
+    require lib
+  rescue LoadError => e
+    raise unless e.message == "cannot load such file -- #{lib}"
+    gemname ||= lib
+    puts "You need the `#{gemname}' gem to access some of the features you are \
+trying to use.
+Run the following command and try again: gem install #{gemname}"
+    exit 1
   end
 
 
@@ -378,41 +405,94 @@ module Gin::Test::Helpers
     headers = (Hash === args[-2] && Hash === args[-1]) ? args.pop : {}
     path, query = path_to(*args).split("?")
 
+    env['HTTP_COOKIE'] =
+      @set_cookies.map{|k,v| "#{k}=#{v}"}.join("; ") if @set_cookies
+
     env['REQUEST_METHOD'] = verb.to_s.upcase
     env['QUERY_STRING']   = query
     env['PATH_INFO']      = path
     env.merge! headers
 
     @rack_response = app.call(env)
-    @controller    = @env[GIN_CTRL]
-    @env = nil
-    @body = nil
+    @controller    = env[GIN_CTRL]
+
+    @env         = nil
+    @body        = nil
     @parsed_body = nil
+    @set_cookies = nil
+
+    cookies.each{|n, c| set_cookie(n, c[:value]) }
+
     @rack_response
   end
 
 
   ##
   # Sets a cookie for the next mock request.
-  #   set_cookie "mycookie", "FOO", :expires => 600, :path => "/"
-  #   set_cookie "mycookie", :expires => 600
+  #   set_cookie "mycookie", "FOO"
 
-  def set_cookie name, value, opts={}
-    if Hash === value
-      opts = value
-    else
-      opts[:value] = value
-    end
-
-    
+  def set_cookie name, value
+    @set_cookies ||= {}
+    @set_cookies[name] = value
   end
 
 
+  COOKIE_MATCH = /\A([^(),\/<>@;:\\\"\[\]?={}\s]+)(?:=([^;]*))?\Z/ # :nodoc:
+
   ##
-  # Cookies assigned to the response.
+  # Cookies assigned to the response. Will not show expired cookies,
+  # but cookies will otherwise persist across multiple requests in the
+  # same test case.
+  #   cookies['session']
+  #   #=> {:value => "foo", :expires => <#Time>}
 
   def cookies
-    
+    return @cookies if @cookies || !rack_response
+
+    @cookies = {}
+
+    Array(rack_response[1]['Set-Cookie']).each do |set_cookie_value|
+      args = { }
+      params=set_cookie_value.split(/;\s*/)
+
+      first=true
+      params.each do |param|
+        result = COOKIE_MATCH.match param
+        if !result
+          raise "Invalid cookie parameter in cookie '#{set_cookie_value}'"
+        end
+
+        key = result[1].downcase.to_sym
+        keyvalue = result[2]
+        if first
+          args[:name] = result[1]
+          args[:value] = keyvalue
+          first = false
+        else
+          case key
+          when :expires
+            begin
+              args[:expires_at] = Time.parse keyvalue
+            rescue ArgumentError
+              raise unless $!.message == "time out of range"
+              args[:expires_at] = Time.at(0x7FFFFFFF)
+            end
+          when *[:domain, :path]
+            args[key] = keyvalue
+          when :secure
+            args[:secure] = true
+          when :httponly
+            args[:http_only] = true
+          else
+            raise "Unknown cookie parameter '#{key}'"
+          end
+        end
+      end
+
+      @cookies[args[:name]] = args
+    end
+
+    @cookies
   end
 
 
@@ -433,7 +513,7 @@ module Gin::Test::Helpers
   #
   # Supports JSON, BSON, XML, PLIST, and HTML.
   # Returns plain Ruby objects for JSON, BSON, and PLIST.
-  # Returns a Nokogiri object for XML and HTML.
+  # Returns a Nokogiri document object for XML and HTML.
 
   def parsed_body
     return @parsed_body if @parsed_body
@@ -442,23 +522,23 @@ module Gin::Test::Helpers
     @parsed_body =
       case ct
       when /[/+]json$/i
-        require 'json'
+        use_lib 'json'
         JSON.parse(body)
 
       when /[/+]bson$/i
-        require 'bson'
+        use_lib 'bson'
         BSON.deserialize(body)
 
       when /[/+]plist/i
-        require 'plist'
+        use_lib 'plist'
         Plist.parse_xml(body)
 
       when /[/+]xml/i
-        require 'nokogiri'
+        use_lib 'nokogiri'
         Nokogiri::XML(body)
 
       when /[/+]html/i
-        require 'nokogiri'
+        use_lib 'nokogiri'
         Nokogiri::HTML(body)
 
       else
