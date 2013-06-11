@@ -566,7 +566,8 @@ class Gin::App
       "No route exists for: #{env[REQ_METHOD]} #{env[PATH_INFO]}" unless
       ctrl && action
 
-    ctrl.new(self, env).call_action action
+    env[GIN_CTRL] = ctrl.new(self, env)
+    env[GIN_CTRL].call_action action
 
   rescue ::Exception => err
     handle_error(err, env)
@@ -599,7 +600,7 @@ class Gin::App
     now  = Time.now
     time = now - env[GIN_TIMESTAMP] if env[GIN_TIMESTAMP]
 
-    ctrl, action = env[GIN_CTRL], env[GIN_ACTION]
+    ctrl, action = env[GIN_CTRL].class, env[GIN_ACTION]
     target = "#{ctrl}##{action}" if ctrl && action
 
     @logger << ( LOG_FORMAT % [

@@ -296,6 +296,7 @@ class Gin::Controller
   #   path_to :show, :id => 123
   #   #=> "/foo/123"
   #
+  #   # Default named route
   #   path_to :show_foo, :id => 123
   #   #=> "/foo/123"
 
