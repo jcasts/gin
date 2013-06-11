@@ -27,7 +27,6 @@ module Gin::Test; end
 #     end
 #   end
 
-
 module Gin::Test::Assertions
 
   def self.included subclass
@@ -92,35 +91,47 @@ module Gin::Test::Assertions
   #
   # If value is a Class, Range, or Regex, does a match.
   # Options supported are:
-  # :attributes:: Hash - Key/Value pairs of data node attributes.
   # :count:: Integer - Number of occurences of the data point.
+  #
+  # If body is parsed with Nokogiri, first argument must be
+  # xpath, otherwise a Ruby-Path format.
+  #
+  #   # With XPath
+  #   assert_body './/address[@domestic=Yes]'
+  #
+  #   # With Ruby-Path
+  #   assert_body '**/address/domestic=YES/../value'
 
   def assert_body key_or_path, value=nil, opts={}, msg=nil
-    ct = @rack_response[1]['Content-Type']
+    data = parsed_body
+    val_msg = " with value #{value.inspect}" if !value.nil?
+    count = 0
 
-    case ct
-    when /[/+]json$/i
-      require 'json'
-      
+    case data
+    when Array, Hash
+      require 'path'
+      data.find_data(key_or_path) do |p,k,pa|
+        count += 1 if value.nil? || value === p[k]
+        break unless opts[:count]
+      end
 
-    when /[/+]bson$/i
-      require 'bson'
-      
-
-    when /[/+]plist/i
-      require 'plist'
-      
-
-    when /[/+]xml/i
-      require 'nokogiri'
-      
-
-    when /[/+]html/i
-      require 'nokogiri'
-      
+    when Nokogiri::XML::Document, Nokogiri::HTML::Document
+      count = 0
+      data.each do |node|
+        count += 1 if value.nil? || value === node.text
+        break unless opts[:count]
+      end
 
     else
-      raise "No parser available for content-type #{ct}"
+      raise "Can't use data type #{data.class}"
+    end
+
+    if opts[:count]
+      assert_equal opts[:count], count,
+        msg || "Expected #{opts[:count]} items matching '#{key_or_path}'#{val_msg} but found #{count}"
+    else
+      assert((count > 0),
+        msg || "Expected at least one item matching '#{key_or_path}'#{val_msg} but found none")
     end
   end
 
@@ -271,6 +282,7 @@ module Gin::Test::Helpers
     controller && controller.request
   end
 
+
   ##
   # The Gin::Response instance on the controller used by the last mock request.
 
@@ -374,6 +386,8 @@ module Gin::Test::Helpers
     @rack_response = app.call(env)
     @controller    = @env[GIN_CTRL]
     @env = nil
+    @body = nil
+    @parsed_body = nil
     @rack_response
   end
 
@@ -403,8 +417,72 @@ module Gin::Test::Helpers
 
 
   ##
-  # Sets the default controller to use when making requests for the
-  # duration of a test case.
+  # The read String body of the response.
+
+  def body
+    return @body if @body
+    @body = ""
+    rack_response[2].each{|str| @body << str }
+    @body
+  end
+
+
+  ##
+  # The data representing the parsed String body
+  # of the response, according to the Content-Type.
+  #
+  # Supports JSON, BSON, XML, PLIST, and HTML.
+  # Returns plain Ruby objects for JSON, BSON, and PLIST.
+  # Returns a Nokogiri object for XML and HTML.
+
+  def parsed_body
+    return @parsed_body if @parsed_body
+    ct = rack_response[1]['Content-Type']
+
+    @parsed_body =
+      case ct
+      when /[/+]json$/i
+        require 'json'
+        JSON.parse(body)
+
+      when /[/+]bson$/i
+        require 'bson'
+        BSON.deserialize(body)
+
+      when /[/+]plist/i
+        require 'plist'
+        Plist.parse_xml(body)
+
+      when /[/+]xml/i
+        require 'nokogiri'
+        Nokogiri::XML(body)
+
+      when /[/+]html/i
+        require 'nokogiri'
+        Nokogiri::HTML(body)
+
+      else
+        raise "No parser available for content-type #{ct}"
+      end
+  end
+
+
+  ##
+  # The body stream as returned by the Rack response Array.
+  # Responds to #each.
+
+  def stream
+    rack_response[2]
+  end
+
+
+  ##
+  # Sets the default controller to use when making requests.
+  # Best used in a test setup context.
+  #
+  #   def setup
+  #     default_controller HomeController
+  #   end
 
   def default_controller ctrl_klass=nil
     @default_controller = ctrl_klass if ctrl_klass
