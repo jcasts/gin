@@ -10,7 +10,6 @@ class Gin::Config
     @ttl         = opts[:ttl]    || 300
     @dir         = opts[:dir]    || "./config"
 
-    @meta = class << self; self; end
     @data = {}
     @load_times = {}
   end
@@ -29,12 +28,44 @@ class Gin::Config
 
 
   ##
+  # Load the given config name, or filename.
+  #   # Loads @dir/my_config.yml
+  #   config.load_config 'my_config'
+  #
+  #   # Loads the given file if it exists.
+  #   config.load_config 'path/to/config.yml'
+
+  def load_config name
+    name = name.to_s
+
+    if File.file?(name)
+      filepath = name
+      name = File.basename(filepath, ".yml")
+    else
+      filepath = filepath_for(name)
+    end
+
+    raise Gin::MissingConfig, "No config file at #{filepath}" unless
+      File.file?(filepath)
+
+    @load_times[name] = Time.now
+
+    c = YAML.load_file(filepath)
+    c = (c['default'] || {}).merge(c[@environment] || {})
+
+    set name, c
+
+  rescue Psych::SyntaxError
+    @logger.write "[ERROR] Could not parse config `#{filepath}' as YAML"
+    return nil
+  end
+
+
+  ##
   # Sets a new config name and value.
 
   def set name, data
     @data[name] = data
-    define_method(name){ get(name) } unless respond_to? name
-    @data[name]
   end
 
 
@@ -54,8 +85,12 @@ class Gin::Config
   # Checks if the given config is outdated.
 
   def current? name
-    @ttl == false || @data.has_key?(name) && @load_times[name].nil? ||
-      @load_times[name] && Time.now - @load_times[name] <= @ttl
+    return true if @ttl == false
+
+    load_time = @load_times[name]
+
+    load_time && Time.now - load_time <= @ttl ||
+      load_time.nil? && @data.has_key?(name)
   end
 
 
@@ -98,44 +133,8 @@ class Gin::Config
 
   private
 
-  def load_config name
-    name = name.to_s
-
-    if File.file?(name)
-      filepath = name
-      name = File.basename(filepath, ".yml")
-    else
-      filepath = filepath_for(name)
-    end
-
-    raise Gin::MissingConfig, "No config file at #{filepath}" unless
-      File.file?(filepath)
-
-    @load_times[name] = Time.now
-
-    c = YAML.load_file(filepath)
-    c = (c['default'] || {}).merge(c[@environment] || {})
-
-    set name, c
-
-  rescue Psych::SyntaxError
-    @logger.write "[ERROR] Could not parse config `#{filepath}' as YAML"
-    return nil
-  end
-
 
   def filepath_for name
     File.join(@dir, "#{name}.yml")
-  end
-
-
-  def method_missing name, *args, &block
-    super if !args.empty? && !block_given?
-    load_config(name) || super
-  end
-
-
-  def define_method name, &block
-    @meta.send :define_method, name, &block
   end
 end

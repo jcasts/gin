@@ -219,7 +219,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_config_with_dir
     FooApp.config_dir "./test/mock_config"
-    assert_equal 1, FooApp.config.backend['connections']
+    assert_equal 1, FooApp.config['backend.connections']
   end
 
 
