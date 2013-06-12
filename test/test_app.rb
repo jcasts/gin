@@ -85,10 +85,13 @@ class AppTest < Test::Unit::TestCase
     FooApp.instance_variable_set("@session", nil)
     FooApp.instance_variable_set("@protection", nil)
     FooApp.instance_variable_set("@autoreload", nil)
+    FooApp.instance_variable_set("@logger", nil)
 
     @error_io = StringIO.new
-    @app  = FooApp.new @error_io
-    @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}, @error_io
+    FooApp.logger(@error_io)
+
+    @app  = FooApp.new
+    @rapp = FooApp.new lambda{|env| [200,{'Content-Type'=>'text/html'},["HI"]]}
   end
 
 
@@ -99,7 +102,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_class_proxies
     proxies = [:protection, :sessions, :session_secret, :middleware,
-      :error_delegate, :router, :root_dir, :public_dir, :load_config, :config,
+      :error_delegate, :router, :root_dir, :public_dir, :config,
       :config_dir, :environment, :development?, :test?, :staging?, :production?,
       :mime_type, :asset_host_for, :asset_host, :asset_version]
 
@@ -220,16 +223,6 @@ class AppTest < Test::Unit::TestCase
   end
 
 
-  def test_load_config
-    FooApp.config
-    FooApp.config_dir "./test/mock_config"
-    assert_raises(NoMethodError){ FooApp.config.backend }
-
-    FooApp.load_config
-    assert FooApp.config.backend
-  end
-
-
   def test_error_delegate
     assert_equal Gin::Controller, FooApp.error_delegate
     FooApp.error_delegate FooController
@@ -277,7 +270,7 @@ class AppTest < Test::Unit::TestCase
     env   = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     expected = [200, {'Content-Length'=>"5"}, "AHOY!"]
     myapp = lambda{|env| expected }
-    @app = FooApp.new myapp, @error_io
+    @app = FooApp.new myapp
 
     resp = @app.call env
     assert_equal expected, resp
@@ -531,8 +524,8 @@ class AppTest < Test::Unit::TestCase
 
   def test_init
     @app = FooApp.new
-    assert_equal $stdout, @app.logger, "logger should default to $stdout"
-    assert_equal $stdout, @rapp.logger, "logger should default to $stdout"
+    assert_equal @error_io, @app.logger, "logger should default to class logger"
+    assert_equal @error_io, @rapp.logger, "logger should default to class logger"
     assert_nil @app.rack_app, "Rack application should be nil by default"
     assert Proc === @rapp.rack_app, "Rack application should be a Proc"
     assert Gin::Router === @app.router, "Should have a Gin::Router"

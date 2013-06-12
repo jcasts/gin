@@ -16,6 +16,8 @@ class Gin
     def http_status; 404; end
   end
 
+  class MissingConfig < Error; end
+
 
   ##
   # Change string to underscored version.

@@ -168,8 +168,26 @@ class Gin::App
   # the current environment will be accessible.
 
   def self.config_dir dir=nil
-    @config_dir = dir if dir
-    @config_dir ||= File.join(root_dir, "config")
+    config.dir = dir if String === dir
+    config.dir
+  end
+
+
+  ##
+  # Get or set the config max age for auto-reloading.
+  # Turns config reloading off if set to false. Defaults to 5 minues.
+  # Config only gets reloaded on demand.
+  #
+  #   # Set to 10 minutes
+  #   config_reload 600
+  #
+  #   # Set to never reload
+  #   config_reload false
+
+  def self.config_reload ttl=nil
+    ttl = 300 if ttl == true
+    config.ttl = ttl if !ttl.nil?
+    config.ttl
   end
 
 
@@ -186,17 +204,20 @@ class Gin::App
   #   config.memcache['host']
 
   def self.config
-    @config ||= Gin::Config.new environment, config_dir
+    @config ||= Gin::Config.new environment,
+                  dir:    File.join(root_dir, "config"),
+                  logger: logger,
+                  ttl:    300
   end
 
 
   ##
-  # Loads all configs from the config_dir.
+  # Get or set the logger for your application. Logger instance must respond
+  # to the << method.
 
-  def self.load_config
-    return unless File.directory?(config_dir)
-    config.dir = config_dir
-    config.load!
+  def self.logger new_logger=nil
+    @logger = new_logger if new_logger
+    @logger ||= $stdout
   end
 
 
@@ -394,10 +415,7 @@ class Gin::App
   class_proxy :root_dir, :public_dir
   class_proxy :mime_type, :asset_host_for, :asset_host, :asset_version
   class_proxy :environment, :development?, :test?, :staging?, :production?
-  class_proxy :load_config, :config, :config_dir
-
-  # Application logger. Defaults to log to $stdout.
-  attr_accessor :logger
+  class_proxy :logger, :config, :config_dir
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -410,15 +428,11 @@ class Gin::App
   # Create a new Rack-mountable Gin::App instance, with an optional
   # rack_app and logger.
 
-  def initialize rack_app=nil, logger=nil
-    load_config
-
+  def initialize rack_app=nil
     if !rack_app.respond_to?(:call) && rack_app.respond_to?(:<<) && logger.nil?
       @rack_app = nil
-      @logger   = rack_app
     else
       @rack_app = rack_app
-      @logger   = $stdout
     end
 
     validate_all_controllers!
@@ -444,7 +458,7 @@ class Gin::App
 
       self.class.erase_dependencies!
       require self.class.source_file
-      @app = self.class.source_class.new @rack_app, @logger
+      @app = self.class.source_class.new @rack_app
     end
   end
 
@@ -603,7 +617,7 @@ class Gin::App
     ctrl, action = env[GIN_CTRL].class, env[GIN_ACTION]
     target = "#{ctrl}##{action}" if ctrl && action
 
-    @logger << ( LOG_FORMAT % [
+    logger << ( LOG_FORMAT % [
         env[FWD_FOR] || env[REMOTE_ADDR] || "-",
         env[REMOTE_USER] || "-",
         now.strftime(TIME_FORMAT),

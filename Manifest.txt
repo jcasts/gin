@@ -31,6 +31,7 @@ test/app/app_foo.rb
 test/app/controllers/app_controller.rb
 test/app/controllers/foo_controller.rb
 test/mock_config/backend.yml
+test/mock_config/invalid.yml
 test/mock_config/memcache.yml
 test/mock_config/not_a_config.txt
 test/test_app.rb

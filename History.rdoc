@@ -1,3 +1,14 @@
+=== 1.1.0 / 2013
+
+* Major Enhancements
+  * Helpers for controller and integration testing
+  * Template support with tilt
+  * Config auto-reloading
+
+* Minor Enhancements
+  * Non-raising config querying
+  * On-demand config loading
+
 === 1.0.4 / 2013-03-19
 
 * Minor Enhancements

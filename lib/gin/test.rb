@@ -152,7 +152,7 @@ module Gin::Test::Assertions
     opts[:value] = value
     cookie = cookies[name]
 
-    assert cookie, msg || "Expected cookie #{name} but could not exist"
+    assert cookie, msg || "Expected cookie #{name} but it doesn't exist"
 
     opts.each do |k,v|
       assert_equal v, cookie[k],
@@ -449,7 +449,7 @@ Run the following command and try again: gem install #{gemname}"
   def cookies
     return @cookies if @cookies || !rack_response
 
-    @cookies = {}
+    tmp_cookies = {}
 
     Array(rack_response[1]['Set-Cookie']).each do |set_cookie_value|
       args = { }
@@ -489,10 +489,10 @@ Run the following command and try again: gem install #{gemname}"
         end
       end
 
-      @cookies[args[:name]] = args
+      tmp_cookies[args[:name]] = args
     end
 
-    @cookies
+    @cookies = tmp_cookies
   end
 
 
