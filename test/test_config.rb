@@ -67,7 +67,52 @@ class ConfigTest < Test::Unit::TestCase
   end
 
 
-  def test_reload
-    
+  def test_get
+    assert_equal "localhost", @config.get('memcache')['host']
+    @config.set('memcache', 'host' => 'example.com')
+    assert_equal "example.com", @config.get('memcache')['host']
+  end
+
+
+  def test_get_non_existant
+    assert_raise Gin::MissingConfig do
+      @config.get('non_existant')
+    end
+
+    assert_nil @config.get('non_existant', true)
+  end
+
+
+  def test_get_reload
+    @config['memcache']
+    @config.set('memcache', 'host' => 'example.com')
+    @config.instance_variable_set("@load_times", 'memcache' => Time.now - (@config.ttl + 1))
+    assert_equal 'localhost', @config.get('memcache')['host']
+  end
+
+
+  def test_current
+    assert !@config.current?('memcache')
+    assert @config['memcache']
+    assert @config.current?('memcache')
+
+    @config.instance_variable_set("@load_times", 'memcache' => Time.now)
+    assert @config.current?('memcache')
+  end
+
+
+  def test_current_expired
+    @config.instance_variable_set("@load_times", 'memcache' => Time.now - (@config.ttl + 1))
+    assert !@config.current?('memcache')
+  end
+
+
+  def test_current_no_ttl
+    assert @config['memcache']
+    @config.instance_variable_set("@load_times", 'memcache' => Time.now - (@config.ttl + 1))
+    assert !@config.current?('memcache')
+
+    @config.ttl = false
+    assert @config.current?('memcache')
   end
 end
