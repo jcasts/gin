@@ -152,7 +152,7 @@ class Gin::App
 
   ##
   # Get or set the path to the config directory.
-  # Defaults to root_dir + "config"
+  # Defaults to "<root_dir>/config"
   #
   # Configs are expected to be YAML files following this pattern:
   #   default: &default
@@ -201,7 +201,7 @@ class Gin::App
   #     host: localhost
   #
   #   # access from App class or instance
-  #   config.memcache['host']
+  #   config['memcache.host']
 
   def self.config
     @config ||= Gin::Config.new environment,
@@ -223,7 +223,7 @@ class Gin::App
 
   ##
   # Get or set the path to the public directory.
-  # Defaults to root_dir + "public"
+  # Defaults to "<root_dir>/public"
 
   def self.public_dir dir=nil
     @public_dir = dir if dir
