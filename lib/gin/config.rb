@@ -12,6 +12,7 @@ class Gin::Config
 
     @data = {}
     @load_times = {}
+    @mtimes = {}
   end
 
 
@@ -49,6 +50,11 @@ class Gin::Config
       File.file?(filepath)
 
     @load_times[name] = Time.now
+
+    mtime = File.mtime(filepath)
+    return @data[name] if mtime == @mtimes[name]
+
+    @mtimes[name] = mtime
 
     c = YAML.load_file(filepath)
     c = (c['default'] || {}).merge(c[@environment] || {})

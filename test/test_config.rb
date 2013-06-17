@@ -84,7 +84,19 @@ class ConfigTest < Test::Unit::TestCase
     @config['memcache']
     @config.set('memcache', 'host' => 'example.com')
     @config.instance_variable_set("@load_times", 'memcache' => Time.now - (@config.ttl + 1))
+    @config.instance_variable_set("@mtimes", 'memcache' => Time.now)
     assert_equal 'localhost', @config.get('memcache')['host']
+  end
+
+
+  def test_get_reload_no_change
+    @config['memcache']
+    @config.set('memcache', 'host' => 'example.com')
+    @config.instance_variable_set("@load_times", 'memcache' => Time.now - (@config.ttl + 1))
+    assert_equal 'example.com', @config.get('memcache')['host']
+
+    last_check = @config.instance_variable_get("@load_times")['memcache']
+    assert Time.now - last_check <= 1
   end
 
 
