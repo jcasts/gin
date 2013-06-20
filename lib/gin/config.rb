@@ -68,7 +68,8 @@ class Gin::Config
 
 
   ##
-  # Sets a new config name and value.
+  # Sets a new config name and value. Configs set in this manner do not
+  # qualify for reloading as they don't have a source file.
 
   def set name, data
     @data[name] = data
@@ -114,7 +115,7 @@ class Gin::Config
   ##
   # Non-raising config lookup. The following query the same value:
   #   # Raises an error if the 'user' key is missing.
-  #   config.remote_shell['user']['name']
+  #   config.get('remote_shell')['user']['name']
   #
   #   # Doesn't raise an error if a key is missing.
   #   # Doesn't support configs with '.' in the key names.
