@@ -19,6 +19,7 @@ lib/gin/request.rb
 lib/gin/response.rb
 lib/gin/router.rb
 lib/gin/stream.rb
+lib/gin/template.rb
 lib/gin/test.rb
 public/400.html
 public/404.html
