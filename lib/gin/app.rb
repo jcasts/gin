@@ -436,6 +436,7 @@ class Gin::App
     end
 
     validate_all_controllers!
+    config # Ensure config is initialized
 
     @app   = self
     @stack = build_app Rack::Builder.new

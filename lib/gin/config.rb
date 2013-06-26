@@ -1,8 +1,49 @@
 require 'yaml'
 
+##
+# Environment-specific config files loading mechanism.
+#
+#   # config_dir/memcache.yml
+#   default: &default
+#     host: http://memcache.example.com
+#     connections: 5
+#
+#   development: &dev
+#     host: localhost:123321
+#     connections: 1
+#
+#   test: *dev
+#
+#   staging:
+#     host: http://stage-memcache.example.com
+#
+#   production: *default
+#
+#
+#   # config.rb
+#   config = Gin::Config.new 'staging', :dir => 'config/dir'
+#
+#   config['memcache.host']
+#   #=> "http://stage-memcache.example.com"
+#
+#   config['memcache.connections']
+#   #=> 5
+#
+# Config files get loaded on demand. They may also be reloaded on demand
+# by setting the :ttl option to expire values. Values are only expired
+# for configs with a source file whose mtime value differs from the one
+# it had at its previous load time.
+#
+#   # 5 minute expiration
+#   config = Gin::Config.new 'staging', :ttl => 300
+
 class Gin::Config
 
   attr_accessor :dir, :logger, :ttl
+
+  ##
+  # Create a new config instance for the given environment name.
+  # The environment dictates which part of the config files gets exposed.
 
   def initialize environment, opts={}
     @environment = environment
@@ -52,7 +93,7 @@ class Gin::Config
     @load_times[name] = Time.now
 
     mtime = File.mtime(filepath)
-    return @data[name] if mtime == @mtimes[name]
+    return if mtime == @mtimes[name]
 
     @mtimes[name] = mtime
 
