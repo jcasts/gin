@@ -3,7 +3,7 @@
 * Major Enhancements
   * Helpers for controller and integration testing
   * Template support with tilt
-  * Config auto-reloading
+  * Config auto-(re)loading
 
 * Minor Enhancements
   * Non-raising config querying

@@ -51,9 +51,21 @@ class Gin::Config
     @ttl         = opts[:ttl]    || 300
     @dir         = opts[:dir]    || "./config"
 
-    @data = {}
+    @data       = {}
     @load_times = {}
-    @mtimes = {}
+    @mtimes     = {}
+
+    @lock = Gin::RWLock.new(opts[:write_timeout])
+  end
+
+
+  ##
+  # Get or set the write timeout when waiting for reader thread locks.
+  # Defaults to 0.05 sec. See Gin::RWLock for more details.
+
+  def write_timeout sec=nil
+    @lock.write_timeout = sec if sec
+    @lock.write_timeout
   end
 
 
@@ -73,9 +85,13 @@ class Gin::Config
   # Load the given config name, or filename.
   #   # Loads @dir/my_config.yml
   #   config.load_config 'my_config'
+  #   config['my_config']
+  #   #=> data from file
   #
   #   # Loads the given file if it exists.
   #   config.load_config 'path/to/config.yml'
+  #   config['my_config']
+  #   #=> data from file
 
   def load_config name
     name = name.to_s
@@ -90,17 +106,19 @@ class Gin::Config
     raise Gin::MissingConfig, "No config file at #{filepath}" unless
       File.file?(filepath)
 
-    @load_times[name] = Time.now
+    @lock.write_sync do
+      @load_times[name] = Time.now
 
-    mtime = File.mtime(filepath)
-    return if mtime == @mtimes[name]
+      mtime = File.mtime(filepath)
+      return if mtime == @mtimes[name]
 
-    @mtimes[name] = mtime
+      @mtimes[name] = mtime
 
-    c = YAML.load_file(filepath)
-    c = (c['default'] || {}).merge(c[@environment] || {})
+      c = YAML.load_file(filepath)
+      c = (c['default'] || {}).merge(c[@environment] || {})
 
-    set name, c
+      @data[name] = c
+    end
 
   rescue Psych::SyntaxError
     @logger.write "[ERROR] Could not parse config `#{filepath}' as YAML"
@@ -113,7 +131,7 @@ class Gin::Config
   # qualify for reloading as they don't have a source file.
 
   def set name, data
-    @data[name] = data
+    @lock.write_sync{ @data[name] = data }
   end
 
 
@@ -123,9 +141,10 @@ class Gin::Config
   # Reloads the config if reloading is enabled and value expired.
 
   def get name, safe=false
-    return @data[name] if current?(name) ||
-                          safe && !File.file?(filepath_for(name))
-    load_config(name) || @data[name]
+    return @lock.read_sync{ @data[name] } if
+      current?(name) || safe && !File.file?(filepath_for(name))
+
+    load_config(name) || @lock.read_sync{ @data[name] }
   end
 
 
@@ -135,10 +154,10 @@ class Gin::Config
   def current? name
     return true if @ttl == false
 
-    load_time = @load_times[name]
-
-    load_time && Time.now - load_time <= @ttl ||
-      load_time.nil? && @data.has_key?(name)
+    @lock.read_sync do
+      !@load_times[name] && @data.has_key?(name) ||
+        Time.now - @load_times[name] <= @ttl
+    end
   end
 
 
@@ -149,7 +168,7 @@ class Gin::Config
   #   #=> true
 
   def has? name
-    @data.has_key?(name) && respond_to?(name) || File.file?(filepath_for(name))
+    @lock.read_sync{ @data.has_key?(name) } || File.file?(filepath_for(name))
   end
 
 

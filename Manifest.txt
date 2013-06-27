@@ -18,6 +18,7 @@ lib/gin/reloadable.rb
 lib/gin/request.rb
 lib/gin/response.rb
 lib/gin/router.rb
+lib/gin/rw_lock.rb
 lib/gin/stream.rb
 lib/gin/template.rb
 lib/gin/test.rb
