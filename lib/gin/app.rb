@@ -54,6 +54,7 @@ class Gin::App
     @options[:session_secret] = "%064x" % Kernel.rand(2**256-1)
     @options[:protection]     = false
     @options[:sessions]       = false
+    @options[:config_reload]  = false
   end
 
 
@@ -74,7 +75,6 @@ class Gin::App
   def self.options
     self.autoreload
     self.public_dir
-    self.config
     @options
   end
 
@@ -224,8 +224,8 @@ class Gin::App
   # the current environment will be accessible.
 
   def self.config_dir dir=nil
-    config.dir = dir if String === dir
-    config.dir
+    @options[:config_dir] = dir if String === dir
+    @options[:config_dir]
   end
 
 
@@ -241,29 +241,8 @@ class Gin::App
   #   config_reload false
 
   def self.config_reload ttl=nil
-    ttl = 300 if ttl == true
-    config.ttl = ttl if !ttl.nil?
-    config.ttl
-  end
-
-
-  ##
-  # Access the config for your application, loaded from the config_dir.
-  #   # config/memcache.yml
-  #   default: &default
-  #     host: example.com
-  #     connections: 1
-  #   development: *default
-  #     host: localhost
-  #
-  #   # access from App class or instance
-  #   config['memcache.host']
-
-  def self.config
-    @options[:config] ||= Gin::Config.new environment,
-                            dir:    File.join(root_dir, "config"),
-                            logger: logger,
-                            ttl:    300
+    @options[:config_reload] = ttl unless ttl.nil?
+    @options[:config_reload]
   end
 
 
@@ -413,8 +392,7 @@ class Gin::App
 
   opt_reader :protection, :sessions, :session_secret, :middleware, :autoreload
   opt_reader :error_delegate, :router, :logger
-  opt_reader :root_dir, :public_dir
-  opt_reader :config, :environment
+  opt_reader :root_dir, :public_dir, :environment
 
   class_proxy :asset_host_for, :asset_version, :md5, :mime_type
 
@@ -443,10 +421,32 @@ class Gin::App
 
     @options = self.class.options.merge(options)
 
+    @config = Gin::Config.new environment,
+        dir:    (@options[:config_dir] || File.join(root_dir, "config")),
+        logger: logger,
+        ttl:    @options[:config_reload]
+
     validate_all_controllers!
 
     @app   = self
     @stack = build_app Rack::Builder.new
+  end
+
+
+  ##
+  # Access the config for your application, loaded from the config_dir.
+  #   # config/memcache.yml
+  #   default: &default
+  #     host: example.com
+  #     connections: 1
+  #   development: *default
+  #     host: localhost
+  #
+  #   # access from App class or instance
+  #   config['memcache.host']
+
+  def config
+    @config
   end
 
 

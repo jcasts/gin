@@ -201,22 +201,28 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_config_dir
-    assert_equal File.join(FooApp.root_dir, "config"), FooApp.config_dir
+    assert_nil FooApp.config_dir
+    @app = FooApp.new
+    assert_equal File.join(FooApp.root_dir, "config"), @app.config.dir
 
     FooApp.config_dir "/foo/blah"
+    @app = FooApp.new
     assert_equal "/foo/blah", FooApp.config_dir
+    assert_equal "/foo/blah", @app.config.dir
   end
 
 
   def test_config
-    assert Gin::Config === FooApp.config
-    assert FooApp.config.instance_variable_get("@data").empty?
+    @app = FooApp.new
+    assert Gin::Config === @app.config
+    assert @app.config.instance_variable_get("@data").empty?
   end
 
 
   def test_config_with_dir
     FooApp.config_dir "./test/mock_config"
-    assert_equal 1, FooApp.config['backend.connections']
+    @app = FooApp.new
+    assert_equal 1, @app.config['backend.connections']
   end
 
 
