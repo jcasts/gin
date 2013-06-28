@@ -152,15 +152,14 @@ class Gin::Controller
   #   template_path "sub/foo", :layout
   #   #=> "<layouts_dir>/sub/foo"
   #
-  #   template_path "^/other/foo"
+  #   template_path "/other/foo"
   #   #=> "<root_dir>/other/foo"
 
   def template_path template, is_layout=false
     t_key = "#{template}-#{!!is_layout}"
     return self.class.template_paths[t_key] if self.class.template_paths[t_key]
 
-    dir = if ROOT_DIR_MATCHER === template
-            template = template.sub(ROOT_DIR_MATCHER,'')
+    dir = if template[0] == "/"
             @app.root_dir
           elsif is_layout
             @app.layouts_dir
@@ -172,7 +171,6 @@ class Gin::Controller
     self.class.template_paths[t_key] = File.join(dir, template.to_s)
   end
 
-  ROOT_DIR_MATCHER = %r{^\./} # :nodoc:
 
   @template_paths = {}
   class << self
@@ -193,12 +191,12 @@ class Gin::Controller
   # The template argument may be a String or a Symbol. By default the
   # template location will be looked for under Gin::App.views_dir, but
   # the directory may be specified as any directory under Gin::App.root_dir
-  # by using the '^/' prefix:
+  # by using the '/' prefix:
   #
   #   view 'foo/template'
   #   #=> Renders file "<views_dir>/foo/template"
   #
-  #   view '^/foo/template'
+  #   view '/foo/template'
   #   #=> Renders file "<root_dir>/foo/template"
 
   def view template, opts={}, &block
