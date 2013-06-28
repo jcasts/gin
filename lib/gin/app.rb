@@ -174,8 +174,8 @@ class Gin::App
 
 
   ##
-  # Get or set the config max age for auto-reloading.
-  # Turns config reloading off if set to false. Defaults to 5 minues.
+  # Get or set the config max age for auto-reloading in seconds.
+  # Turns config reloading off if set to false. Defaults to false.
   # Config only gets reloaded on demand.
   #
   #   # Set to 10 minutes
