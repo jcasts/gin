@@ -112,7 +112,6 @@ class Gin
   require 'gin/core_ext/rack_commonlogger'
 
   require 'gin/constants'
-  require 'gin/app'
   require 'gin/router'
   require 'gin/config'
   require 'gin/request'
@@ -122,4 +121,5 @@ class Gin
   require 'gin/errorable'
   require 'gin/filterable'
   require 'gin/controller'
+  require 'gin/app'
 end

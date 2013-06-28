@@ -39,25 +39,21 @@ class Gin::App
   def self.setup filepath   #:nodoc
     dir = File.dirname(filepath)
 
-    @source_file    = filepath
-    @source_class   = self.to_s
-    @root_dir       = dir
-    @public_dir     = File.join(root_dir, "public")
-    @md5s           = {}
-    @environment    = ENV['RACK_ENV'] || ENV_DEV
-    @autoreload     = File.extname(source_file) != ".ru" && development?
-    @error_delegate = Gin::Controller
-    @middleware     = []
-    @logger         = $stdout
-    @mutex          = Mutex.new
-    @router         = Gin::Router.new
-    @session_secret = "%064x" % Kernel.rand(2**256-1)
-    @protection     = false
-    @session        = false
-    @config         = Gin::Config.new environment,
-                        dir:    File.join(root_dir, "config"),
-                        logger: logger,
-                        ttl:    300
+    @source_file  = filepath
+    @source_class = self.to_s
+
+    @options = {}
+    @options[:root_dir]       = dir
+    @options[:md5s]           = {}
+    @options[:environment]    = ENV['RACK_ENV'] || ENV_DEV
+    @options[:error_delegate] = Gin::Controller
+    @options[:middleware]     = []
+    @options[:logger]         = $stdout
+    @options[:mutex]          = Mutex.new
+    @options[:router]         = Gin::Router.new
+    @options[:session_secret] = "%064x" % Kernel.rand(2**256-1)
+    @options[:protection]     = false
+    @options[:sessions]       = false
   end
 
 
@@ -71,44 +67,25 @@ class Gin::App
 
 
   ##
+  # Hash of the full Gin::App configuration.
+  # Result of using class-level setter methods such as Gin::App.environment.
+  # Defaults are assigned for values that haven't been set.
+
+  def self.options
+    self.autoreload
+    self.public_dir
+    self.config
+    @options
+  end
+
+
+  ##
   # Get or set the current environment name,
   # by default ENV ['RACK_ENV'], or "development".
 
   def self.environment env=nil
-    @environment = env if env
-    @environment
-  end
-
-
-  ##
-  # Check if running in development mode.
-
-  def self.development?
-    self.environment == ENV_DEV
-  end
-
-
-  ##
-  # Check if running in test mode.
-
-  def self.test?
-    self.environment == ENV_TEST
-  end
-
-
-  ##
-  # Check if running in staging mode.
-
-  def self.staging?
-    self.environment == ENV_STAGE
-  end
-
-
-  ##
-  # Check if running in production mode.
-
-  def self.production?
-    self.environment == ENV_PROD
+    @options[:environment] = env if env
+    @options[:environment]
   end
 
 
@@ -137,8 +114,8 @@ class Gin::App
   # Defaults to the app file's directory.
 
   def self.root_dir dir=nil
-    @root_dir = dir if dir
-    @root_dir
+    @options[:root_dir] = dir if dir
+    @options[:root_dir]
   end
 
 
@@ -149,17 +126,36 @@ class Gin::App
   # In order for an app to be reloadable, the libs and controllers must be
   # required from the Gin::App class context, or use MyApp.require("lib").
   #
-  # Reloading is not supported for applications defined in the config.ru file.
+  # Gin::App class reloading is not supported for applications defined in
+  # the config.ru file. Dependencies will, however, still be reloaded.
+  #
+  # Autoreload must be enabled before any calls to Gin::App.require for
+  # those files to be reloaded.
+  #
+  #   class MyApp < Gin::App
+  #
+  #     # Only reloaded in development mode
+  #     require 'nokogiri'
+  #
+  #     autoreload false
+  #     # Never reloaded
+  #     require 'static_thing'
+  #
+  #     autoreload true
+  #     # Reloaded every request
+  #     require 'my_app/home_controller'
+  #   end
 
   def self.autoreload val=nil
-    @autoreload = val unless val.nil?
+    @options[:autoreload] = val unless val.nil?
+    @options[:autoreload] = self.environment == ENV_DEV if @options[:autoreload].nil?
 
-    if @autoreload && !(defined?(Gin::Reloadable) || self < Gin::Reloadable)
-      Object.send :require, 'gin/reloadable'
-      include Gin::Reloadable
+    if @options[:autoreload]
+      Object.send :require, 'gin/reloadable' unless defined?(Gin::Reloadable)
+      include Gin::Reloadable                unless self < Gin::Reloadable
     end
 
-    @autoreload
+    @options[:autoreload]
   end
 
 
@@ -264,7 +260,10 @@ class Gin::App
   #   config['memcache.host']
 
   def self.config
-    @config
+    @options[:config] ||= Gin::Config.new environment,
+                            dir:    File.join(root_dir, "config"),
+                            logger: logger,
+                            ttl:    300
   end
 
 
@@ -273,8 +272,8 @@ class Gin::App
   # to the << method.
 
   def self.logger new_logger=nil
-    @logger = new_logger if new_logger
-    @logger
+    @options[:logger] = new_logger if new_logger
+    @options[:logger]
   end
 
 
@@ -283,8 +282,8 @@ class Gin::App
   # Defaults to "<root_dir>/public"
 
   def self.public_dir dir=nil
-    @public_dir = dir if dir
-    @public_dir
+    @options[:public_dir] = dir if dir
+    @options[:public_dir] ||= File.join(root_dir, "public")
   end
 
 
@@ -293,18 +292,9 @@ class Gin::App
   # If block is given, evaluates the block on every read.
 
   def self.asset_host host=nil, &block
-    @asset_host = host  if host
-    @asset_host = block if block_given?
-    host = @asset_host.respond_to?(:call) ? @asset_host.call : @asset_host
-  end
-
-
-  ##
-  # Returns the asset host for a given asset name. This is useful when assigning
-  # a block for the asset_host. The asset_name argument is passed to the block.
-
-  def self.asset_host_for asset_name
-     @asset_host.respond_to?(:call) ? @asset_host.call(asset_name) : @asset_host
+    @options[:asset_host] = host  if host
+    @options[:asset_host] = block if block_given?
+    @options[:asset_host]
   end
 
 
@@ -322,7 +312,7 @@ class Gin::App
 
   def self.md5 path #:nodoc:
     return unless File.file?(path)
-    @md5s[path] ||= `#{MD5} #{path}`[0...8]
+    @options[:md5s][path] ||= `#{MD5} #{path}`[0...8]
   end
 
 
@@ -336,8 +326,8 @@ class Gin::App
   #   Gin::NotFound, Gin::BadRequest, ::Exception
 
   def self.error_delegate ctrl=nil
-    @error_delegate = ctrl if ctrl
-    @error_delegate
+    @options[:error_delegate] = ctrl if ctrl
+    @options[:error_delegate]
   end
 
 
@@ -345,7 +335,7 @@ class Gin::App
   # Router instance that handles mapping Rack-env -> Controller#action.
 
   def self.router
-    @router
+    @options[:router]
   end
 
 
@@ -387,7 +377,7 @@ class Gin::App
   # List of internal app middleware.
 
   def self.middleware
-    @middleware
+    @options[:middleware]
   end
 
 
@@ -396,8 +386,8 @@ class Gin::App
   # hash for options. Defaults to false.
 
   def self.sessions opts=nil
-    @session = opts unless opts.nil?
-    @session
+    @options[:sessions] = opts unless opts.nil?
+    @options[:sessions]
   end
 
 
@@ -406,8 +396,8 @@ class Gin::App
   # Defaults to a new random value on boot.
 
   def self.session_secret val=nil
-    @session_secret = val if val
-    @session_secret
+    @options[:session_secret] = val if val
+    @options[:session_secret]
   end
 
 
@@ -416,21 +406,24 @@ class Gin::App
   # hash for options. Defaults to false.
 
   def self.protection opts=nil
-    @protection = opts unless opts.nil?
-    @protection
+    @options[:protection] = opts unless opts.nil?
+    @options[:protection]
   end
 
 
-  class_rproxy :protection, :sessions, :session_secret, :middleware, :autoreload
-  class_rproxy :error_delegate, :router
-  class_rproxy :root_dir, :public_dir, :asset_host
-  class_rproxy :environment, :development?, :test?, :staging?, :production?
-  class_rproxy :logger, :config, :config_dir
+  opt_reader :protection, :sessions, :session_secret, :middleware, :autoreload
+  opt_reader :error_delegate, :router, :logger
+  opt_reader :root_dir, :public_dir
+  opt_reader :config, :environment
 
   class_proxy :asset_host_for, :asset_version, :md5, :mime_type
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
+
+  # Options applied to the Gin::App instance. Typically a result of
+  # class-level configuration methods, such as Gin::App.environment.
+  attr_reader :options
 
   # Internal Rack stack.
   attr_reader :stack
@@ -440,18 +433,70 @@ class Gin::App
   # Create a new Rack-mountable Gin::App instance, with an optional
   # rack_app and options.
 
-  def initialize rack_app=nil
-    if !rack_app.respond_to?(:call) && rack_app.respond_to?(:<<) && logger.nil?
+  def initialize rack_app=nil, options={}
+    if Hash === rack_app
+      options   = rack_app
       @rack_app = nil
     else
       @rack_app = rack_app
     end
 
+    @options = self.class.options.merge(options)
+
     validate_all_controllers!
-    config # Ensure config is initialized
 
     @app   = self
     @stack = build_app Rack::Builder.new
+  end
+
+
+  ##
+  # Check if running in development mode.
+
+  def development?
+    self.environment == ENV_DEV
+  end
+
+
+  ##
+  # Check if running in test mode.
+
+  def test?
+    self.environment == ENV_TEST
+  end
+
+
+  ##
+  # Check if running in staging mode.
+
+  def staging?
+    self.environment == ENV_STAGE
+  end
+
+
+  ##
+  # Check if running in production mode.
+
+  def production?
+    self.environment == ENV_PROD
+  end
+
+
+  ##
+  # Returns the asset host for a given asset name. This is useful when assigning
+  # a block for the asset_host. The asset_name argument is passed to the block.
+
+  def asset_host_for asset_name
+     @options[:asset_host].respond_to?(:call) ?
+      @options[:asset_host].call(asset_name) : @options[:asset_host]
+  end
+
+
+  ##
+  # Returns the generic asset host.
+
+  def asset_host
+    asset_host_for(nil)
   end
 
 
@@ -462,14 +507,17 @@ class Gin::App
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
-    @mutex.synchronize do
+    mutex.synchronize do
       self.class.erase! [self.class.source_file],
                         [self.class.name.split("::").last],
                         self.class.namespace
 
-      self.class.erase_dependencies!
-      require self.class.source_file
-      @app = self.class.source_class.new @rack_app
+      if File.extname(self.class.source_file) != ".ru"
+        self.class.erase_dependencies!
+        require self.class.source_file
+      end
+
+      @app = self.class.source_class.new @rack_app, @options
     end
   end
 
@@ -666,10 +714,10 @@ class Gin::App
 
   def setup_sessions builder
     return unless sessions
-    options = {}
-    options[:secret] = session_secret if session_secret
-    options.merge! sessions.to_hash if sessions.respond_to? :to_hash
-    builder.use Rack::Session::Cookie, options
+    opts = {}
+    opts[:secret] = session_secret if session_secret
+    opts.merge! sessions.to_hash if sessions.respond_to? :to_hash
+    builder.use Rack::Session::Cookie, opts
   end
 
 
@@ -677,11 +725,11 @@ class Gin::App
     return unless protection
     require 'rack-protection' unless defined?(Rack::Protection)
 
-    options = Hash === protection ? protection.dup : {}
-    options[:except] = Array options[:except]
-    options[:except] += [:session_hijacking, :remote_token] unless sessions
-    options[:reaction] ||= :drop_session
-    builder.use Rack::Protection, options
+    opts = Hash === protection ? protection.dup : {}
+    opts[:except] = Array opts[:except]
+    opts[:except] += [:session_hijacking, :remote_token] unless sessions
+    opts[:reaction] ||= :drop_session
+    builder.use Rack::Protection, opts
   end
 
 
@@ -705,4 +753,7 @@ class Gin::App
         extra_mounted.empty?
     end
   end
+
+
+  setup __FILE__
 end

@@ -152,11 +152,10 @@ class Gin::Config
   # Checks if the given config is outdated.
 
   def current? name
-    return true if @ttl == false
-
     @lock.read_sync do
-      !@load_times[name] && @data.has_key?(name) ||
-        Time.now - @load_times[name] <= @ttl
+      @ttl == false && @data.has_key?(name) ||
+        !@load_times[name] && @data.has_key?(name) ||
+        @load_times[name] && Time.now - @load_times[name] <= @ttl
     end
   end
 

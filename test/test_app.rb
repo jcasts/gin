@@ -73,19 +73,11 @@ end
 class AppTest < Test::Unit::TestCase
   class NamespacedApp < Gin::App; end
 
+  FOO_ROUTER = FooApp.router
+
   def setup
-    FooApp.instance_variable_set("@environment", nil)
-    FooApp.instance_variable_set("@asset_host", nil)
-    FooApp.instance_variable_set("@middleware", nil)
-    FooApp.instance_variable_set("@instance", nil)
-    FooApp.instance_variable_set("@config", nil)
-    FooApp.instance_variable_set("@config_dir", nil)
-    FooApp.instance_variable_set("@error_delegate", nil)
-    FooApp.instance_variable_set("@public_dir", nil)
-    FooApp.instance_variable_set("@session", nil)
-    FooApp.instance_variable_set("@protection", nil)
-    FooApp.instance_variable_set("@autoreload", nil)
-    FooApp.instance_variable_set("@logger", nil)
+    FooApp.setup __FILE__
+    FooApp.options[:router] = FOO_ROUTER
 
     @error_io = StringIO.new
     FooApp.logger(@error_io)
@@ -102,9 +94,8 @@ class AppTest < Test::Unit::TestCase
 
   def test_class_proxies
     proxies = [:protection, :sessions, :session_secret, :middleware,
-      :error_delegate, :router, :root_dir, :public_dir, :config,
-      :config_dir, :environment, :development?, :test?, :staging?, :production?,
-      :mime_type, :asset_host_for, :asset_host, :asset_version]
+      :error_delegate, :router, :root_dir, :public_dir, :environment,
+      :mime_type, :asset_host, :asset_version, :options]
 
     proxies.each do |name|
       assert FooApp.respond_to?(name), "Gin::App should respond to #{name}"
@@ -148,15 +139,19 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_autoreload
+    FooApp.setup __FILE__
     FooApp.environment "production"
+    @app = FooApp.new
     assert_equal false, FooApp.autoreload
     assert_equal false, @app.autoreload
 
     FooApp.autoreload true
+    @app = FooApp.new
     assert_equal true, FooApp.autoreload
     assert_equal true, @app.autoreload
 
     FooApp.autoreload false
+    @app = FooApp.new
     assert_equal false, FooApp.autoreload
     assert_equal false, @app.autoreload
   end
@@ -164,10 +159,12 @@ class AppTest < Test::Unit::TestCase
 
   def test_autoreload_dev
     FooApp.environment "development"
+    @app = FooApp.new
     assert_equal true, FooApp.autoreload
     assert_equal true, @app.autoreload
 
     FooApp.autoreload false
+    @app = FooApp.new
     assert_equal false, FooApp.autoreload
     assert_equal false, @app.autoreload
   end
@@ -235,7 +232,7 @@ class AppTest < Test::Unit::TestCase
     assert_equal [FooMiddleware, :foo, :bar], FooApp.middleware[0]
     assert !FooMiddleware.called?
 
-    myapp = FooApp.new @error_io
+    myapp = FooApp.new logger: @error_io
     myapp.call({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
     assert FooMiddleware.called?
 
@@ -303,6 +300,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_dispatch_not_found
     FooApp.environment 'test'
+    @app = FooApp.new
     env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
 
     resp = @app.dispatch env, FooController, :bad
@@ -315,6 +313,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_dispatch_no_handler
     FooApp.environment 'test'
+    @app = FooApp.new
     env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
 
     resp = @app.dispatch env, FooController, nil
@@ -331,6 +330,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_dispatch_error
     FooApp.environment 'test'
+    @app = FooApp.new
     env  = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     resp = @app.dispatch env, FooController, :error
 
@@ -343,6 +343,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_handle_error
     FooApp.error_delegate ErrDelegate
+    @app = FooApp.new
     env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     err = ArgumentError.new("Unexpected Argument")
 
@@ -358,6 +359,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_handle_error_no_delegate
     FooApp.environment "production"
+    @app = FooApp.new
     env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     resp = @app.handle_error ArgumentError.new("Unexpected Argument"), env
 
@@ -370,6 +372,7 @@ class AppTest < Test::Unit::TestCase
   def test_handle_error_bad_delegate
     FooApp.environment "production"
     FooApp.error_delegate BadErrDelegate
+    @app = FooApp.new
 
     env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     err = ArgumentError.new("Unexpected Argument")
@@ -431,24 +434,27 @@ class AppTest < Test::Unit::TestCase
     FooApp.asset_host do |name|
       "http://#{File.extname(name)[1..-1] << "." if name}foo.com"
     end
-    assert_equal "http://js.foo.com", FooApp.asset_host_for("app.js")
+    @app = FooApp.new
     assert_equal "http://js.foo.com", @app.asset_host_for("app.js")
   end
 
 
   def test_asset_host
     FooApp.asset_host "http://example.com"
+    @app = FooApp.new
     assert_equal "http://example.com", FooApp.asset_host
     assert_equal "http://example.com", @app.asset_host
 
     FooApp.asset_host{ "https://foo.com" }
-    assert_equal "https://foo.com", FooApp.asset_host
+    @app = FooApp.new
+    assert_equal Proc, FooApp.asset_host.class
     assert_equal "https://foo.com", @app.asset_host
   end
 
 
   def test_asset
     FooApp.public_dir "./test/mock_config"
+    @app = FooApp.new
     assert @app.asset("backend.yml") =~ %r{/gin/test/mock_config/backend\.yml$}
     assert @app.asset("500.html") =~ %r{/gin/public/500\.html$}
 
@@ -459,6 +465,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_bad_asset
     FooApp.public_dir "./test/mock_config"
+    @app = FooApp.new
     assert_nil @app.asset("bad_file")
     assert_nil @app.asset("../../History.rdoc")
 
@@ -504,6 +511,7 @@ class AppTest < Test::Unit::TestCase
     env['PATH_INFO'] = '/backend.yml'
 
     FooApp.public_dir "./test/mock_config"
+    @app = FooApp.new
     assert @app.static!(env)
     assert env['gin.static'] =~ %r{/gin/test/mock_config/backend\.yml$}
 
@@ -549,10 +557,7 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_default_environment
-    assert FooApp.development?
-    assert !FooApp.test?
-    assert !FooApp.staging?
-    assert !FooApp.production?
+    assert_equal 'development', FooApp.environment
   end
 
 
@@ -565,18 +570,15 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_environment
-    FooApp.instance_variable_set("@environment", nil)
     ENV['RACK_ENV'] = 'production'
-    assert !FooApp.development?
-    assert !FooApp.test?
-    assert !FooApp.staging?
-    assert FooApp.production?
+    FooApp.setup __FILE__
+    assert_equal 'production', FooApp.environment
   end
 
 
   def test_inst_environment
-    FooApp.instance_variable_set("@environment", nil)
     ENV['RACK_ENV'] = 'production'
+    FooApp.setup __FILE__
     @app = FooApp.new
     assert !@app.development?
     assert !@app.test?
@@ -588,9 +590,9 @@ class AppTest < Test::Unit::TestCase
   def test_set_environment
     %w{development test staging production}.each do |name|
       FooApp.environment name
+      @app = FooApp.new
       mname = name + "?"
       assert @app.send(mname), "Instance environment should be #{name}"
-      assert FooApp.send(mname), "Class environment should be #{name}"
     end
   end
 

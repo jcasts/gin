@@ -7,7 +7,8 @@ class ConfigTest < Test::Unit::TestCase
 
   def setup
     @error_io = StringIO.new
-    @config = Gin::Config.new "development", dir: CONFIG_DIR, logger: @error_io
+    @config = Gin::Config.new "development",
+                dir: CONFIG_DIR, logger: @error_io, ttl: 300
   end
 
 

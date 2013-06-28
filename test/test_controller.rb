@@ -67,9 +67,9 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def setup
-    MockApp.instance_variable_set("@environment", nil)
-    MockApp.instance_variable_set("@asset_host", nil)
-    @app  = MockApp.new StringIO.new
+    MockApp.options[:environment] = 'test'
+    MockApp.options[:asset_host] = nil
+    @app  = MockApp.new logger: StringIO.new
     @ctrl = BarController.new(@app, rack_env)
   end
 
@@ -308,6 +308,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_dispatch_error
+    @app.options[:environment] = 'development'
     @ctrl.content_type :json
     @ctrl.send(:dispatch, :index)
     assert_equal [:f1, :f2], BarController::FILTERS_RUN
@@ -321,7 +322,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_dispatch_error_nondev
-    MockApp.environment "prod"
+    @app.options[:environment] = "prod"
     @ctrl.send(:dispatch, :index)
 
     assert_equal 500, @ctrl.response.status
@@ -333,7 +334,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_dispatch_bad_request_nondev
-    MockApp.environment "prod"
+    @app.options[:environment] = "prod"
     @ctrl = TestController.new @app, rack_env
     @ctrl.params.delete('id')
     @ctrl.send(:dispatch, :show)
@@ -346,7 +347,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_dispatch_not_found_nondev
-    MockApp.environment "prod"
+    @app.options[:environment] = "prod"
     @ctrl = TestController.new @app, rack_env
     @ctrl.params.delete('id')
     @ctrl.send(:dispatch, :not_found)
@@ -436,10 +437,10 @@ end
 
 
   def test_asset_url_w_host
-    MockApp.asset_host "http://example.com"
+    @app.options[:asset_host] = "http://example.com"
     assert_equal "http://example.com/foo.jpg", @ctrl.asset_url("foo.jpg")
 
-    MockApp.asset_host do |file|
+    @app.options[:asset_host] = proc do |file|
       file =~ /\.js$/ ? "http://js.example.com" : "http://img.example.com"
     end
     assert_equal "http://js.example.com/foo.js",   @ctrl.asset_url("foo.js")
