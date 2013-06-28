@@ -32,10 +32,32 @@ class Gin::App
   def self.inherited subclass   #:nodoc:
     caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
     filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
-    dir      = File.dirname(filepath)
-    subclass.root_dir dir
-    subclass.instance_variable_set("@source_file", filepath)
-    subclass.instance_variable_set("@source_class", subclass.to_s)
+    subclass.setup(filepath)
+  end
+
+
+  def self.setup filepath   #:nodoc
+    dir = File.dirname(filepath)
+
+    @source_file    = filepath
+    @source_class   = self.to_s
+    @root_dir       = dir
+    @public_dir     = File.join(root_dir, "public")
+    @md5s           = {}
+    @environment    = ENV['RACK_ENV'] || ENV_DEV
+    @autoreload     = File.extname(source_file) != ".ru" && development?
+    @error_delegate = Gin::Controller
+    @middleware     = []
+    @logger         = $stdout
+    @mutex          = Mutex.new
+    @router         = Gin::Router.new
+    @session_secret = "%064x" % Kernel.rand(2**256-1)
+    @protection     = false
+    @session        = false
+    @config         = Gin::Config.new environment,
+                        dir:    File.join(root_dir, "config"),
+                        logger: logger,
+                        ttl:    300
   end
 
 
@@ -45,6 +67,78 @@ class Gin::App
   def self.call env
     @instance ||= self.new
     @instance.call env
+  end
+
+
+  ##
+  # Get or set the current environment name,
+  # by default ENV ['RACK_ENV'], or "development".
+
+  def self.environment env=nil
+    @environment = env if env
+    @environment
+  end
+
+
+  ##
+  # Check if running in development mode.
+
+  def self.development?
+    self.environment == ENV_DEV
+  end
+
+
+  ##
+  # Check if running in test mode.
+
+  def self.test?
+    self.environment == ENV_TEST
+  end
+
+
+  ##
+  # Check if running in staging mode.
+
+  def self.staging?
+    self.environment == ENV_STAGE
+  end
+
+
+  ##
+  # Check if running in production mode.
+
+  def self.production?
+    self.environment == ENV_PROD
+  end
+
+
+  ##
+  # Returns the source file of the current app.
+
+  def self.source_file
+    @source_file
+  end
+
+
+  def self.namespace #:nodoc:
+    # Parent namespace of the App class. Used for reloading purposes.
+    Gin.const_find(@source_class.split("::")[0..-2]) if @source_class
+  end
+
+
+  def self.source_class #:nodoc:
+    # Lookup the class from its name. Used for reloading purposes.
+    Gin.const_find(@source_class) if @source_class
+  end
+
+
+  ##
+  # Get or set the root directory of the application.
+  # Defaults to the app file's directory.
+
+  def self.root_dir dir=nil
+    @root_dir = dir if dir
+    @root_dir
   end
 
 
@@ -60,11 +154,7 @@ class Gin::App
   def self.autoreload val=nil
     @autoreload = val unless val.nil?
 
-    if @autoreload.nil?
-      @autoreload = File.extname(source_file) != ".ru" && development?
-    end
-
-    if @autoreload && (!defined?(Gin::Reloadable) || !include?(Gin::Reloadable))
+    if @autoreload && !(defined?(Gin::Reloadable) || self < Gin::Reloadable)
       Object.send :require, 'gin/reloadable'
       include Gin::Reloadable
     end
@@ -117,36 +207,6 @@ class Gin::App
 
   def self.mount ctrl, base_path=nil, &block
     router.add ctrl, base_path, &block
-  end
-
-
-  ##
-  # Returns the source file of the current app.
-
-  def self.source_file
-    @source_file
-  end
-
-
-  def self.namespace #:nodoc:
-    # Parent namespace of the App class. Used for reloading purposes.
-    Gin.const_find(@source_class.split("::")[0..-2]) if @source_class
-  end
-
-
-  def self.source_class #:nodoc:
-    # Lookup the class from its name. Used for reloading purposes.
-    Gin.const_find(@source_class) if @source_class
-  end
-
-
-  ##
-  # Get or set the root directory of the application.
-  # Defaults to the app file's directory.
-
-  def self.root_dir dir=nil
-    @root_dir = dir if dir
-    @root_dir
   end
 
 
@@ -204,10 +264,7 @@ class Gin::App
   #   config['memcache.host']
 
   def self.config
-    @config ||= Gin::Config.new environment,
-                  dir:    File.join(root_dir, "config"),
-                  logger: logger,
-                  ttl:    300
+    @config
   end
 
 
@@ -217,7 +274,7 @@ class Gin::App
 
   def self.logger new_logger=nil
     @logger = new_logger if new_logger
-    @logger ||= $stdout
+    @logger
   end
 
 
@@ -227,7 +284,7 @@ class Gin::App
 
   def self.public_dir dir=nil
     @public_dir = dir if dir
-    @public_dir ||= File.join(root_dir, "public")
+    @public_dir
   end
 
 
@@ -257,17 +314,15 @@ class Gin::App
 
   def self.asset_version path
     path = File.expand_path(File.join(public_dir, path))
-    return unless File.file?(path)
-
-    @asset_versions       ||= {}
-    @asset_versions[path] ||= md5(path)
+    md5(path)
   end
 
 
   MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
 
   def self.md5 path #:nodoc:
-    `#{MD5} #{path}`[0...8]
+    return unless File.file?(path)
+    @md5s[path] ||= `#{MD5} #{path}`[0...8]
   end
 
 
@@ -282,7 +337,7 @@ class Gin::App
 
   def self.error_delegate ctrl=nil
     @error_delegate = ctrl if ctrl
-    @error_delegate ||= Gin::Controller
+    @error_delegate
   end
 
 
@@ -290,7 +345,7 @@ class Gin::App
   # Router instance that handles mapping Rack-env -> Controller#action.
 
   def self.router
-    @router ||= Gin::Router.new
+    @router
   end
 
 
@@ -332,7 +387,7 @@ class Gin::App
   # List of internal app middleware.
 
   def self.middleware
-    @middleware ||= []
+    @middleware
   end
 
 
@@ -342,7 +397,6 @@ class Gin::App
 
   def self.sessions opts=nil
     @session = opts unless opts.nil?
-    @session = false if @session.nil?
     @session
   end
 
@@ -353,7 +407,7 @@ class Gin::App
 
   def self.session_secret val=nil
     @session_secret = val if val
-    @session_secret ||= "%064x" % Kernel.rand(2**256-1)
+    @session_secret
   end
 
 
@@ -363,59 +417,17 @@ class Gin::App
 
   def self.protection opts=nil
     @protection = opts unless opts.nil?
-    @protection = false if @protection.nil?
     @protection
   end
 
 
-  ##
-  # Get or set the current environment name,
-  # by default ENV ['RACK_ENV'], or "development".
+  class_rproxy :protection, :sessions, :session_secret, :middleware, :autoreload
+  class_rproxy :error_delegate, :router
+  class_rproxy :root_dir, :public_dir, :asset_host
+  class_rproxy :environment, :development?, :test?, :staging?, :production?
+  class_rproxy :logger, :config, :config_dir
 
-  def self.environment env=nil
-    @environment = env if env
-    @environment ||= ENV['RACK_ENV'] || ENV_DEV
-  end
-
-
-  ##
-  # Check if running in development mode.
-
-  def self.development?
-    self.environment == ENV_DEV
-  end
-
-
-  ##
-  # Check if running in test mode.
-
-  def self.test?
-    self.environment == ENV_TEST
-  end
-
-
-  ##
-  # Check if running in staging mode.
-
-  def self.staging?
-    self.environment == ENV_STAGE
-  end
-
-
-  ##
-  # Check if running in production mode.
-
-  def self.production?
-    self.environment == ENV_PROD
-  end
-
-
-  class_proxy :protection, :sessions, :session_secret, :middleware, :autoreload
-  class_proxy :error_delegate, :router
-  class_proxy :root_dir, :public_dir
-  class_proxy :mime_type, :asset_host_for, :asset_host, :asset_version
-  class_proxy :environment, :development?, :test?, :staging?, :production?
-  class_proxy :logger, :config, :config_dir
+  class_proxy :asset_host_for, :asset_version, :md5, :mime_type
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -426,7 +438,7 @@ class Gin::App
 
   ##
   # Create a new Rack-mountable Gin::App instance, with an optional
-  # rack_app and logger.
+  # rack_app and options.
 
   def initialize rack_app=nil
     if !rack_app.respond_to?(:call) && rack_app.respond_to?(:<<) && logger.nil?
@@ -450,8 +462,6 @@ class Gin::App
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
-    @mutex ||= Mutex.new
-
     @mutex.synchronize do
       self.class.erase! [self.class.source_file],
                         [self.class.name.split("::").last],

@@ -156,7 +156,7 @@ class Gin::Controller
   #   #=> "<root_dir>/other/foo"
 
   def template_path template, is_layout=false
-    t_key = "#{template}-#{!!is_layout}"
+    t_key = :"#{template}_#{!!is_layout}"
     return self.class.template_paths[t_key] if self.class.template_paths[t_key]
 
     dir = if template[0] == "/"

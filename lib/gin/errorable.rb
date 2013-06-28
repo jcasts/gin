@@ -82,7 +82,8 @@ module Gin::Errorable
   end
 
 
-  class_proxy :error_handlers, :error_handler_for
+  class_rproxy :error_handlers
+  class_proxy  :error_handler_for
 
   ##
   # Calls the appropriate error handlers for the given error.

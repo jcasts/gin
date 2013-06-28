@@ -183,9 +183,8 @@ module Gin::Filterable
     end
   end
 
-
-  class_proxy :filters, :before_filters, :after_filters,
-              :before_filters_for, :after_filters_for
+  class_rproxy :filters, :before_filters, :after_filters
+  class_proxy  :before_filters_for, :after_filters_for
 
   ##
   # Chain-call filters from an action. Raises the filter exception if any
