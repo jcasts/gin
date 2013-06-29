@@ -49,7 +49,6 @@ class Gin::App
     @options[:error_delegate] = Gin::Controller
     @options[:middleware]     = []
     @options[:logger]         = $stdout
-    @options[:mutex]          = Mutex.new
     @options[:router]         = Gin::Router.new
     @options[:session_secret] = "%064x" % Kernel.rand(2**256-1)
     @options[:protection]     = false
@@ -421,12 +420,14 @@ class Gin::App
 
     @options = self.class.options.merge(options)
 
+    validate_all_controllers!
+
     @config = Gin::Config.new environment,
         dir:    (@options[:config_dir] || File.join(root_dir, "config")),
         logger: logger,
         ttl:    @options[:config_reload]
 
-    validate_all_controllers!
+    @reload_mutex = Mutex.new
 
     @app   = self
     @stack = build_app Rack::Builder.new
@@ -507,7 +508,7 @@ class Gin::App
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
-    mutex.synchronize do
+    @reload_mutex.synchronize do
       self.class.erase! [self.class.source_file],
                         [self.class.name.split("::").last],
                         self.class.namespace
