@@ -76,7 +76,7 @@ class AppTest < Test::Unit::TestCase
   FOO_ROUTER = FooApp.router
 
   def setup
-    FooApp.setup __FILE__
+    FooApp.setup
     FooApp.options[:router] = FOO_ROUTER
 
     @error_io = StringIO.new
@@ -139,7 +139,7 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_autoreload
-    FooApp.setup __FILE__
+    FooApp.setup
     FooApp.environment "production"
     @app = FooApp.new
     assert_equal false, FooApp.autoreload
@@ -577,14 +577,14 @@ class AppTest < Test::Unit::TestCase
 
   def test_environment
     ENV['RACK_ENV'] = 'production'
-    FooApp.setup __FILE__
+    FooApp.setup
     assert_equal 'production', FooApp.environment
   end
 
 
   def test_inst_environment
     ENV['RACK_ENV'] = 'production'
-    FooApp.setup __FILE__
+    FooApp.setup
     @app = FooApp.new
     assert !@app.development?
     assert !@app.test?

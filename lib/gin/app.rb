@@ -30,13 +30,13 @@ class Gin::App
 
 
   def self.inherited subclass   #:nodoc:
-    caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
-    filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
-    subclass.setup(filepath)
+    subclass.setup
   end
 
 
-  def self.setup filepath   #:nodoc
+  def self.setup   #:nodoc
+    caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
+    filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
     dir = File.dirname(filepath)
 
     @source_file  = filepath
@@ -755,5 +755,5 @@ class Gin::App
   end
 
 
-  setup __FILE__
+  setup
 end
