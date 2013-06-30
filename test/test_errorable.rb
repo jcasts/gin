@@ -6,7 +6,7 @@ class ErrorableTest < Test::Unit::TestCase
     include Gin::Errorable
 
     def self.delete_all_handlers!
-      @err_handlers = nil
+      __setup_errorable
     end
 
     attr_reader :env

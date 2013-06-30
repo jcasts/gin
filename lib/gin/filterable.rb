@@ -11,6 +11,32 @@ module Gin::Filterable
 
   module ClassMethods
 
+    def self.extended obj     # :nodoc:
+      obj.__setup_filterable
+    end
+
+    def inherited subclass    # :nodoc:
+      subclass.__setup_filterable
+      super
+    end
+
+
+    def __setup_filterable    # :nodoc:
+      @before_filters = {nil => []}
+      superclass.before_filters.each{|k,v| @before_filters[k] = v.dup if v } if
+        superclass.respond_to?(:before_filters)
+
+      @after_filters  = {nil => []}
+      superclass.after_filters.each{|k,v| @after_filters[k] = v.dup if v } if
+        superclass.respond_to?(:after_filters)
+
+      @filters = {}
+      pfilters = self.superclass.filters if
+        self.superclass.respond_to?(:filters)
+      @filters = pfilters.dup if pfilters
+    end
+
+
     ##
     # Create a filter for controller actions.
     #   filter :logged_in do
@@ -30,8 +56,7 @@ module Gin::Filterable
     # This attribute is inherited.
 
     def filters
-      @filters ||= self.superclass.respond_to?(:filters) ?
-                     self.superclass.filters.dup : {}
+      @filters
     end
 
 
@@ -102,13 +127,6 @@ module Gin::Filterable
     # This attribute is inherited.
 
     def before_filters
-      return @before_filters if @before_filters
-      @before_filters ||= {nil => []}
-
-      if superclass.respond_to?(:before_filters)
-        superclass.before_filters.each{|k,v| @before_filters[k] = v.dup }
-      end
-
       @before_filters
     end
 
@@ -145,13 +163,6 @@ module Gin::Filterable
     # List of after filters.
 
     def after_filters
-      return @after_filters if @after_filters
-      @after_filters ||= {nil => []}
-
-      if superclass.respond_to?(:after_filters)
-        superclass.after_filters.each{|k,v| @after_filters[k] = v.dup }
-      end
-
       @after_filters
     end
 

@@ -7,6 +7,19 @@ module Gin::Errorable
 
 
   module ClassMethods
+    def self.extended obj     # :nodoc:
+      obj.__setup_errorable
+    end
+
+    def inherited subclass    # :nodoc:
+      subclass.__setup_errorable
+      super
+    end
+
+    def __setup_errorable     # :nodoc:
+      @err_handlers = {}
+    end
+
 
     ##
     # Define an error handler for this Controller. Configurable with exceptions
@@ -51,7 +64,7 @@ module Gin::Errorable
     # Hash of error handlers defined by Gin::Controller.error.
 
     def error_handlers
-      @err_handlers ||= {}
+      @err_handlers
     end
 
 
