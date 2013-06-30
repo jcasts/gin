@@ -50,10 +50,23 @@ class Gin::App
     @options[:middleware]     = []
     @options[:logger]         = $stdout
     @options[:router]         = Gin::Router.new
-    @options[:session_secret] = "%064x" % Kernel.rand(2**256-1)
+    @options[:session_secret] = SESSION_SECRET
     @options[:protection]     = false
     @options[:sessions]       = false
     @options[:config_reload]  = false
+    @@on_setup.each(&:call) if defined?(@@on_setup)
+  end
+
+
+  def self.on_setup &block  # :nodoc:
+    (@@on_setup ||= []) << block if block_given?
+    @@on_setup
+  end
+
+
+  def self.on_init &block   # :nodoc:
+    (@@on_init ||= []) << block if block_given?
+    @@on_init
   end
 
 
@@ -79,16 +92,6 @@ class Gin::App
 
 
   ##
-  # Get or set the current environment name,
-  # by default ENV ['RACK_ENV'], or "development".
-
-  def self.environment env=nil
-    @options[:environment] = env if env
-    @options[:environment]
-  end
-
-
-  ##
   # Returns the source file of the current app.
 
   def self.source_file
@@ -105,16 +108,6 @@ class Gin::App
   def self.source_class #:nodoc:
     # Lookup the class from its name. Used for reloading purposes.
     Gin.const_find(@source_class) if @source_class
-  end
-
-
-  ##
-  # Get or set the root directory of the application.
-  # Defaults to the app file's directory.
-
-  def self.root_dir dir=nil
-    @options[:root_dir] = dir if dir
-    @options[:root_dir]
   end
 
 
@@ -206,6 +199,17 @@ class Gin::App
 
 
   ##
+  # Get or set the CDN asset host (and path).
+  # If block is given, evaluates the block on every read.
+
+  def self.asset_host host=nil, &block
+    @options[:asset_host] = host  if host
+    @options[:asset_host] = block if block_given?
+    @options[:asset_host]
+  end
+
+
+  ##
   # Get or set the path to the config directory.
   # Defaults to "<root_dir>/config"
   #
@@ -246,51 +250,12 @@ class Gin::App
 
 
   ##
-  # Get or set the logger for your application. Logger instance must respond
-  # to the << method.
+  # Get or set the current environment name,
+  # by default ENV ['RACK_ENV'], or "development".
 
-  def self.logger new_logger=nil
-    @options[:logger] = new_logger if new_logger
-    @options[:logger]
-  end
-
-
-  ##
-  # Get or set the path to the public directory.
-  # Defaults to "<root_dir>/public"
-
-  def self.public_dir dir=nil
-    @options[:public_dir] = dir if dir
-    @options[:public_dir] ||= File.join(root_dir, "public")
-  end
-
-
-  ##
-  # Get or set the CDN asset host (and path).
-  # If block is given, evaluates the block on every read.
-
-  def self.asset_host host=nil, &block
-    @options[:asset_host] = host  if host
-    @options[:asset_host] = block if block_given?
-    @options[:asset_host]
-  end
-
-
-  ##
-  # Returns the first 8 bytes of the asset file's md5.
-  # File path is assumed relative to the public_dir.
-
-  def self.asset_version path
-    path = File.expand_path(File.join(public_dir, path))
-    md5(path)
-  end
-
-
-  MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
-
-  def self.md5 path #:nodoc:
-    return unless File.file?(path)
-    @options[:md5s][path] ||= `#{MD5} #{path}`[0...8]
+  def self.environment env=nil
+    @options[:environment] = env if env
+    @options[:environment]
   end
 
 
@@ -310,10 +275,78 @@ class Gin::App
 
 
   ##
+  # List of internal app middleware.
+
+  def self.middleware
+    @options[:middleware]
+  end
+
+
+  ##
+  # Get or set the logger for your application. Logger instance must respond
+  # to the << method.
+
+  def self.logger new_logger=nil
+    @options[:logger] = new_logger if new_logger
+    @options[:logger]
+  end
+
+
+  ##
+  # Use rack-protection or not. Supports assigning
+  # hash for options. Defaults to false.
+
+  def self.protection opts=nil
+    @options[:protection] = opts unless opts.nil?
+    @options[:protection]
+  end
+
+
+  ##
+  # Get or set the path to the public directory.
+  # Defaults to "<root_dir>/public"
+
+  def self.public_dir dir=nil
+    @options[:public_dir] = dir if dir
+    @options[:public_dir] ||= File.join(root_dir, "public")
+  end
+
+
+  ##
+  # Get or set the root directory of the application.
+  # Defaults to the app file's directory.
+
+  def self.root_dir dir=nil
+    @options[:root_dir] = dir if dir
+    @options[:root_dir]
+  end
+
+
+  ##
   # Router instance that handles mapping Rack-env -> Controller#action.
 
   def self.router
     @options[:router]
+  end
+
+
+  ##
+  # Use rack sessions or not. Supports assigning
+  # hash for options. Defaults to false.
+
+  def self.sessions opts=nil
+    @options[:sessions] = opts unless opts.nil?
+    @options[:sessions]
+  end
+
+
+  ##
+  # Get or set the session secret String.
+  # Defaults to a new random value on boot.
+
+  def self.session_secret val=nil
+    @options[:session_secret] = val if val
+    @options[:session_secret]
   end
 
 
@@ -352,40 +385,20 @@ class Gin::App
 
 
   ##
-  # List of internal app middleware.
+  # Returns the first 8 bytes of the asset file's md5.
+  # File path is assumed relative to the public_dir.
 
-  def self.middleware
-    @options[:middleware]
+  def self.asset_version path
+    path = File.expand_path(File.join(public_dir, path))
+    md5(path)
   end
 
 
-  ##
-  # Use rack sessions or not. Supports assigning
-  # hash for options. Defaults to false.
+  MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
 
-  def self.sessions opts=nil
-    @options[:sessions] = opts unless opts.nil?
-    @options[:sessions]
-  end
-
-
-  ##
-  # Get or set the session secret String.
-  # Defaults to a new random value on boot.
-
-  def self.session_secret val=nil
-    @options[:session_secret] = val if val
-    @options[:session_secret]
-  end
-
-
-  ##
-  # Use rack-protection or not. Supports assigning
-  # hash for options. Defaults to false.
-
-  def self.protection opts=nil
-    @options[:protection] = opts unless opts.nil?
-    @options[:protection]
+  def self.md5 path #:nodoc:
+    return unless File.file?(path)
+    @options[:md5s][path] ||= `#{MD5} #{path}`[0...8]
   end
 
 
@@ -393,7 +406,7 @@ class Gin::App
   opt_reader :error_delegate, :router, :logger
   opt_reader :root_dir, :public_dir, :environment
 
-  class_proxy :asset_host_for, :asset_version, :md5, :mime_type
+  class_proxy :asset_version, :md5, :mime_type
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -431,6 +444,8 @@ class Gin::App
 
     @app   = self
     @stack = build_app Rack::Builder.new
+
+    @@on_init.each{|b| instance_eval(&b) } if defined?(@@on_init)
   end
 
 

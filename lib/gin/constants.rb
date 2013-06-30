@@ -44,4 +44,7 @@ module Gin::Constants
   ENV_TEST  = "test".freeze
   ENV_STAGE = "staging".freeze
   ENV_PROD  = "production".freeze
+
+  # Other
+  SESSION_SECRET = "%064x" % Kernel.rand(2**256-1)
 end
