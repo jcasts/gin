@@ -1,7 +1,20 @@
 gem 'tilt', '>=1.4.1'
 require 'tilt'
+require 'gin/cache'
 
 class Gin::App
+
+  on_setup do
+    @template_engines = {}
+    @templates = Gin::Cache.new
+    @options[:layout] = :layout
+  end
+
+  on_init do
+    @options[:layouts_dir] ||= File.join(root_dir, 'layouts')
+    @options[:views_dir]   ||= File.join(root_dir, 'views')
+  end
+
 
   ##
   # Get or set the layout name. Layout file location is assumed to be in
@@ -11,8 +24,8 @@ class Gin::App
   # Defaults to :layout.
 
   def self.layout name=nil
-    @default_layout = name if name
-    @default_layout ||= :layout
+    @options[:layout] = name if name
+    @options[:layout]
   end
 
 
@@ -21,8 +34,8 @@ class Gin::App
   # Defaults to the "<root_dir>/layouts".
 
   def self.layouts_dir dir=nil
-    @layouts_dir = dir if dir
-    @layouts_dir ||= File.join(root_dir, 'layouts')
+    @options[:layouts_dir] = dir if dir
+    @options[:layouts_dir]
   end
 
 
@@ -30,11 +43,11 @@ class Gin::App
   # Get or set the path to the views directory.
   # The wildcard '*' will be replaced by the controller name.
   #
-  # Defaults to "<root_dir>/views/*"
+  # Defaults to "<root_dir>/views"
 
   def self.views_dir dir=nil
-    @templates = {} and @views_dir = dir if dir && @views_dir != dir
-    @views_dir ||= File.join(root_dir, 'views', '*')
+    @options[:views_dir] = dir if dir
+    @options[:views_dir]
   end
 
 
@@ -54,7 +67,6 @@ class Gin::App
   #   #=> "Something something foo=value BLOCK RENDERED HERE something more"
 
   def self.template_engines more=nil
-    @template_engines ||= {}
     @template_engines.merge!(more) if more
     @template_engines
   end
@@ -73,7 +85,6 @@ class Gin::App
   #   #=> nil
 
   def self.template_for path, engine=nil
-    @templates ||= {}
     t_key = [path, engine]
     return @templates[t_key] if @templates[t_key]
 
@@ -112,8 +123,8 @@ class Gin::App
     template_engines[extname] || Tilt[extname]
   end
 
-
-  class_proxy :layout, :layouts_dir, :views_dir, :template_for
+  opt_reader :layout, :layouts_dir, :views_dir
+  class_proxy :template_for
 end
 
 
@@ -156,10 +167,7 @@ class Gin::Controller
   #   #=> "<root_dir>/other/foo"
 
   def template_path template, is_layout=false
-    t_key = :"#{template}_#{!!is_layout}"
-    return self.class.template_paths[t_key] if self.class.template_paths[t_key]
-
-    dir = if template[0] == "/"
+    dir = if template[0] == ?/
             @app.root_dir
           elsif is_layout
             @app.layouts_dir
@@ -168,13 +176,7 @@ class Gin::Controller
           end
 
     dir = dir.gsub('*', controller_name)
-    self.class.template_paths[t_key] = File.join(dir, template.to_s)
-  end
-
-
-  @template_paths = {}
-  class << self
-    attr_reader :template_paths
+    File.join(dir, template.to_s)
   end
 
 

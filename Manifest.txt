@@ -6,6 +6,7 @@ README.rdoc
 Rakefile
 lib/gin.rb
 lib/gin/app.rb
+lib/gin/cache.rb
 lib/gin/config.rb
 lib/gin/constants.rb
 lib/gin/controller.rb
