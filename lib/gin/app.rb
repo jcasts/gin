@@ -18,10 +18,10 @@ class Gin::App
   class RouterError < Gin::Error; end
 
   CALLERS_TO_IGNORE = [ # :nodoc:
-    /\/gin(\/(.*?))?\.rb$/,             # all gin code
-    /lib\/tilt.*\.rb$/,                 # all tilt code
+    /lib\/gin(\/(.*?))?\.rb/,           # all gin code
+    /lib\/tilt.*\.rb/,                  # all tilt code
     /^\(.*\)$/,                         # generated code
-    /rubygems\/custom_require\.rb$/,    # rubygems require hacks
+    /rubygems\/custom_require\.rb/,     # rubygems require hacks
     /active_support/,                   # active_support require hacks
     /bundler(\/runtime)?\.rb/,          # bundler require hacks
     /<internal:/,                       # internal in ruby >= 1.9.2
@@ -524,12 +524,12 @@ class Gin::App
 
   def reload!
     @reload_mutex.synchronize do
-      self.class.erase! [self.class.source_file],
-                        [self.class.name.split("::").last],
-                        self.class.namespace
+      self.class.erase_dependencies!
 
       if File.extname(self.class.source_file) != ".ru"
-        self.class.erase_dependencies!
+        self.class.erase! [self.class.source_file],
+                          [self.class.name.split("::").last],
+                          self.class.namespace
         require self.class.source_file
       end
 
