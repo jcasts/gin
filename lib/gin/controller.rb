@@ -571,7 +571,7 @@ class Gin::Controller
           end
 
     dir = dir.gsub('*', controller_name)
-    File.join(dir, template.to_s)
+    File.expand_path(File.join(dir, template.to_s))
   end
 
 
@@ -604,13 +604,13 @@ class Gin::Controller
     r_layout = opts[:layout] || layout
 
     template   = template_path(template)
-    v_template = @app.template_for template, controller_name, opts[:engine]
-    raise TemplateMissing, "No such template `#{template}'" unless v_template
+    v_template = @app.template_for template, opts[:engine]
+    raise Gin::TemplateMissing, "No such template `#{template}'" unless v_template
 
-    if r_layout
-      r_layout   = template_path(r_layout, true)
-      r_template = @app.template_for r_layout, nil, opts[:layout_engine]
-      raise TemplateMissing, "No such layout `#{r_layout}'" unless r_template
+    r_layout   = template_path(r_layout, true)
+    r_template = @app.template_for r_layout, opts[:layout_engine] if r_layout
+
+    if r_template
       r_template.render(scope, locals){
         v_template.render(scope, locals, &block) }
     else

@@ -19,6 +19,8 @@ class Gin
 
   class MissingConfig < Error; end
 
+  class TemplateMissing < Error; end
+
 
   ##
   # Change string to underscored version.

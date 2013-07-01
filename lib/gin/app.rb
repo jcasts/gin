@@ -54,7 +54,7 @@ class Gin::App
     @options[:sessions]       = false
     @options[:config_reload]  = false
     @options[:layout]         = :layout
-    @options[:template_engines] = Tilt.mappings.merge(nil => Tilt::ERBTemplate)
+    @options[:template_engines] = Tilt.mappings.merge(nil => [Tilt::ERBTemplate])
   end
 
 
@@ -243,14 +243,14 @@ class Gin::App
   # Set the default templating engine to use for various
   # file extensions, or by default:
   #   # Default for .markdown and .md files
-  #   default_template Tilt::MarukuTemplate, '.markdown', '.md'
+  #   default_template Tilt::MarukuTemplate, 'markdown', 'md'
   #
   #   # Default for files without preset default
   #   default_template Tilt::BlueClothTemplate
 
   def self.default_template klass, *extensions
     extensions = [nil] if extensions.empty?
-    extensions.each{|ext| @options[:template_engines][ext] = klass }
+    extensions.each{|ext| (@options[:template_engines][ext] ||= []) << klass }
   end
 
 
@@ -575,10 +575,11 @@ class Gin::App
 
   def template_for path, engine=nil
     @templates.cache([path, engine]) do
-      if file = Dir["#{path}{,#{template_engines.keys.join(",")}}"].first
+      exts = template_engines.keys.map{|e| "." << e if e }.join(",")
+      if file = Dir["#{path}{#{exts}}"].first
         ext = File.extname(file)
-        ext = nil if ext.empty?
-        engine ||= template_engines[ext]
+        ext = ext.empty? ? nil : ext[1..-1]
+        engine ||= template_engines[ext].first
         engine.new(file) if engine
       end
     end
