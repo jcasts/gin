@@ -1,5 +1,0 @@
-class Gin::App
-
-
-end
-
