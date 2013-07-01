@@ -59,6 +59,19 @@ class Gin::Controller
   end
 
 
+  ##
+  # Get or set a layout for a given controller.
+  # Value can be a symbol or filepath.
+  # Layout file is expected to be in the Gin::App.layout_dir directory
+  # Defaults to the parent class layout, or Gin::App.layout.
+
+  def self.layout name=nil
+    @layout = name if name
+    return @layout if @layout
+    return self.superclass.layout if self.superclass.respond_to?(:layout)
+  end
+
+
   class_rproxy :controller_name, :actions
 
   attr_reader :app, :request, :response, :action, :env
@@ -522,6 +535,87 @@ class Gin::Controller
 
   def asset path
     @app.asset path
+  end
+
+
+  ##
+  # Value of the layout to use for rendering.
+  # See also Gin::Controller.layout and Gin::App.layout.
+
+  def layout
+    self.class.layout || @app.layout
+  end
+
+
+  ##
+  # Returns the path to where the template is expected to be.
+  #   template_path :foo
+  #   #=> "<views_dir>/foo"
+  #
+  #   template_path "sub/foo"
+  #   #=> "<views_dir>/sub/foo"
+  #
+  #   template_path "sub/foo", :layout
+  #   #=> "<layouts_dir>/sub/foo"
+  #
+  #   template_path "/other/foo"
+  #   #=> "<root_dir>/other/foo"
+
+  def template_path template, is_layout=false
+    dir = if template[0] == ?/
+            @app.root_dir
+          elsif is_layout
+            @app.layouts_dir
+          else
+            @app.views_dir
+          end
+
+    dir = dir.gsub('*', controller_name)
+    File.join(dir, template.to_s)
+  end
+
+
+  ##
+  # Render a template with the given view template.
+  # Options supported:
+  # :locals:: Hash - local variables used in template
+  # :layout:: Symbol/String - a custom layout to use
+  # :scope:: Object - The scope in which to render the template: default self
+  # :content_type:: Symbol/String - Content-Type header to set
+  # :engine:: String - Tilt rendering engine to use
+  # :layout_engine:: String - Tilt layout rendering engine to use
+  #
+  # The template argument may be a String or a Symbol. By default the
+  # template location will be looked for under Gin::App.views_dir, but
+  # the directory may be specified as any directory under Gin::App.root_dir
+  # by using the '/' prefix:
+  #
+  #   view 'foo/template'
+  #   #=> Renders file "<views_dir>/foo/template"
+  #
+  #   view '/foo/template'
+  #   #=> Renders file "<root_dir>/foo/template"
+
+  def view template, opts={}, &block
+    content_type(opts.delete(:content_type)) if opts[:content_type]
+
+    scope    = opts[:scope]  || self
+    locals   = opts[:locals] || {}
+    r_layout = opts[:layout] || layout
+
+    template   = template_path(template)
+    v_template = @app.template_for template, controller_name, opts[:engine]
+    raise TemplateMissing, "No such template `#{template}'" unless v_template
+
+    if r_layout
+      r_layout   = template_path(r_layout, true)
+      r_template = @app.template_for r_layout, nil, opts[:layout_engine]
+      raise TemplateMissing, "No such layout `#{r_layout}'" unless r_template
+      r_template.render(scope, locals){
+        v_template.render(scope, locals, &block) }
+    else
+      v_template.render(scope, locals, &block)
+    end
   end
 
 

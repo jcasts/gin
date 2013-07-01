@@ -420,8 +420,11 @@ end
     old_public_dir = MockApp.public_dir
     MockApp.public_dir File.dirname(__FILE__)
 
-    file_id  = MockApp.md5 __FILE__
+    @app = MockApp.new
+    file_id  = @app.md5 __FILE__
     expected = "/test_controller.rb?#{file_id}"
+
+    @ctrl = BarController.new(@app, rack_env)
 
     assert_equal 8, file_id.length
     assert_equal expected, @ctrl.asset_url(File.basename(__FILE__))

@@ -11,6 +11,7 @@ Hoe.spec 'gin' do
 
   self.extra_deps << ['rack',            '~>1.1']
   self.extra_deps << ['rack-protection', '~>1.0']
+  self.extra_deps << ['tilt',            '~>1.4']
 end
 
 # vim: syntax=ruby

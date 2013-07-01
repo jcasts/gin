@@ -44,7 +44,6 @@ class Gin::App
 
     @options = {}
     @options[:root_dir]       = dir
-    @options[:md5s]           = {}
     @options[:environment]    = ENV['RACK_ENV'] || ENV_DEV
     @options[:error_delegate] = Gin::Controller
     @options[:middleware]     = []
@@ -54,19 +53,8 @@ class Gin::App
     @options[:protection]     = false
     @options[:sessions]       = false
     @options[:config_reload]  = false
-    @@on_setup.each(&:call) if defined?(@@on_setup)
-  end
-
-
-  def self.on_setup &block  # :nodoc:
-    (@@on_setup ||= []) << block if block_given?
-    @@on_setup
-  end
-
-
-  def self.on_init &block   # :nodoc:
-    (@@on_init ||= []) << block if block_given?
-    @@on_init
+    @options[:layout]         = :layout
+    @options[:template_engines] = Tilt.mappings.merge(nil => Tilt::ERBTemplate)
   end
 
 
@@ -87,6 +75,8 @@ class Gin::App
   def self.options
     self.autoreload
     self.public_dir
+    self.layouts_dir
+    self.views_dir
     @options
   end
 
@@ -250,6 +240,21 @@ class Gin::App
 
 
   ##
+  # Set the default templating engine to use for various
+  # file extensions, or by default:
+  #   # Default for .markdown and .md files
+  #   default_template Tilt::MarukuTemplate, '.markdown', '.md'
+  #
+  #   # Default for files without preset default
+  #   default_template Tilt::BlueClothTemplate
+
+  def self.default_template klass, *extensions
+    extensions = [nil] if extensions.empty?
+    extensions.each{|ext| @options[:template_engines][ext] = klass }
+  end
+
+
+  ##
   # Get or set the current environment name,
   # by default ENV ['RACK_ENV'], or "development".
 
@@ -275,10 +280,25 @@ class Gin::App
 
 
   ##
-  # List of internal app middleware.
+  # Get or set the layout name. Layout file location is assumed to be in
+  # the views_dir. If the views dir has a controller wildcard '*', the layout
+  # is assumed to be one level above the controller-specific directory.
+  #
+  # Defaults to :layout.
 
-  def self.middleware
-    @options[:middleware]
+  def self.layout name=nil
+    @options[:layout] = name if name
+    @options[:layout]
+  end
+
+
+  ##
+  # Get or set the directory for view layouts.
+  # Defaults to the "<root_dir>/layouts".
+
+  def self.layouts_dir dir=nil
+    @options[:layouts_dir] = dir if dir
+    @options[:layouts_dir] ||= File.join(root_dir, 'layouts')
   end
 
 
@@ -289,6 +309,14 @@ class Gin::App
   def self.logger new_logger=nil
     @options[:logger] = new_logger if new_logger
     @options[:logger]
+  end
+
+
+  ##
+  # List of internal app middleware.
+
+  def self.middleware
+    @options[:middleware]
   end
 
 
@@ -385,28 +413,23 @@ class Gin::App
 
 
   ##
-  # Returns the first 8 bytes of the asset file's md5.
-  # File path is assumed relative to the public_dir.
+  # Get or set the path to the views directory.
+  # The wildcard '*' will be replaced by the controller name.
+  #
+  # Defaults to "<root_dir>/views"
 
-  def self.asset_version path
-    path = File.expand_path(File.join(public_dir, path))
-    md5(path)
-  end
-
-
-  MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
-
-  def self.md5 path #:nodoc:
-    return unless File.file?(path)
-    @options[:md5s][path] ||= `#{MD5} #{path}`[0...8]
+  def self.views_dir dir=nil
+    @options[:views_dir] = dir if dir
+    @options[:views_dir] ||= File.join(root_dir, 'views')
   end
 
 
   opt_reader :protection, :sessions, :session_secret, :middleware, :autoreload
   opt_reader :error_delegate, :router, :logger
+  opt_reader :layout, :layouts_dir, :views_dir, :template_engines
   opt_reader :root_dir, :public_dir, :environment
 
-  class_proxy :asset_version, :md5, :mime_type
+  class_proxy :mime_type
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -442,10 +465,10 @@ class Gin::App
 
     @reload_mutex = Mutex.new
 
-    @app   = self
-    @stack = build_app Rack::Builder.new
-
-    @@on_init.each{|b| instance_eval(&b) } if defined?(@@on_init)
+    @app       = self
+    @stack     = build_app Rack::Builder.new
+    @templates = Gin::Cache.new
+    @md5s      = Gin::Cache.new
   end
 
 
@@ -513,6 +536,52 @@ class Gin::App
 
   def asset_host
     asset_host_for(nil)
+  end
+
+
+  ##
+  # Returns the first 8 bytes of the asset file's md5.
+  # File path is assumed relative to the public_dir.
+
+  def asset_version path
+    path = File.expand_path(File.join(public_dir, path))
+    md5(path)
+  end
+
+
+  MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
+
+  ##
+  # Returns the first 8 characters of a file's MD5 hash.
+  # Values are cached for future reference.
+
+  def md5 path
+    return unless File.file?(path)
+    @md5s[path] ||= `#{MD5} #{path}`[0...8]
+  end
+
+
+  ##
+  # Returns the tilt template for the given template name.
+  # Returns nil if no template file is found.
+  #   template_for 'user/show'
+  #   #=> <Tilt::ERBTemplate @file="views/user/show.erb" ...>
+  #
+  #   template_for 'user/show.haml'
+  #   #=> <Tilt::HamlTemplate @file="views/user/show.haml" ...>
+  #
+  #   template_for 'non-existant'
+  #   #=> nil
+
+  def template_for path, engine=nil
+    @templates.cache([path, engine]) do
+      if file = Dir["#{path}{,#{template_engines.keys.join(",")}}"].first
+        ext = File.extname(file)
+        ext = nil if ext.empty?
+        engine ||= template_engines[ext]
+        engine.new(file) if engine
+      end
+    end
   end
 
 

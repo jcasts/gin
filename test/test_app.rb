@@ -95,7 +95,7 @@ class AppTest < Test::Unit::TestCase
   def test_class_proxies
     proxies = [:protection, :sessions, :session_secret, :middleware,
       :error_delegate, :router, :root_dir, :public_dir, :environment,
-      :mime_type, :asset_host, :asset_version, :options]
+      :mime_type, :asset_host, :options]
 
     proxies.each do |name|
       assert FooApp.respond_to?(name), "Gin::App should respond to #{name}"
@@ -425,11 +425,12 @@ class AppTest < Test::Unit::TestCase
   def test_asset_version
     old_dir = FooApp.public_dir
     FooApp.public_dir File.dirname(__FILE__)
+    @app = FooApp.new
 
     md5_cmd = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum'
     expected = `#{md5_cmd} #{__FILE__}`[0...8]
 
-    assert_equal expected, FooApp.asset_version(File.basename(__FILE__))
+    assert_equal expected, @app.asset_version(File.basename(__FILE__))
 
   ensure
     FooApp.public_dir old_dir

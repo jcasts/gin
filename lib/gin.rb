@@ -1,4 +1,5 @@
 require 'rack'
+require 'tilt'
 
 class Gin
   VERSION = '1.1.0'
@@ -112,6 +113,7 @@ class Gin
   require 'gin/core_ext/rack_commonlogger'
 
   require 'gin/constants'
+  require 'gin/cache'
   require 'gin/router'
   require 'gin/config'
   require 'gin/request'
