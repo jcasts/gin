@@ -165,7 +165,11 @@ module Gin::Test::Assertions
   # Checks that the rendered template name or path matches the one given.
 
   def assert_template name_or_path, msg=nil
-    # TODO: IMPLEMENT RENDERING WITH TILT
+    @templates ||= []
+    name_or_path = "/#{name_or_path}" if name_or_path[0] != ?/
+    found = @templates.find{|t| t.end_with?(name_or_path) }
+    assert found,
+      msg || "Expected use of template #{name_or_path} in #{@templates.inspect}"
   end
 
 
@@ -415,6 +419,7 @@ Run the following command and try again: gem install #{gemname}"
 
     @rack_response = app.call(env)
     @controller    = env[GIN_CTRL]
+    @templates     = env[GIN_TEMPLATES]
 
     @env         = nil
     @body        = nil

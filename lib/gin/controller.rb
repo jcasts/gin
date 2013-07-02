@@ -616,10 +616,14 @@ class Gin::Controller
       content_type(mime_type) if mime_type
     end
 
+    @env[GIN_TEMPLATES] ||= []
+
     if r_template
+      @env[GIN_TEMPLATES] << r_layout << template
       r_template.render(scope, locals){
         v_template.render(scope, locals, &block) }
     else
+      @env[GIN_TEMPLATES] << template
       v_template.render(scope, locals, &block)
     end
   end

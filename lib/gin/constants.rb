@@ -38,6 +38,7 @@ module Gin::Constants
   GIN_RELOADED    = 'gin.reloaded'.freeze
   GIN_ERRORS      = 'gin.errors'.freeze
   GIN_TIMESTAMP   = 'gin.timestamp'.freeze
+  GIN_TEMPLATES   = 'gin.templates'.freeze
 
   # Environment names
   ENV_DEV   = "development".freeze
