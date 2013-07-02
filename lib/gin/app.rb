@@ -575,14 +575,24 @@ class Gin::App
 
   def template_for path, engine=nil
     @templates.cache([path, engine]) do
-      exts = template_engines.keys.map{|e| "." << e if e }.join(",")
-      if file = Dir["#{path}{#{exts}}"].first
+      if file = template_files(path).first
         ext = File.extname(file)
         ext = ext.empty? ? nil : ext[1..-1]
         engine ||= template_engines[ext].first
         engine.new(file) if engine
       end
     end
+  end
+
+
+  ##
+  # Returns an Array of file paths that match a valid template engine.
+  #   app.template_files 'views/foo'
+  #   #=> ['views/foo.erb', 'views/foo.md']
+
+  def template_files path
+    exts = template_engines.keys.map{|e| "." << e if e }.join(",")
+    Dir["#{path}{#{exts}}"]
   end
 
 

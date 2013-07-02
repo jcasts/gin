@@ -162,15 +162,24 @@ module Gin::Test::Assertions
 
 
   ##
-  # Checks that the rendered template name or path matches the one given.
+  # Checks that a rendered view name or path matches the one given.
 
-  def assert_template name_or_path, msg=nil
+  def assert_view view, msg=nil
     @templates ||= []
-    name_or_path = "/#{name_or_path}" if name_or_path[0] != ?/
-    matcher = %r{#{Regexp.escape(name_or_path)}(\.\w+)?$}
-    found   = @templates.find{|t| matcher === t }
-    assert found,
-      msg || "Expected use of template #{name_or_path} in #{@templates.inspect}"
+    expected = @app.template_files(@controller.template_path(view)).first
+    assert @templates.include?(expected),
+      msg || "Expected view `#{name_or_path}' in #{@templates.inspect}"
+  end
+
+
+  ##
+  # Checks that a specific layout was use to render the response.
+
+  def assert_layout layout, msg=nil
+    @templates ||= []
+    expected = @app.template_files(@controller.template_path(layout, true)).first
+    assert @templates.include?(expected),
+      msg || "Expected view `#{name_or_path}' in #{@templates.inspect}"
   end
 
 

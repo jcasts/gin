@@ -74,7 +74,21 @@ class Gin::Controller
 
   class_rproxy :controller_name, :actions
 
-  attr_reader :app, :request, :response, :action, :env
+  # The Gin::App instance used by the controller. The App instance is meant for
+  # read-only use. Writes are not thread-safe and at your own risk.
+  attr_reader :app
+
+  # Gin::Request instance representing the HTTP request.
+  attr_reader :request
+
+  # Gin::Response instance representing the HTTP response.
+  attr_reader :response
+
+  # The action that the HTTP request resolved to, based on the App's router.
+  attr_reader :action
+
+  # The Rack env hash.
+  attr_reader :env
 
 
   def initialize app, env
