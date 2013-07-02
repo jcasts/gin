@@ -167,7 +167,8 @@ module Gin::Test::Assertions
   def assert_template name_or_path, msg=nil
     @templates ||= []
     name_or_path = "/#{name_or_path}" if name_or_path[0] != ?/
-    found = @templates.find{|t| t.end_with?(name_or_path) }
+    matcher = %r{#{Regexp.escape(name_or_path)}(\.\w+)?$}
+    found   = @templates.find{|t| matcher === t }
     assert found,
       msg || "Expected use of template #{name_or_path} in #{@templates.inspect}"
   end
