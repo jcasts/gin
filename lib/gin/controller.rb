@@ -610,6 +610,12 @@ class Gin::Controller
     r_layout   = template_path(r_layout, true)
     r_template = @app.template_for r_layout, opts[:layout_engine] if r_layout
 
+    if !@response[CNT_TYPE]
+      mime_type = v_template.class.default_mime_type ||
+        r_template && r_template.class.default_mime_type
+      content_type(mime_type) if mime_type
+    end
+
     if r_template
       r_template.render(scope, locals){
         v_template.render(scope, locals, &block) }
