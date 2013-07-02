@@ -13,6 +13,15 @@ class GinTest < Test::Unit::TestCase
   end
 
 
+  def test_camelize
+    assert_equal "FooBar", Gin.camelize("foo_bar")
+    assert_equal "FooBar", Gin.camelize("_foo__bar")
+    assert_equal "FooBar", Gin.camelize("foo_Bar")
+    assert_equal "FooBar123", Gin.camelize("foo_Bar_123")
+    assert_equal "Foo::Bar", Gin.camelize("foo/bar")
+  end
+
+
   def test_build_query
     hash = {a: "bob", b: [1,2.2,-3,{ba:"test"}], c:true, d:false}
     expected = "a=bob&b[]=1&b[]=2.2&b[]=-3&b[][ba]=test&c=true&d=false"

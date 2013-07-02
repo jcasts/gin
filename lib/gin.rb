@@ -35,6 +35,16 @@ class Gin
 
 
   ##
+  # Change string to camel-case version.
+
+  def self.camelize str
+    str = str.dup
+    str.gsub!(/\/([^_:])/){|m| "::#{$1.upcase}" }
+    str.gsub!(/(^|_+)([^_:])/){|m| $2.upcase }
+  end
+
+
+  ##
   # Create a URI query from a Hash.
 
   def self.build_query value, prefix=nil
