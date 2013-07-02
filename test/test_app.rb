@@ -206,6 +206,7 @@ class AppTest < Test::Unit::TestCase
     assert_equal File.join(FooApp.root_dir, "config"), @app.config.dir
 
     FooApp.config_dir "/foo/blah"
+    FooApp.options.delete(:config)
     @app = FooApp.new
     assert_equal "/foo/blah", FooApp.config_dir
     assert_equal "/foo/blah", @app.config.dir
@@ -221,6 +222,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_config_with_dir
     FooApp.config_dir "./test/mock_config"
+    FooApp.options.delete(:config)
     @app = FooApp.new
     assert_equal 1, @app.config['backend.connections']
   end

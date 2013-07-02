@@ -77,6 +77,16 @@ class Gin::App
     self.public_dir
     self.layouts_dir
     self.views_dir
+
+    if !@options[:config]
+      @options[:config] = Gin::Config.new environment,
+          dir:    (@options[:config_dir] || File.join(self.root_dir, "config")),
+          logger: logger,
+          ttl:    @options[:config_reload]
+
+      @options[:setup_config].call(@options[:config]) if @options[:setup_config]
+    end
+
     @options
   end
 
@@ -236,6 +246,27 @@ class Gin::App
   def self.config_reload ttl=nil
     @options[:config_reload] = ttl unless ttl.nil?
     @options[:config_reload]
+  end
+
+
+  ##
+  # Work with the configuration object to setup your app's environment.
+  # Gets called on App init and yields the app's Gin::Config instance
+  # to the passed block.
+  #
+  #   class MyApp < Gin::App
+  #     configuation do |c|
+  #       MEMCACHE = Memcache.new(c['memcache'])
+  #     end
+  #   end
+  #
+  #   app = MyApp.new
+  #
+  #   MyApp::MEMCACHE
+  #   #=> <#Memcache>
+
+  def self.configuration &block
+    @options[:setup_config] = block if block_given?
   end
 
 
@@ -441,7 +472,6 @@ class Gin::App
   # Internal Rack stack.
   attr_reader :stack
 
-
   ##
   # Create a new Rack-mountable Gin::App instance, with an optional
   # rack_app and options.
@@ -457,11 +487,6 @@ class Gin::App
     @options = self.class.options.merge(options)
 
     validate_all_controllers!
-
-    @config = Gin::Config.new environment,
-        dir:    (@options[:config_dir] || File.join(root_dir, "config")),
-        logger: logger,
-        ttl:    @options[:config_reload]
 
     @reload_mutex = Mutex.new
 
@@ -481,11 +506,14 @@ class Gin::App
   #   development: *default
   #     host: localhost
   #
-  #   # access from App class or instance
+  #   # access from App instance
   #   config['memcache.host']
+  #
+  # The config object is shared across all instances of the App and has
+  # thread-safety built-in.
 
   def config
-    @config
+    @options[:config]
   end
 
 
