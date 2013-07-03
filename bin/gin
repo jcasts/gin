@@ -1,0 +1,130 @@
+#!/usr/bin/env ruby
+
+$: << File.join(File.dirname(__FILE__), "../lib") if $0 == "bin/gin"
+require 'gin'
+
+class Gin::Cmd
+  def self.run argv=ARGV
+    show_help if argv.empty? || argv.delete("-h") || argv.delete("--help")
+
+    bare = !!argv.delete("--bare")
+
+    path = argv.pop
+    error("Missing app_name argument. Use gin -h for help.") if !path
+
+    error("Invalid options #{argv.join(", ")}.") unless argv.empty?
+
+    name           = File.basename(path)
+    dir            = File.expand_path(path)
+    parent_ru_path = File.expand_path(File.join(dir, "..", "*.ru"))
+    standalone     = Dir[parent_ru_path].empty?
+
+    make_dirs(dir)
+
+    app_class_name = Gin.camelize(name)
+    make_config_ru(app_class_name, name, dir) if standalone
+    make_app_rb(app_class_name, name, dir, standalone)
+    make_home_ctrl_rb(app_class_name, name, dir)
+
+    puts "You're all set! Your new app is waiting to be built at #{dir}.\n\n"
+    exit 0
+  end
+
+
+  def self.error msg
+    $stderr.puts "#{msg}\n\n"
+    exit 1
+  end
+
+
+  def self.show_help
+    puts <<-STR
+
+gin #{Gin::VERSION}
+
+Create a new Gin application.
+
+  gin <path/to/app_name>
+
+Examples:
+
+  $ gin my_website
+  $ gin my_api --bare
+
+Options:
+      --bare    Don't create view-related files/dirs
+  -h  --help    Show this screen
+
+Gin applications created in a directory containing
+a *.ru file will not generate its own config.ru.
+
+    STR
+    true
+  end
+
+
+  def self.make_dirs dir, bare=false
+    error("Can't create directory: #{dir} already exists") if File.directory?(dir)
+
+    Dir.mkdir(dir)
+
+    if bare
+      Dir.mkdir(File.join(dir, "views"))
+      Dir.mkdir(File.join(dir, "layouts"))
+      Dir.mkdir(File.join(dir, "public"))
+      Dir.mkdir(File.join(dir, "public", "js"))
+      Dir.mkdir(File.join(dir, "public", "css"))
+      Dir.mkdir(File.join(dir, "public", "img"))
+    end
+
+    Dir.mkdir(File.join(dir, "lib"))
+    Dir.mkdir(File.join(dir, "config"))
+    Dir.mkdir(File.join(dir, "controllers"))
+  end
+
+
+  def self.make_home_ctrl_rb app_class_name, name, dir
+    contents = <<-STR
+class #{app_class_name}::HomeController < Gin::Controller
+  def index
+    File.open('#{File.join(Gin::PUBLIC_DIR, 'welcome.html')}', 'r')
+  end
+end
+    STR
+
+    File.write(File.join(dir, "controllers/home_controller.rb"), contents)
+  end
+
+
+  def self.make_app_rb app_class_name, name, dir, standalone
+    contents = <<-STR
+$:.unshift( File.expand_path("../../../lib", __FILE__) )
+require 'gin'
+
+class #{app_class_name} < Gin::App
+  require '#{"#{name}/controllers/" if !standalone}home_controller'
+  mount #{app_class_name}::HomeController, "/"
+end
+    STR
+
+    File.write(File.join(dir, "#{name}.rb"), contents)
+  end
+
+
+  def self.make_config_ru app_class_name, name, dir
+    contents = <<-STR
+$:.unshift File.expand_path("..", __FILE__)
+$:.unshift File.expand_path("../lib", __FILE__)
+$:.unshift File.expand_path("../controllers", __FILE__)
+
+require '#{name}'
+run #{app_class_name}.new
+    STR
+
+    filepath = File.join(dir, 'config.ru')
+    File.write(filepath, contents)
+  end
+end
+
+
+Gin::Cmd.run
