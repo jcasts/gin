@@ -69,19 +69,19 @@ module Gin::Test::Assertions
       assert (301..303).include?(status),
         msg || "Status expected to be in range 301..303 but was #{status.inspect}"
     when :unauthorized
-      assert_equal 401, status,
+      assert 401 == status,
         msg || "Status expected to be 401 but was #{status.inspect}"
     when :forbidden
-      assert_equal 403, status,
+      assert 403 == status,
         msg || "Status expected to be 403 but was #{status.inspect}"
     when :not_found
-      assert_equal 404, status,
+      assert 404 == status,
         msg || "Status expected to be 404 but was #{status.inspect}"
     when :error
       assert (500..599).include?(status),
         msg || "Status expected to be in range 500..599 but was #{status.inspect}"
     else
-      assert_equal expected, status,
+      assert expected == status,
         msg || "Status expected to be #{expected.inspect} but was #{status.inspect}"
     end
   end
@@ -129,7 +129,7 @@ module Gin::Test::Assertions
     end
 
     if opts[:count]
-      assert_equal opts[:count], count,
+      assert opts[:count] == count,
         msg || "Expected #{opts[:count]} items matching '#{key_or_path}'#{val_msg} but found #{count}"
     else
       assert((count > 0),
@@ -152,12 +152,14 @@ module Gin::Test::Assertions
     opts[:value] = value
     cookie = cookies[name]
 
-    assert cookie, msg || "Expected cookie #{name} but it doesn't exist"
-
     opts.each do |k,v|
-      assert_equal v, cookie[k],
-        msg || "Expected cookie #{k} to be #{v.inspect} but was #{cookie[k].inspect}"
+      next if v == cookie[k]
+      err_msg = msg || "Expected cookie #{k} to be #{v.inspect} but was #{cookie[k].inspect}"
+
+      raise Minitest::Assertion, err_msg.to_s
     end
+
+    assert cookie, msg || "Expected cookie #{name} but it doesn't exist"
   end
 
 
@@ -190,26 +192,27 @@ module Gin::Test::Assertions
     msg, exp_action = exp_action, nil if
       String === url_or_ctrl && String === exp_action
 
-    assert_response :redirect
-
     if Class === url_or_ctrl && url_or_ctrl < Gin::Controller
       verb = if correct_302_redirect? && rack_response[0] == 302
               @env['REQUEST_METHOD']
              else
               'GET'
              end
+
       ctrl, action, = @app.router.resources_for(verb, path)
       expected = "#{url_or_ctrl}##{exp_action}"
       real     = "#{ctrl}##{action}"
 
-      assert_equal expected, real,
-        msg || "Expected redirect to #{expected.inspect} but got #{real.inspect}"
+      errmsg = msg || "Expected redirect to #{expected.inspect} but got #{real.inspect}"
+      raise Minitest::Assertion, errmsg unless expected == real
 
     else
       real = rack_response[1]['Location']
-      assert_equal url_or_ctrl, real,
-        msg || "Expected redirect to #{url_or_ctrl.inspect} but got #{real.inspect}"
+      errmsg = msg || "Expected redirect to #{url_or_ctrl.inspect} but got #{real.inspect}"
+      raise Minitest::Assertion, errmsg unless url_or_ctrl == real
     end
+
+    assert_response :redirect
   end
 
 
@@ -222,7 +225,7 @@ module Gin::Test::Assertions
     expected = "#{exp_ctrl}##{exp_action}"
     real     = "#{ctrl}##{action}"
 
-    assert_equal expected, real,
+    assert expected == real,
       msg || "Route should map to #{expected} but got #{real}"
   end
 end
