@@ -60,29 +60,29 @@ module Gin::Test::Assertions
   #   :not_found::    404 status code
 
   def assert_response expected, headers={}, msg=nil
-    status = @rack_response[0]
+    status = rack_response[0]
     case expected
     when :success
-      assert [200..299].include?(status),
-        msg || "Status expected to be in range 200..299 but was #{status}"
+      assert (200..299).include?(status),
+        msg || "Status expected to be in range 200..299 but was #{status.inspect}"
     when :redirect
-      assert [301..303].include?(status),
-        msg || "Status expected to be in range 301..303 but was #{status}"
+      assert (301..303).include?(status),
+        msg || "Status expected to be in range 301..303 but was #{status.inspect}"
     when :unauthorized
       assert_equal 401, status,
-        msg || "Status expected to be 401 but was #{status}"
+        msg || "Status expected to be 401 but was #{status.inspect}"
     when :forbidden
       assert_equal 403, status,
-        msg || "Status expected to be 403 but was #{status}"
+        msg || "Status expected to be 403 but was #{status.inspect}"
     when :not_found
       assert_equal 404, status,
-        msg || "Status expected to be 404 but was #{status}"
+        msg || "Status expected to be 404 but was #{status.inspect}"
     when :error
-      assert [500..599].include?(status),
-        msg || "Status expected to be in range 500..599 but was #{status}"
+      assert (500..599).include?(status),
+        msg || "Status expected to be in range 500..599 but was #{status.inspect}"
     else
       assert_equal expected, status,
-        msg || "Status expected to be #{expected} but was #{status}"
+        msg || "Status expected to be #{expected.inspect} but was #{status.inspect}"
     end
   end
 
@@ -156,7 +156,7 @@ module Gin::Test::Assertions
 
     opts.each do |k,v|
       assert_equal v, cookie[k],
-        msg || "Expected cookie #{k} to be #{v} but was #{cookie[k]}"
+        msg || "Expected cookie #{k} to be #{v.inspect} but was #{cookie[k].inspect}"
     end
   end
 
@@ -193,7 +193,7 @@ module Gin::Test::Assertions
     assert_response :redirect
 
     if Class === url_or_ctrl && url_or_ctrl < Gin::Controller
-      verb = if correct_302_redirect? && @rack_response[0] == 302
+      verb = if correct_302_redirect? && rack_response[0] == 302
               @env['REQUEST_METHOD']
              else
               'GET'
@@ -203,12 +203,12 @@ module Gin::Test::Assertions
       real     = "#{ctrl}##{action}"
 
       assert_equal expected, real,
-        msg || "Expected redirect to #{expected} but got #{real}"
+        msg || "Expected redirect to #{expected.inspect} but got #{real.inspect}"
 
     else
-      real = @rack_response[1]['Location']
+      real = rack_response[1]['Location']
       assert_equal url_or_ctrl, real,
-        msg || "Expected redirect to #{url_or_ctrl} but got #{real}"
+        msg || "Expected redirect to #{url_or_ctrl.inspect} but got #{real.inspect}"
     end
   end
 
@@ -536,23 +536,23 @@ Run the following command and try again: gem install #{gemname}"
 
     @parsed_body =
       case ct
-      when /[/+]json$/i
+      when /[\/+]json$/i
         use_lib 'json'
         JSON.parse(body)
 
-      when /[/+]bson$/i
+      when /[\/+]bson$/i
         use_lib 'bson'
         BSON.deserialize(body)
 
-      when /[/+]plist/i
+      when /[\/+]plist/i
         use_lib 'plist'
         Plist.parse_xml(body)
 
-      when /[/+]xml/i
+      when /[\/+]xml/i
         use_lib 'nokogiri'
         Nokogiri::XML(body)
 
-      when /[/+]html/i
+      when /[\/+]html/i
         use_lib 'nokogiri'
         Nokogiri::HTML(body)
 
