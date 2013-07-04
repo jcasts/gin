@@ -34,13 +34,16 @@ class Gin::App
   end
 
 
-  def self.setup   #:nodoc
+  def self.setup   # :nodoc:
     caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
     filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
     dir = File.dirname(filepath)
 
     @source_file  = filepath
     @source_class = self.to_s
+    @templates    = Gin::Cache.new
+    @md5s         = Gin::Cache.new
+    @reload_mutex = Mutex.new
 
     @options = {}
     @options[:root_dir]       = dir
@@ -70,23 +73,8 @@ class Gin::App
   ##
   # Hash of the full Gin::App configuration.
   # Result of using class-level setter methods such as Gin::App.environment.
-  # Defaults are assigned for values that haven't been set.
 
   def self.options
-    self.autoreload
-    self.public_dir
-    self.layouts_dir
-    self.views_dir
-
-    if !@options[:config]
-      @options[:config] = Gin::Config.new environment,
-          dir:    (@options[:config_dir] || File.join(self.root_dir, "config")),
-          logger: logger,
-          ttl:    @options[:config_reload]
-
-      @options[:setup_config].call(@options[:config]) if @options[:setup_config]
-    end
-
     @options
   end
 
@@ -228,7 +216,7 @@ class Gin::App
 
   def self.config_dir dir=nil
     @options[:config_dir] = dir if String === dir
-    @options[:config_dir]
+    @options[:config_dir] || File.join(self.root_dir, "config")
   end
 
 
@@ -329,7 +317,7 @@ class Gin::App
 
   def self.layouts_dir dir=nil
     @options[:layouts_dir] = dir if dir
-    @options[:layouts_dir] ||= File.join(root_dir, 'layouts')
+    @options[:layouts_dir] || File.join(root_dir, 'layouts')
   end
 
 
@@ -344,10 +332,40 @@ class Gin::App
 
 
   ##
+  # Cache of file md5s shared across all instances of an App class.
+
+  def self.md5s
+    @md5s
+  end
+
+
+  ##
   # List of internal app middleware.
 
   def self.middleware
     @options[:middleware]
+  end
+
+
+  ##
+  # Lookup or register a mime type in Rack's mime registry.
+
+  def self.mime_type type, value=nil
+    return type if type.nil? || type.to_s.include?('/')
+    type = ".#{type}" unless type.to_s[0] == ?.
+    return Rack::Mime.mime_type(type, nil) unless value
+    Rack::Mime::MIME_TYPES[type] = value
+  end
+
+
+  ##
+  # Provides all mime types matching type, including deprecated types:
+  #   mime_types :html # => ['text/html']
+  #   mime_types :js   # => ['application/javascript', 'text/javascript']
+
+  def self.mime_types type
+    type = mime_type type
+    type =~ /^application\/(xml|javascript)$/ ? [type, "text/#$1"] : [type]
   end
 
 
@@ -367,7 +385,12 @@ class Gin::App
 
   def self.public_dir dir=nil
     @options[:public_dir] = dir if dir
-    @options[:public_dir] ||= File.join(root_dir, "public")
+    @options[:public_dir] || File.join(root_dir, "public")
+  end
+
+
+  def self.reload_mutex # :nodoc:
+    @reload_mutex
   end
 
 
@@ -410,24 +433,11 @@ class Gin::App
 
 
   ##
-  # Lookup or register a mime type in Rack's mime registry.
+  # Cache of precompiled templates, shared across all instances of a
+  # given App class.
 
-  def self.mime_type type, value=nil
-    return type if type.nil? || type.to_s.include?('/')
-    type = ".#{type}" unless type.to_s[0] == ?.
-    return Rack::Mime.mime_type(type, nil) unless value
-    Rack::Mime::MIME_TYPES[type] = value
-  end
-
-
-  ##
-  # Provides all mime types matching type, including deprecated types:
-  #   mime_types :html # => ['text/html']
-  #   mime_types :js   # => ['application/javascript', 'text/javascript']
-
-  def self.mime_types type
-    type = mime_type type
-    type =~ /^application\/(xml|javascript)$/ ? [type, "text/#$1"] : [type]
+  def self.templates
+    @templates
   end
 
 
@@ -451,7 +461,7 @@ class Gin::App
 
   def self.views_dir dir=nil
     @options[:views_dir] = dir if dir
-    @options[:views_dir] ||= File.join(root_dir, 'views')
+    @options[:views_dir] || File.join(root_dir, 'views')
   end
 
 
@@ -460,7 +470,7 @@ class Gin::App
   opt_reader :layout, :layouts_dir, :views_dir, :template_engines
   opt_reader :root_dir, :public_dir, :environment
 
-  class_proxy :mime_type
+  class_proxy :mime_type, :md5s, :templates, :reload_mutex
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -484,16 +494,27 @@ class Gin::App
       @rack_app = rack_app
     end
 
-    @options = self.class.options.merge(options)
+    @options = {
+      autoreload:  self.class.autoreload,
+      config_dir:  self.class.config_dir,
+      public_dir:  self.class.public_dir,
+      layouts_dir: self.class.layouts_dir,
+      views_dir:   self.class.views_dir
+    }.merge(self.class.options).merge(options)
+
+    if !@options[:config]
+      @options[:config] = Gin::Config.new self.environment,
+          dir:    @options[:config_dir],
+          logger: @options[:logger],
+          ttl:    @options[:config_reload]
+
+      @options[:setup_config].call(@options[:config]) if @options[:setup_config]
+    end
 
     validate_all_controllers!
 
-    @reload_mutex = Mutex.new
-
-    @app       = self
-    @stack     = build_app Rack::Builder.new
-    @templates = Gin::Cache.new
-    @md5s      = Gin::Cache.new
+    @app   = self
+    @stack = build_app Rack::Builder.new
   end
 
 
@@ -585,7 +606,7 @@ class Gin::App
 
   def md5 path
     return unless File.file?(path)
-    @md5s[path] ||= `#{MD5} #{path}`[0...8]
+    self.md5s[path] ||= `#{MD5} #{path}`[0...8]
   end
 
 
@@ -631,7 +652,7 @@ class Gin::App
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
-    @reload_mutex.synchronize do
+    reload_mutex.synchronize do
       self.class.erase_dependencies!
 
       if File.extname(self.class.source_file) != ".ru"
