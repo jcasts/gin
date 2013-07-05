@@ -523,6 +523,11 @@ class Gin::App
       config:      self.class.config
     }.merge(self.class.options).merge(options)
 
+    @options[:config] = self.class.make_config(@options) if
+      @options[:environment] != @options[:config].environment ||
+      @options[:config_dir] != @options[:config].dir ||
+      @options[:config_reload] != @options[:config].ttl
+
     validate_all_controllers!
 
     @app   = self
