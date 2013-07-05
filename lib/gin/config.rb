@@ -39,7 +39,7 @@ require 'yaml'
 
 class Gin::Config
 
-  attr_accessor :dir, :logger, :ttl
+  attr_accessor :dir, :logger, :ttl, :environment
 
   ##
   # Create a new config instance for the given environment name.

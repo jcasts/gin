@@ -44,6 +44,7 @@ class Gin::App
     @templates    = Gin::Cache.new
     @md5s         = Gin::Cache.new
     @reload_mutex = Mutex.new
+    @autoreload   = nil
 
     @options = {}
     @options[:root_dir]       = dir
@@ -127,15 +128,15 @@ class Gin::App
   #   end
 
   def self.autoreload val=nil
-    @options[:autoreload] = val unless val.nil?
-    @options[:autoreload] = self.environment == ENV_DEV if @options[:autoreload].nil?
+    @autoreload = val unless val.nil?
+    reload = @autoreload.nil? ? self.environment == ENV_DEV : @autoreload
 
-    if @options[:autoreload]
+    if reload
       Object.send :require, 'gin/reloadable' unless defined?(Gin::Reloadable)
       include Gin::Reloadable                unless self < Gin::Reloadable
     end
 
-    @options[:autoreload]
+    reload
   end
 
 
@@ -197,6 +198,34 @@ class Gin::App
   end
 
 
+  def self.make_config opts={}  # :nodoc:
+    Gin::Config.new opts[:environment] || self.environment,
+        dir:    opts[:config_dir]    || self.config_dir,
+        logger: opts[:logger]        || self.logger,
+        ttl:    opts[:config_reload] || self.config_reload
+  end
+
+
+  ##
+  # Access the config for your application, loaded from the config_dir.
+  #   # config/memcache.yml
+  #   default: &default
+  #     host: example.com
+  #     connections: 1
+  #   development: *default
+  #     host: localhost
+  #
+  #   # access from App class
+  #   CACHE = Memcache.new( MyApp.config['memcache.host'] )
+  #
+  # The config object is shared across all instances of the App and has
+  # thread-safety built-in.
+
+  def self.config
+    @options[:config] ||= make_config
+  end
+
+
   ##
   # Get or set the path to the config directory.
   # Defaults to "<root_dir>/config"
@@ -215,7 +244,11 @@ class Gin::App
   # the current environment will be accessible.
 
   def self.config_dir dir=nil
-    @options[:config_dir] = dir if String === dir
+    if String === dir
+      @options[:config_dir] = dir
+      @options[:config].dir = dir if @options[:config]
+    end
+
     @options[:config_dir] || File.join(self.root_dir, "config")
   end
 
@@ -232,29 +265,11 @@ class Gin::App
   #   config_reload false
 
   def self.config_reload ttl=nil
-    @options[:config_reload] = ttl unless ttl.nil?
+    unless ttl.nil?
+      @options[:config_reload] = ttl
+      @options[:config].ttl = ttl if @options[:config]
+    end
     @options[:config_reload]
-  end
-
-
-  ##
-  # Work with the configuration object to setup your app's environment.
-  # Gets called on App init and yields the app's Gin::Config instance
-  # to the passed block.
-  #
-  #   class MyApp < Gin::App
-  #     configuation do |c|
-  #       MEMCACHE = Memcache.new(c['memcache'])
-  #     end
-  #   end
-  #
-  #   app = MyApp.new
-  #
-  #   MyApp::MEMCACHE
-  #   #=> <#Memcache>
-
-  def self.configuration &block
-    @options[:setup_config] = block if block_given?
   end
 
 
@@ -278,7 +293,10 @@ class Gin::App
   # by default ENV ['RACK_ENV'], or "development".
 
   def self.environment env=nil
-    @options[:environment] = env if env
+    if env
+      @options[:environment] = env
+      @options[:config].environment = env if @options[:config]
+    end
     @options[:environment]
   end
 
@@ -326,7 +344,10 @@ class Gin::App
   # to the << method.
 
   def self.logger new_logger=nil
-    @options[:logger] = new_logger if new_logger
+    if new_logger
+      @options[:logger] = new_logger
+      @options[:config].logger = new_logger if @options[:config]
+    end
     @options[:logger]
   end
 
@@ -465,12 +486,12 @@ class Gin::App
   end
 
 
-  opt_reader :protection, :sessions, :session_secret, :middleware, :autoreload
+  opt_reader :protection, :sessions, :session_secret, :middleware
   opt_reader :error_delegate, :router, :logger
   opt_reader :layout, :layouts_dir, :views_dir, :template_engines
   opt_reader :root_dir, :public_dir, :environment
 
-  class_proxy :mime_type, :md5s, :templates, :reload_mutex
+  class_proxy :mime_type, :md5s, :templates, :reload_mutex, :autoreload
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -495,21 +516,12 @@ class Gin::App
     end
 
     @options = {
-      autoreload:  self.class.autoreload,
       config_dir:  self.class.config_dir,
       public_dir:  self.class.public_dir,
       layouts_dir: self.class.layouts_dir,
-      views_dir:   self.class.views_dir
+      views_dir:   self.class.views_dir,
+      config:      self.class.config
     }.merge(self.class.options).merge(options)
-
-    if !@options[:config]
-      @options[:config] = Gin::Config.new self.environment,
-          dir:    @options[:config_dir],
-          logger: @options[:logger],
-          ttl:    @options[:config_reload]
-
-      @options[:setup_config].call(@options[:config]) if @options[:setup_config]
-    end
 
     validate_all_controllers!
 
@@ -528,7 +540,7 @@ class Gin::App
   #     host: localhost
   #
   #   # access from App instance
-  #   config['memcache.host']
+  #   @app.config['memcache.host']
   #
   # The config object is shared across all instances of the App and has
   # thread-safety built-in.
