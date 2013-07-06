@@ -42,7 +42,7 @@ class Gin::Controller
 
   def self.content_type new_type=nil
     return @content_type = new_type if new_type
-    return @content_type if @content_type
+    return @content_type if defined?(@content_type) && @content_type
     self.superclass.respond_to?(:content_type) ?
       self.superclass.content_type.dup : "text/html"
   end

@@ -274,7 +274,7 @@ class AppTest < Test::Unit::TestCase
   def test_call_rack_app
     env   = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     expected = [200, {'Content-Length'=>"5"}, "AHOY!"]
-    myapp = lambda{|env| expected }
+    myapp = lambda{|_| expected }
     @app = FooApp.new myapp
 
     resp = @app.call env
@@ -399,7 +399,7 @@ class AppTest < Test::Unit::TestCase
     env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     err = ArgumentError.new("Unexpected Argument")
     old_handler = Gin::Controller.error_handlers[Exception]
-    Gin::Controller.error_handlers[Exception] = lambda{|err| raise Gin::Error, "FRAMEWORK IST KAPUT"}
+    Gin::Controller.error_handlers[Exception] = lambda{|_| raise Gin::Error, "FRAMEWORK IST KAPUT"}
 
     assert_raises(Gin::Error){ @app.handle_error err, env }
   ensure

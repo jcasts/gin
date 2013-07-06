@@ -41,7 +41,7 @@ class Gin::Router
         verb, path = [default_verb, "/#{action}"] if verb.nil?
 
         add(verb, action, path) unless verb.nil? ||
-          @routes.any?{|(r,n,(c,a,p))| r == make_route(verb, path)[0] }
+          @routes.any?{|(r,*_)| r == make_route(verb, path)[0] }
       end
     end
 
@@ -171,7 +171,7 @@ class Gin::Router
 
   def path_to *args
     key = Class === args[0] ? args.slice!(0..1) : args.shift
-    verb, route, param_keys = @routes_lookup[key]
+    _, route, param_keys = @routes_lookup[key]
     raise PathArgumentError, "No route for #{Array(key).join("#")}" unless route
 
     params = (args.pop || {}).dup

@@ -203,7 +203,7 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal "public, must-revalidate, max-age=60",
                  @ctrl.response['Cache-Control']
 
-    assert_equal (time + 60).httpdate, @ctrl.response['Expires']
+    assert_equal((time + 60).httpdate, @ctrl.response['Expires'])
   end
 
 
@@ -242,7 +242,6 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_set_cookie
     exp = Time.now + 360
-    cookie = {:value => "user@example.com", :expires => exp}
 
     @ctrl.set_cookie "test", "user@example.com", :expires => exp
     expected = "test=user%40example.com; expires=#{exp.gmtime.strftime("%a, %d %b %Y %H:%M:%S -0000")}"

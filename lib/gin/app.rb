@@ -45,6 +45,7 @@ class Gin::App
     @md5s         = Gin::Cache.new
     @reload_mutex = Mutex.new
     @autoreload   = nil
+    @instance     = nil
 
     @options = {}
     @options[:root_dir]       = dir
@@ -899,13 +900,13 @@ class Gin::App
   # Make sure all controller actions have a route, or raise a RouterError.
 
   def validate_all_controllers!
-    actions = {}
+    actions_map = {}
 
     router.each_route do |route, ctrl, action|
-      (actions[ctrl] ||= []) << action
+      (actions_map[ctrl] ||= []) << action
     end
 
-    actions.each do |ctrl, actions|
+    actions_map.each do |ctrl, actions|
       not_mounted   = ctrl.actions - actions
       raise RouterError, "#{ctrl}##{not_mounted[0]} has no route." unless
         not_mounted.empty?
