@@ -285,7 +285,8 @@ class Gin::App
 
   def self.default_template klass, *extensions
     extensions = [nil] if extensions.empty?
-    extensions.each{|ext| (@options[:template_engines][ext] ||= []) << klass }
+    extensions.each{|ext|
+      (@options[:template_engines][ext] ||= []).unshift klass }
   end
 
 
@@ -641,7 +642,7 @@ class Gin::App
   #   #=> nil
 
   def template_for path, engine=nil
-    @templates.cache([path, engine]) do
+    templates.cache([path, engine]) do
       if file = template_files(path).first
         ext = File.extname(file)
         ext = ext.empty? ? nil : ext[1..-1]

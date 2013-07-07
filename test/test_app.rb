@@ -95,7 +95,8 @@ class AppTest < Test::Unit::TestCase
   def test_class_proxies
     proxies = [:protection, :sessions, :session_secret, :middleware,
       :error_delegate, :router, :root_dir, :public_dir, :environment,
-      :mime_type, :asset_host, :options]
+      :mime_type, :asset_host, :options, :config, :autoreload, :md5s,
+      :templates]
 
     proxies.each do |name|
       assert FooApp.respond_to?(name), "Gin::App should respond to #{name}"
@@ -201,21 +202,54 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_config_dir
-    @app = FooApp.new
     assert_equal File.join(FooApp.root_dir, "config"), FooApp.config_dir
+    assert_equal File.join(FooApp.root_dir, "config"), FooApp.config.dir
     assert_equal File.join(FooApp.root_dir, "config"), @app.config.dir
 
-    FooApp.setup
     FooApp.config_dir "/foo/blah"
-    @app = FooApp.new
     assert_equal "/foo/blah", FooApp.config_dir
+    assert_equal "/foo/blah", FooApp.config.dir
     assert_equal "/foo/blah", @app.config.dir
+  end
+
+
+  def test_config_env
+    assert_equal 'development', FooApp.environment
+    assert_equal 'development', FooApp.config.environment
+    assert_equal 'development', @app.config.environment
+
+    FooApp.environment "production"
+    assert_equal "production", FooApp.config.environment
+    assert_equal "production", @app.config.environment
+  end
+
+
+  def test_config_reload
+    assert_equal false, FooApp.config_reload
+    assert_equal false, FooApp.config.ttl
+    assert_equal false, @app.config.ttl
+
+    FooApp.config_reload 300
+    assert_equal 300, FooApp.config.ttl
+    assert_equal 300, @app.config.ttl
+  end
+
+
+  def test_config_logger
+    assert_equal @error_io, FooApp.logger
+    assert_equal @error_io, FooApp.config.logger
+    assert_equal @error_io, @app.config.logger
+
+    FooApp.logger "mock_logger"
+    assert_equal "mock_logger", FooApp.config.logger
+    assert_equal "mock_logger", @app.config.logger
   end
 
 
   def test_config
     @app = FooApp.new
     assert Gin::Config === @app.config
+    assert @app.config == FooApp.config
     assert @app.config.instance_variable_get("@data").empty?
   end
 
@@ -224,7 +258,84 @@ class AppTest < Test::Unit::TestCase
     FooApp.setup
     FooApp.config_dir "./test/mock_config"
     @app = FooApp.new
+    assert_equal 1, FooApp.config['backend.connections']
     assert_equal 1, @app.config['backend.connections']
+  end
+
+
+  def test_layout
+    assert_equal :layout, FooApp.layout
+    assert_equal :layout, @app.layout
+
+    FooApp.layout "foo"
+    assert_equal "foo", FooApp.layout
+    assert_equal :layout, @app.layout
+
+    @app = FooApp.new
+    assert_equal "foo", @app.layout
+  end
+
+
+  def test_layouts_dir
+    assert_equal File.join(FooApp.root_dir, "layouts"), FooApp.layouts_dir
+    FooApp.root_dir "test/foo"
+    assert_equal File.join(FooApp.root_dir, "layouts"), FooApp.layouts_dir
+    assert_equal File.join(@app.root_dir, "layouts"), @app.layouts_dir
+  end
+
+
+  def test_views_dir
+    assert_equal File.join(FooApp.root_dir, "views"), FooApp.views_dir
+    FooApp.root_dir "test/foo"
+    assert_equal File.join(FooApp.root_dir, "views"), FooApp.views_dir
+    assert_equal File.join(@app.root_dir, "views"), @app.views_dir
+  end
+
+
+  def test_template_engines
+    FooApp.setup
+    default = Tilt.mappings.merge(nil => [Tilt::ERBTemplate])
+    assert_equal default, FooApp.options[:template_engines]
+    assert_equal default, @app.template_engines
+
+    FooApp.default_template Tilt::ERBTemplate, "custom", "thing"
+
+    assert_equal default, @app.template_engines
+    @app = FooApp.new
+    assert_equal [Tilt::ERBTemplate], @app.template_engines['custom']
+    assert_equal [Tilt::ERBTemplate], @app.template_engines['thing']
+
+    FooApp.default_template Tilt::HamlTemplate
+    assert_equal [Tilt::HamlTemplate, Tilt::ERBTemplate],
+      FooApp.options[:template_engines][nil]
+  end
+
+
+  def test_template_for
+    FooApp.default_template Tilt::ERBTemplate, "erb"
+    @app = FooApp.new root_dir: "./test/app"
+    template = @app.template_for "./test/app/layouts/foo"
+
+    assert Tilt::ERBTemplate === template
+    assert_equal "./test/app/layouts/foo.erb", template.file
+  end
+
+
+  def test_template_for_invalid
+    @app = FooApp.new root_dir: "./test/app"
+    template = @app.template_for "./test/app/layouts/ugh"
+    assert_nil template
+  end
+
+
+  def test_template_files
+    @app = FooApp.new root_dir: "./test/app"
+
+    files = @app.template_files "./test/app/layouts/foo"
+    assert_equal ["./test/app/layouts/foo.erb"], files
+
+    files = @app.template_files "./test/app/layouts/ugh"
+    assert_equal [], files
   end
 
 
