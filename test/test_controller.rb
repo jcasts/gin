@@ -18,6 +18,9 @@ class AppController < Gin::Controller
   error Gin::BadRequest do
     body "Bad Request"
   end
+
+
+  layout :foo
 end
 
 class TestController < Gin::Controller
@@ -26,7 +29,15 @@ class TestController < Gin::Controller
   end
 end
 
+module BarHelper
+  def test_val
+    "BarHelper"
+  end
+end
+
 class BarController < AppController
+  include BarHelper
+
   before_filter :stop, :only => :delete do
     FILTERS_RUN << :stop
     halt 404, "Not Found"
@@ -57,6 +68,9 @@ end
 
 class ControllerTest < Test::Unit::TestCase
   class MockApp < Gin::App
+
+    root_dir "test/app"
+
     mount BarController do
       get :show, "/:id"
       get :delete, :rm_bar
@@ -66,9 +80,32 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  class MockTemplateEngine
+    attr_reader :file
+
+    class << self
+      attr_accessor :default_mime_type
+    end
+
+    def initialize file
+      @file = file
+    end
+
+    def render scope, locals
+      "mock render"
+    end
+
+    def default_mime_type
+      self.class.default_mime_type
+    end
+  end
+
+
   def setup
+    MockTemplateEngine.default_mime_type = nil
     MockApp.options[:environment] = 'test'
     MockApp.options[:asset_host] = nil
+    BarController.instance_variable_set("@layout", nil)
     @app  = MockApp.new logger: StringIO.new
     @ctrl = BarController.new(@app, rack_env)
   end
@@ -85,6 +122,143 @@ class ControllerTest < Test::Unit::TestCase
       'rack.input' => '',
       'gin.path_query_hash' => {'id' => 123},
     }
+  end
+
+
+  def test_class_layout
+    assert_equal :foo, BarController.layout
+    assert_equal :foo, AppController.layout
+    assert_nil TestController.layout
+
+    BarController.layout :bar
+    assert_equal :bar, BarController.layout
+  end
+
+
+  def test_layout
+    assert_equal :foo, @ctrl.layout
+    BarController.layout :bar
+    assert_equal :bar, @ctrl.layout
+
+    @ctrl = TestController.new @app, {}
+    assert_equal @app.layout, @ctrl.layout
+  end
+
+
+  def test_template_path
+    assert_equal File.join(@app.views_dir, "foo"),
+                  @ctrl.template_path("foo")
+    assert_equal File.join(@app.root_dir, "foo"),
+                  @ctrl.template_path("/foo")
+    assert_equal File.join(@app.layouts_dir, "foo"),
+                  @ctrl.template_path("foo", true)
+    assert_equal File.join(@app.views_dir, "bar/foo"),
+                  @ctrl.template_path("*/foo")
+  end
+
+
+  def test_view
+    str = @ctrl.view :bar
+    assert /Foo Layout/ === str
+    assert /BarHelper/ === str
+    assert_equal File.join(@app.layouts_dir, "foo.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
+    assert_equal File.join(@app.views_dir, "bar.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].last
+  end
+
+
+  def test_view_layout_missing
+    str = @ctrl.view :bar, layout: "missing"
+    assert_equal "Value is BarHelper\n", str
+    assert_equal [File.join(@app.views_dir, "bar.erb")],
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES]
+  end
+
+
+  def test_view_other_layout
+    str = @ctrl.view :bar, layout: "bar.erb"
+    assert /Bar Layout/ === str
+    assert /BarHelper/ === str
+    assert_equal File.join(@app.layouts_dir, "bar.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
+    assert_equal File.join(@app.views_dir, "bar.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].last
+  end
+
+
+  def test_view_missing
+    assert_raises(Gin::TemplateMissing){ @ctrl.view :missing }
+  end
+
+
+  def test_view_locals
+    str = @ctrl.view :bar, locals: {test_val: "LOCAL"}
+    assert /Foo Layout/ === str
+    assert str !~ /BarHelper/
+    assert /Value is LOCAL/ === str
+    assert_equal File.join(@app.layouts_dir, "foo.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
+    assert_equal File.join(@app.views_dir, "bar.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].last
+  end
+
+
+  def test_view_scope
+    scope = Struct.new(:test_val).new("SCOPED")
+    str = @ctrl.view :bar, scope: scope
+    assert /Foo Layout/ === str
+    assert str !~ /BarHelper/
+    assert /Value is SCOPED/ === str
+    assert_equal File.join(@app.layouts_dir, "foo.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
+    assert_equal File.join(@app.views_dir, "bar.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].last
+  end
+
+
+  def test_view_engine
+    str = @ctrl.view :bar, engine: MockTemplateEngine
+    assert /Foo Layout/ === str
+    assert str !~ /BarHelper/
+    assert /mock render/ === str
+    assert_equal File.join(@app.layouts_dir, "foo.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
+    assert_equal File.join(@app.views_dir, "bar.erb"),
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES].last
+  end
+
+
+  def test_view_layout_engine
+    str = @ctrl.view :bar, layout_engine: MockTemplateEngine
+    assert_equal "mock render", str
+  end
+
+
+  def test_view_content_type
+    @ctrl.content_type "text/html"
+    MockTemplateEngine.default_mime_type = "application/json"
+    @ctrl.view :bar, engine: MockTemplateEngine, content_type: "application/xml"
+    assert_equal "application/xml;charset=UTF-8",
+                 @ctrl.response[Gin::Constants::CNT_TYPE]
+  end
+
+
+  def test_view_template_content_type
+    @ctrl.response[Gin::Constants::CNT_TYPE] = nil
+    MockTemplateEngine.default_mime_type = "application/json"
+    @ctrl.view :bar, engine: MockTemplateEngine
+    assert_equal "application/json;charset=UTF-8",
+                 @ctrl.response[Gin::Constants::CNT_TYPE]
+  end
+
+
+  def test_view_default_content_type
+    @ctrl.content_type "text/html"
+    MockTemplateEngine.default_mime_type = "application/json"
+    @ctrl.view :bar, engine: MockTemplateEngine
+    assert_equal "text/html;charset=UTF-8",
+                 @ctrl.response[Gin::Constants::CNT_TYPE]
   end
 
 

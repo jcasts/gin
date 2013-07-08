@@ -422,7 +422,7 @@ class Gin::App
   # Defaults to the app file's directory.
 
   def self.root_dir dir=nil
-    @options[:root_dir] = dir if dir
+    @options[:root_dir] = File.expand_path(dir) if dir
     @options[:root_dir]
   end
 

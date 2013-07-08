@@ -584,8 +584,9 @@ class Gin::Controller
             @app.views_dir
           end
 
-    dir = dir.gsub('*', controller_name)
-    File.expand_path(File.join(dir, template.to_s))
+    path = File.join(dir, template.to_s)
+    path.gsub!('*', controller_name)
+    File.expand_path(path)
   end
 
 
@@ -633,11 +634,11 @@ class Gin::Controller
     @env[GIN_TEMPLATES] ||= []
 
     if r_template
-      @env[GIN_TEMPLATES] << r_layout << template
+      @env[GIN_TEMPLATES] << r_template.file << v_template.file
       r_template.render(scope, locals){
         v_template.render(scope, locals, &block) }
     else
-      @env[GIN_TEMPLATES] << template
+      @env[GIN_TEMPLATES] << v_template.file
       v_template.render(scope, locals, &block)
     end
   end
