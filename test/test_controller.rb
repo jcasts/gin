@@ -159,8 +159,8 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_view
     str = @ctrl.view :bar
-    assert /Foo Layout/ === str
-    assert /BarHelper/ === str
+    assert(/Foo Layout/ === str)
+    assert(/BarHelper/ === str)
     assert_equal File.join(@app.layouts_dir, "foo.erb"),
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
     assert_equal File.join(@app.views_dir, "bar.erb"),
@@ -178,8 +178,8 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_view_other_layout
     str = @ctrl.view :bar, layout: "bar.erb"
-    assert /Bar Layout/ === str
-    assert /BarHelper/ === str
+    assert(/Bar Layout/ === str)
+    assert(/BarHelper/ === str)
     assert_equal File.join(@app.layouts_dir, "bar.erb"),
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
     assert_equal File.join(@app.views_dir, "bar.erb"),
@@ -194,9 +194,9 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_view_locals
     str = @ctrl.view :bar, locals: {test_val: "LOCAL"}
-    assert /Foo Layout/ === str
-    assert str !~ /BarHelper/
-    assert /Value is LOCAL/ === str
+    assert(/Foo Layout/ === str)
+    assert(str !~ /BarHelper/)
+    assert(/Value is LOCAL/ === str)
     assert_equal File.join(@app.layouts_dir, "foo.erb"),
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
     assert_equal File.join(@app.views_dir, "bar.erb"),
@@ -207,9 +207,9 @@ class ControllerTest < Test::Unit::TestCase
   def test_view_scope
     scope = Struct.new(:test_val).new("SCOPED")
     str = @ctrl.view :bar, scope: scope
-    assert /Foo Layout/ === str
-    assert str !~ /BarHelper/
-    assert /Value is SCOPED/ === str
+    assert(/Foo Layout/ === str)
+    assert(str !~ /BarHelper/)
+    assert(/Value is SCOPED/ === str)
     assert_equal File.join(@app.layouts_dir, "foo.erb"),
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
     assert_equal File.join(@app.views_dir, "bar.erb"),
@@ -219,9 +219,9 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_view_engine
     str = @ctrl.view :bar, engine: MockTemplateEngine
-    assert /Foo Layout/ === str
-    assert str !~ /BarHelper/
-    assert /mock render/ === str
+    assert(/Foo Layout/ === str)
+    assert(str !~ /BarHelper/)
+    assert(/mock render/ === str)
     assert_equal File.join(@app.layouts_dir, "foo.erb"),
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES].first
     assert_equal File.join(@app.views_dir, "bar.erb"),
