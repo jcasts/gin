@@ -17,6 +17,20 @@ class Gin::Controller
   end
 
 
+  def self.inherited subclass
+    subclass.setup
+    super
+  end
+
+
+  def self.setup   # :nodoc:
+    @layout = nil
+    @ctrl_name = Gin.underscore(self.to_s).gsub(/_?controller_?/,'')
+  end
+
+  setup
+
+
   ##
   # Array of action names for this controller.
 
@@ -32,7 +46,7 @@ class Gin::Controller
   #   #=> "my_app/foo"
 
   def self.controller_name
-    @ctrl_name ||= Gin.underscore(self.to_s).gsub(/_?controller_?/,'')
+    @ctrl_name
   end
 
 
@@ -41,10 +55,10 @@ class Gin::Controller
   # Default value is "text/html". This attribute is inherited.
 
   def self.content_type new_type=nil
-    return @content_type = new_type if new_type
+    @content_type = new_type if new_type
     return @content_type if defined?(@content_type) && @content_type
-    self.superclass.respond_to?(:content_type) ?
-      self.superclass.content_type.dup : "text/html"
+    self.superclass.respond_to?(:content_type) &&
+      self.superclass.content_type || "text/html"
   end
 
 
