@@ -1,6 +1,6 @@
 require 'test/test_helper'
 
-class RWLockTest < Test::Unit::TestCase
+class CacheTest < Test::Unit::TestCase
 
   def setup
     @cache = Gin::Cache.new
