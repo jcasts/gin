@@ -44,16 +44,19 @@ Try increasing the value of Config#write_timeout."
     @wmutex        = Mutex.new
     @write_timeout = write_timeout || 0.05
     @mutex_id      = :"rwlock_#{self.object_id}"
+    @mutex_owned_id = :"#{@mutex_id}_owned"
   end
 
 
   def write_sync
     lock_mutexes = []
     relock_curr  = false
+    was_locked   = Thread.current[@mutex_owned_id]
 
-    write_mutex.lock
+    curr_mutex = read_mutex
 
-    curr_mutex = Thread.current[@mutex_id]
+    write_mutex.lock unless was_locked
+    Thread.current[@mutex_owned_id] = true
 
     # Protect against same-thread deadlocks
     if curr_mutex && curr_mutex.locked?
@@ -75,12 +78,19 @@ Try increasing the value of Config#write_timeout."
   ensure
     lock_mutexes.each(&:unlock)
     curr_mutex.try_lock if relock_curr
-    write_mutex.unlock
+    unless was_locked
+      Thread.current[@mutex_owned_id] = false
+      write_mutex.unlock
+    end
   end
 
 
   def read_sync
-    read_mutex.synchronize{ yield }
+    was_locked = read_mutex.locked?
+    read_mutex.lock unless was_locked
+    yield
+  ensure
+    read_mutex.unlock if was_locked
   end
 
 
