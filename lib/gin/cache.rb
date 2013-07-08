@@ -15,7 +15,7 @@ class Gin::Cache
   # Set the write timeout when waiting for reader thread locks.
   # Defaults to 0.05 sec. See Gin::RWLock for more details.
 
-  def write_timeout= val
+  def write_timeout= sec
     @lock.write_timeout = sec
   end
 
