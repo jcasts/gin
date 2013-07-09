@@ -45,7 +45,8 @@ class Gin::Controller
   #   MyApp::FooController.controller_name
   #   #=> "my_app/foo"
 
-  def self.controller_name
+  def self.controller_name new_name=nil
+    @ctrl_name = new_name if new_name
     @ctrl_name
   end
 

@@ -6,6 +6,14 @@ class Gin::App
     return @test_helper if defined?(@test_helper)
     @test_helper = Module.new
     @test_helper.send(:include, Gin::Test::Helpers)
+
+    @test_helper.instance_eval do
+      def included subclass
+        Gin::Test::Helpers.setup_klass subclass
+        subclass.app_klass = self.app_klass
+      end
+    end
+
     @test_helper.app_klass = self
     @test_helper
   end
@@ -254,9 +262,18 @@ module Gin::Test::Helpers
   include Gin::Test::Assertions
 
   def self.included subclass
+    setup_klass subclass
+  end
+
+
+  def self.setup_klass subclass
     subclass.instance_eval do
-      class << self
-        attr_accessor :app_klass
+      def app_klass= klass
+        @app_klass = klass
+      end
+
+      def app_klass
+        defined?(@app_klass) && @app_klass
       end
 
       ##
@@ -269,7 +286,7 @@ module Gin::Test::Helpers
 
       def controller ctrl_klass=nil
         @default_controller = ctrl_klass if ctrl_klass
-        @default_controller
+        defined?(@default_controller) && @default_controller
       end
     end
   end
@@ -423,7 +440,7 @@ Run the following command and try again: gem install #{gemname}"
     path, query = path_to(*args).split("?")
 
     env['HTTP_COOKIE'] =
-      @set_cookies.map{|k,v| "#{k}=#{v}"}.join("; ") if @set_cookies
+      @set_cookies.map{|k,v| "#{k}=#{v}"}.join("; ") if defined?(@set_cookies)
 
     env['REQUEST_METHOD'] = verb.to_s.upcase
     env['QUERY_STRING']   = query
@@ -431,8 +448,8 @@ Run the following command and try again: gem install #{gemname}"
     env.merge! headers
 
     @rack_response = app.call(env)
-    @controller    = env[GIN_CTRL]
-    @templates     = env[GIN_TEMPLATES]
+    @controller    = env[Gin::Constants::GIN_CTRL]
+    @templates     = env[Gin::Constants::GIN_TEMPLATES]
 
     @env         = nil
     @body        = nil
@@ -609,8 +626,9 @@ Run the following command and try again: gem install #{gemname}"
     return "#{args[0]}#{"?" << Gin.build_query(args[1]) if args[1]}" if String === args[0]
 
     args.unshift(@default_controller) if
-      Symbol === args[0] && @default_controller.actions.include?(args[0])
+      Symbol === args[0] && @default_controller &&
+        @default_controller.actions.include?(args[0])
 
-    @app.router.path_to(*args)
+    app.router.path_to(*args)
   end
 end
