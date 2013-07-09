@@ -173,13 +173,15 @@ module Gin::Test::Assertions
   # :secure::     Boolean - SSL cookies only
   # :http_only::  Boolean - HTTP only cookie
   # :domain::     String  - Domain on which the cookie is used
-  # :expires::    Time    - Date and time of cookie expiration
+  # :expires_at:: Time    - Date and time of cookie expiration
   # :path::       String  - Path cookie applies to
+  # :value::      Object  - The value of the cookie
 
-  def assert_cookie name, value=nil, opts={}, msg=nil
+  def assert_cookie name, opts={}, msg=nil
     opts ||= {}
-    opts[:value] = value
-    cookie = cookies[name]
+    cookie = response_cookies[name]
+
+    assert cookie, msg || "Expected cookie #{name.inspect} but it doesn't exist"
 
     opts.each do |k,v|
       next if v == cookie[k]
@@ -187,8 +189,6 @@ module Gin::Test::Assertions
 
       raise MiniTest::Assertion, err_msg.to_s
     end
-
-    assert cookie, msg || "Expected cookie #{name} but it doesn't exist"
   end
 
 
@@ -523,7 +523,7 @@ Run the following command and try again: gem install #{gemname}"
     return @cookies if defined?(@cookie_key) &&
                         @cookie_key == rack_response[1]['Set-Cookie']
 
-    tmp_cookies = {}
+    @response_cookies = {}
 
     Array(rack_response[1]['Set-Cookie']).each do |set_cookie_value|
       args = { }
@@ -563,12 +563,21 @@ Run the following command and try again: gem install #{gemname}"
         end
       end
 
-      tmp_cookies[args[:name]] = args
+      @response_cookies[args[:name]] = args
     end
 
     @cookie_key = rack_response[1]['Set-Cookie']
-    (@cookies ||= {}).merge!(tmp_cookies)
+    (@cookies ||= {}).merge!(@response_cookies)
     @cookies
+  end
+
+
+  ##
+  # Cookies assigned by the last response.
+
+  def response_cookies
+    cookies unless defined?(@response_cookies)
+    @response_cookies ||= {}
   end
 
 

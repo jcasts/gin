@@ -402,8 +402,108 @@ class TestTest < Test::Unit::TestCase
   end
 
 
+  def test_assert_select_failure
+    @tests.rack_response[1]['Content-Type'] = 'application/json'
+    @tests.rack_response[2] = ['{"foo":123}']
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_select "/name"
+    end
+    assert_equal "Expected at least one item matching '/name' but found none",
+                  @tests.last_message
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_select "/foo", count: 2
+    end
+    assert_equal "Expected 2 items matching '/foo' but found 1",
+                  @tests.last_message
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_select "/foo", value: 321
+    end
+
+    assert_equal "Expected at least one item matching '/foo' with value 321 but found none",
+                  @tests.last_message
+  end
+
+
+  def test_assert_cookie
+    @tests.get :supercookie_foo
+
+    assert @tests.assert_cookie("supercookie")
+    assert @tests.assert_cookie("supercookie", value: "SUPER!")
+    assert @tests.assert_cookie("supercookie", domain: "mockapp.com")
+
+    attribs = {domain: "mockapp.com", value: "SUPER!", path: "/", secure: true,
+      http_only: true, expires_at: Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")}
+    assert @tests.assert_cookie("supercookie", attribs)
+  end
+
+
+  def test_assert_cookie_failure_old_cookie
+    @tests.get :login_foo
+    @tests.get :supercookie_foo
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_cookie "foo_session"
+    end
+    assert_equal "Expected cookie \"foo_session\" but it doesn't exist",
+                 @tests.last_message
+  end
+
+
+  def test_assert_cookie_failure_bool_attr
+    @tests.get :supercookie_foo
+
+    [:secure, :http_only].each do |attr|
+      assert_raises(MockAssertionError) do
+        @tests.assert_cookie "supercookie", attr => false
+      end
+      assert_equal "Expected cookie #{attr} to be false but was true",
+                   @tests.last_message
+    end
+  end
+
+
+  def test_assert_cookie_failure_value
+    @tests.get :supercookie_foo
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_cookie "supercookie", value: "BLAH"
+    end
+    assert_equal "Expected cookie value to be \"BLAH\" but was \"SUPER!\"",
+                 @tests.last_message
+  end
+
+
+  def test_assert_cookie_failure_other_attr
+    @tests.get :supercookie_foo
+    cookie = @tests.response_cookies["supercookie"]
+
+    [:domain, :expires_at, :path].each do |attr|
+      assert_raises(MockAssertionError) do
+        @tests.assert_cookie "supercookie", attr => "BLAH"
+      end
+      assert_equal "Expected cookie #{attr} to be \"BLAH\" but was #{cookie[attr].inspect}",
+                   @tests.last_message
+    end
+  end
+
 
   class MockAssertionError < StandardError; end
+
+  module ::Gin::Test::Assertions
+    module MiniTest
+      Assertion = MockAssertionError unless const_defined?(:Assertion)
+    end
+
+    def raise err, msg=nil
+      err, msg = RuntimeError, err if String === err && msg.nil?
+      @last_message = err.respond_to?(:message) ? err.message : msg
+      super
+    end
+  end
+
 
   class MockTestClass
     attr_reader :last_message, :assertions
