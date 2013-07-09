@@ -200,17 +200,228 @@ class TestTest < Test::Unit::TestCase
   end
 
 
-  class AssertionError < StandardError; end
+  def test_assert_response_success
+    assert_equal 0, @tests.assertions
+
+    (200..299).each do |status|
+      @tests.rack_response[0] = status
+      assert @tests.assert_response(:success)
+    end
+
+    assert_equal 100, @tests.assertions
+    assert_nil @tests.last_message
+
+    @tests.rack_response[0] = 500
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(:success)
+    end
+
+    assert_equal "Status expected to be in range 200..299 but was 500",
+                  @tests.last_message
+  end
+
+
+  def test_assert_response_redirect
+    assert_equal 0, @tests.assertions
+
+    (301..303).each do |status|
+      @tests.rack_response[0] = status
+      assert @tests.assert_response(:redirect)
+    end
+
+    assert_equal 3, @tests.assertions
+    assert_nil @tests.last_message
+
+    @tests.rack_response[0] = 500
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(:redirect)
+    end
+
+    assert_equal "Status expected to be in range 301..303 but was 500",
+                  @tests.last_message
+  end
+
+
+  def test_assert_response_error
+    assert_equal 0, @tests.assertions
+
+    (500..599).each do |status|
+      @tests.rack_response[0] = status
+      assert @tests.assert_response(:error)
+    end
+
+    assert_equal 100, @tests.assertions
+    assert_nil @tests.last_message
+
+    @tests.rack_response[0] = 200
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(:error)
+    end
+
+    assert_equal "Status expected to be in range 500..599 but was 200",
+                  @tests.last_message
+  end
+
+
+  def test_assert_response_unauthorized
+    assert_equal 0, @tests.assertions
+
+    @tests.rack_response[0] = 401
+    assert @tests.assert_response(:unauthorized)
+
+    @tests.rack_response[0] = 500
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(:unauthorized)
+    end
+
+    assert_equal "Status expected to be 401 but was 500", @tests.last_message
+  end
+
+
+  def test_assert_response_forbidden
+    assert_equal 0, @tests.assertions
+
+    @tests.rack_response[0] = 403
+    assert @tests.assert_response(:forbidden)
+
+    @tests.rack_response[0] = 500
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(:forbidden)
+    end
+
+    assert_equal "Status expected to be 403 but was 500", @tests.last_message
+  end
+
+
+  def test_assert_response_not_found
+    assert_equal 0, @tests.assertions
+
+    @tests.rack_response[0] = 404
+    assert @tests.assert_response(:not_found)
+
+    @tests.rack_response[0] = 500
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(:not_found)
+    end
+
+    assert_equal "Status expected to be 404 but was 500", @tests.last_message
+  end
+
+
+  def test_assert_response_other
+    assert_equal 0, @tests.assertions
+
+    @tests.rack_response[0] = 451
+    assert @tests.assert_response(451)
+
+    @tests.rack_response[0] = 500
+    assert_raises(MockAssertionError) do
+      @tests.assert_response(451)
+    end
+
+    assert_equal "Status expected to be 451 but was 500", @tests.last_message
+  end
+
+
+  def test_assert_data_json
+    @tests.rack_response[1]['Content-Type'] = 'application/json'
+    @tests.rack_response[2] =
+      [{name:"bob",addresses:[{street:"123 bob st"},{street:"321 foo st"}]}.to_json]
+
+    assert @tests.assert_data("name=bob")
+    assert @tests.assert_data("name", value: "bob", count: 1)
+    assert @tests.assert_data("addresses/*/street", count: 2)
+  end
+
+
+  def test_assert_data_bson
+    @tests.rack_response[1]['Content-Type'] = 'application/bson'
+    @tests.rack_response[2] =
+      [BSON.serialize({name:"bob",addresses:[{street:"123 bob st"},{street:"321 foo st"}]}).to_s]
+
+    assert @tests.assert_data("name=bob")
+    assert @tests.assert_data("name", value: "bob", count: 1)
+    assert @tests.assert_data("addresses/*/street", count: 2)
+  end
+
+
+  def test_assert_data_plist
+    @tests.rack_response[1]['Content-Type'] = 'application/plist'
+    @tests.rack_response[2] =
+      [{name:"bob",addresses:[{street:"123 bob st"},{street:"321 foo st"}]}.to_plist]
+
+    assert @tests.assert_data("name=bob")
+    assert @tests.assert_data("name", value: "bob", count: 1)
+    assert @tests.assert_data("addresses/*/street", count: 2)
+  end
+
+
+  def test_assert_xpath
+    data = Nokogiri::XML::Builder.new do
+      root{
+        name "bob"
+        address{ street "123 bob st" }
+        address{ street "321 foo st" }
+      }
+    end.to_xml
+
+    @tests.rack_response[1]['Content-Type'] = 'application/xml'
+    @tests.rack_response[2] = [data]
+
+    assert @tests.assert_xpath("/root/name", value: "bob", count: 1)
+    assert @tests.assert_xpath(".//street", count: 2)
+  end
+
+
+  def test_assert_css
+    html = <<-HTML
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1 class="name">bob</h1>
+    <div class="address"><div class="street">123 bob st</div></div>
+    <div class="address"><div class="street">321 foo st</div></div>
+  </body>
+</html>
+    HTML
+
+    @tests.rack_response[1]['Content-Type'] = 'application/html'
+    @tests.rack_response[2] = [html]
+
+    assert @tests.assert_css(".name", value: "bob", count: 1)
+    assert @tests.assert_css(".address>.street", count: 2)
+  end
+
+
+  def test_assert_select_invalid
+    @tests.rack_response[1]['Content-Type'] = 'application/json'
+    @tests.rack_response[2] = ['{"foo":123}']
+    assert_raises(RuntimeError) do
+      @tests.assert_select(".name", selector: :foo)
+    end
+  end
+
+
+
+  class MockAssertionError < StandardError; end
 
   class MockTestClass
+    attr_reader :last_message, :assertions
+
     def initialize
       @assertions = 0
+      @last_message = nil
     end
 
     def assert value, msg=nil
       @assertions += 1
-      msg ||= "Mock assertion failure message"
-      raise AssertionError, msg unless value
+      if value
+        return true
+      else
+        msg ||= "Mock assertion failure message"
+        @last_message = msg
+        raise MockAssertionError, msg unless value
+      end
     end
   end
 

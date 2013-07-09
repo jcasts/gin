@@ -64,37 +64,55 @@ module Gin::Test::Assertions
   # If value is a Class, Range, or Regex, does a match.
   # Options supported are:
   # :count:: Integer - Number of occurences of the data point.
+  # :value:: Object - The expected value of the data point.
+  # :selector:: Symbol - type of selector to use: :css, :xpath, or :rb_path
   #
-  # If body is parsed with Nokogiri, first argument must be
-  # xpath, otherwise a Ruby-Path format.
+  # If value is a Class, Range, or Regex, does a match.
   #
-  #   # With XPath
+  #   # Use CSS3 for HTML
+  #   assert_data '.address[domestic=Yes]'
+  #
+  #   # Use XPath for XML data
   #   assert_data './/address[@domestic=Yes]'
   #
-  #   # With ruby-path
+  #   # Use ruby-path for JSON, BSON, and PList
   #   assert_data '**/address/domestic=YES/../value'
 
-  def assert_data key_or_path, value=nil, opts={}, msg=nil
+  def assert_select key_or_path, opts={}, msg=nil
+    value = opts[:value]
     data = parsed_body
     val_msg = " with value #{value.inspect}" if !value.nil?
     count = 0
 
-    case data
-    when Array, Hash
+    selector = opts[:selector] ||
+      case data
+      when Array, Hash              then :rb_path
+      when Nokogiri::HTML::Document then :xpath
+      when Nokogiri::XML::Document  then :css
+      end
+
+    case selector
+    when :rb_path
       use_lib 'path', 'ruby-path'
       data.find_data(key_or_path) do |p,k,pa|
         count += 1 if value.nil? || value === p[k]
         break unless opts[:count]
       end
 
-    when Nokogiri::XML::Document, Nokogiri::HTML::Document
-      data.each do |node|
+    when :css
+      data.css(key_or_path).each do |node|
+        count += 1 if value.nil? || value === node.text
+        break unless opts[:count]
+      end
+
+    when :xpath
+      data.xpath(key_or_path).each do |node|
         count += 1 if value.nil? || value === node.text
         break unless opts[:count]
       end
 
     else
-      raise "Can't use data type #{data.class}"
+      raise "Unknown selector #{selector.inspect} for #{data.class}"
     end
 
     if opts[:count]
@@ -104,6 +122,48 @@ module Gin::Test::Assertions
       assert((count > 0),
         msg || "Expected at least one item matching '#{key_or_path}'#{val_msg} but found none")
     end
+  end
+
+
+  ##
+  # Uses ruby-path to check for data points in the response body.
+  #
+  # Options supported are:
+  # :count:: Integer - Number of occurences of the data point.
+  # :value:: Object - The expected value of the data point.
+  #
+  # If value is a Class, Range, or Regex, does a match.
+
+  def assert_data path, opts={}, msg=nil
+    assert_select path, opts.merge(selector: :rb_path), msg
+  end
+
+
+  ##
+  # Uses CSS selectors to check for data points in the response body.
+  #
+  # Options supported are:
+  # :count:: Integer - Number of occurences of the data point.
+  # :value:: Object - The expected value of the data point.
+  #
+  # If value is a Class, Range, or Regex, does a match.
+
+  def assert_css path, opts={}, msg=nil
+    assert_select path, opts.merge(selector: :css), msg
+  end
+
+
+  ##
+  # Uses XPath selectors to check for data points in the response body.
+  #
+  # Options supported are:
+  # :count:: Integer - Number of occurences of the data point.
+  # :value:: Object - The expected value of the data point.
+  #
+  # If value is a Class, Range, or Regex, does a match.
+
+  def assert_xpath path, opts={}, msg=nil
+    assert_select path, opts.merge(selector: :xpath), msg
   end
 
 
@@ -125,7 +185,7 @@ module Gin::Test::Assertions
       next if v == cookie[k]
       err_msg = msg || "Expected cookie #{k} to be #{v.inspect} but was #{cookie[k].inspect}"
 
-      raise Minitest::Assertion, err_msg.to_s
+      raise MiniTest::Assertion, err_msg.to_s
     end
 
     assert cookie, msg || "Expected cookie #{name} but it doesn't exist"
@@ -171,12 +231,12 @@ module Gin::Test::Assertions
       real     = "#{ctrl}##{action}"
 
       errmsg = msg || "Expected redirect to #{expected.inspect} but got #{real.inspect}"
-      raise Minitest::Assertion, errmsg unless expected == real
+      raise MiniTest::Assertion, errmsg unless expected == real
 
     else
       real = rack_response[1]['Location']
       errmsg = msg || "Expected redirect to #{url_or_ctrl.inspect} but got #{real.inspect}"
-      raise Minitest::Assertion, errmsg unless url_or_ctrl == real
+      raise MiniTest::Assertion, errmsg unless url_or_ctrl == real
     end
 
     assert_response :redirect
@@ -558,7 +618,7 @@ Run the following command and try again: gem install #{gemname}"
         Nokogiri::HTML(body)
 
       else
-        raise "No parser available for content-type #{ct}"
+        raise "No parser available for content-type #{ct.inspect}"
       end
   end
 
