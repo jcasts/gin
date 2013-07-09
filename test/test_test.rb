@@ -536,6 +536,26 @@ in:\n #{@tests.templates.join("\n ")}", @tests.last_message
   end
 
 
+  def test_assert_route
+    assert @tests.assert_route(:get, "/foo", FooController, :index)
+  end
+
+
+  def test_assert_route_failure
+    assert_raises(MockAssertionError) do
+      @tests.assert_route :get, "/bad_route", FooController, :bad_route
+    end
+    assert_equal "`GET /bad_route' should map to \
+TestTest::FooController#bad_route but doesn't exist", @tests.last_message
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_route :get, "/foo", FooController, :show
+    end
+    assert_equal "`GET /foo' should map to TestTest::FooController#show but \
+got TestTest::FooController#index", @tests.last_message
+  end
+
+
 
   class MockAssertionError < StandardError; end
 
