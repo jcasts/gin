@@ -175,10 +175,9 @@ module Gin::Test::Assertions
   # Checks that a rendered view name or path matches the one given.
 
   def assert_view view, msg=nil
-    @templates ||= []
     expected = @app.template_files(@controller.template_path(view)).first
-    assert @templates.include?(expected),
-      msg || "Expected view `#{name_or_path}' in #{@templates.inspect}"
+    assert templates.include?(expected),
+      msg || "Expected view `#{name_or_path}' in #{templates.inspect}"
   end
 
 
@@ -186,10 +185,9 @@ module Gin::Test::Assertions
   # Checks that a specific layout was use to render the response.
 
   def assert_layout layout, msg=nil
-    @templates ||= []
     expected = @app.template_files(@controller.template_path(layout, true)).first
-    assert @templates.include?(expected),
-      msg || "Expected view `#{name_or_path}' in #{@templates.inspect}"
+    assert templates.include?(expected),
+      msg || "Expected view `#{name_or_path}' in #{templates.inspect}"
   end
 
 
@@ -297,8 +295,8 @@ module Gin::Test::Helpers
   rescue LoadError => e
     raise unless e.message == "cannot load such file -- #{lib}"
     gemname ||= lib
-    puts "You need the `#{gemname}' gem to access some of the features you are \
-trying to use.
+    $stderr.puts "You need the `#{gemname}' gem to access some of the features \
+you are trying to use.
 Run the following command and try again: gem install #{gemname}"
     exit 1
   end
@@ -349,6 +347,14 @@ Run the following command and try again: gem install #{gemname}"
 
   def response
     controller && controller.response
+  end
+
+
+  ##
+  # Array of template file paths used to render the response body.
+
+  def templates
+    @templates ||= []
   end
 
 
@@ -439,8 +445,8 @@ Run the following command and try again: gem install #{gemname}"
     headers = (Hash === args[-2] && Hash === args[-1]) ? args.pop : {}
     path, query = path_to(*args).split("?")
 
-    env['HTTP_COOKIE'] =
-      @set_cookies.map{|k,v| "#{k}=#{v}"}.join("; ") if defined?(@set_cookies)
+    env['HTTP_COOKIE'] = @set_cookies.map{|k,v| "#{k}=#{v}"}.join("; ") if
+      defined?(@set_cookies) && @set_cookies && !@set_cookies.empty?
 
     env['REQUEST_METHOD'] = verb.to_s.upcase
     env['QUERY_STRING']   = query
@@ -556,11 +562,11 @@ Run the following command and try again: gem install #{gemname}"
 
     @parsed_body =
       case ct
-      when /[\/+]json$/i
+      when /[\/+]json/i
         use_lib 'json'
         JSON.parse(body)
 
-      when /[\/+]bson$/i
+      when /[\/+]bson/i
         use_lib 'bson'
         BSON.deserialize(body)
 

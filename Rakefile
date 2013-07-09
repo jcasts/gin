@@ -12,6 +12,10 @@ Hoe.spec 'gin' do
   self.extra_deps << ['rack',            '~>1.1']
   self.extra_deps << ['rack-protection', '~>1.0']
   self.extra_deps << ['tilt',            '~>1.4']
+
+  self.extra_dev_deps << ['nokogiri', '~>1.5.9']
+  self.extra_dev_deps << ['plist',    '~>3.1.0']
+  self.extra_dev_deps << ['bson',     '~>1.9.0']
 end
 
 # vim: syntax=ruby
