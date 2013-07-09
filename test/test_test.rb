@@ -12,7 +12,7 @@ class TestTest < Test::Unit::TestCase
   def setup
     @testclass = Class.new MockTestClass
     @testclass.class_eval{
-      include MockApp.TestHelper
+      include MockApp::TestHelper
       include TestAccess
     }
     @tests = @testclass.new
@@ -125,6 +125,23 @@ class TestTest < Test::Unit::TestCase
     @tests.set_cookie "bar", 5678
     resp = @tests.make_request :get, :show_bar, id: 123
     assert_equal "foo_session=12345; bar=5678", @tests.req_env['HTTP_COOKIE']
+  end
+
+
+  def test_cookie_parser
+    @tests.make_request :get, :login_foo
+    @tests.make_request :get, :supercookie_foo
+
+    assert_equal 2, @tests.cookies.length
+
+    time = Time.parse "2100-01-01 00:00:00 UTC"
+
+    expected = {name: "foo_session", value: "12345", expires_at: time}
+    assert_equal expected, @tests.cookies['foo_session']
+
+    expected = {name: "supercookie", value: "SUPER!", domain: "mockapp.com",
+      path: "/", expires_at: time, secure: true, http_only: true}
+    assert_equal expected, @tests.cookies['supercookie']
   end
 
 
@@ -267,6 +284,16 @@ class TestTest < Test::Unit::TestCase
     def login
       set_cookie "foo_session", "12345",
         expires: Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")
+      "OK"
+    end
+
+    def supercookie
+      set_cookie "supercookie", "SUPER!",
+        expires:  Time.parse("Fri, 01 Jan 2100 00:00:00 -0000"),
+        domain:   "mockapp.com",
+        path:     "/",
+        secure:   true,
+        httponly: true
       "OK"
     end
   end

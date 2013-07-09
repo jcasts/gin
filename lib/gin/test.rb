@@ -1,27 +1,6 @@
 require 'time'
 
-
-class Gin::App
-  def self.TestHelper
-    return @test_helper if defined?(@test_helper)
-    @test_helper = Module.new
-    @test_helper.send(:include, Gin::Test::Helpers)
-
-    @test_helper.instance_eval do
-      def included subclass
-        Gin::Test::Helpers.setup_klass subclass
-        subclass.app_klass = self.app_klass
-      end
-    end
-
-    @test_helper.app_klass = self
-    @test_helper
-  end
-end
-
-
 module Gin::Test; end
-
 
 ##
 # Helper assertion methods for tests.
@@ -39,24 +18,6 @@ module Gin::Test; end
 #   end
 
 module Gin::Test::Assertions
-
-  def self.included subclass
-    subclass.instance_eval do
-      def correct_302_redirect
-        @correct_302_redirect = true
-      end
-      def correct_302_redirect?
-        @correct_302_redirect = false unless defined?(@correct_302_redirect)
-        @correct_302_redirect
-      end
-    end
-  end
-
-
-  def correct_302_redirect?
-    self.class.correct_302_redirect?
-  end
-
 
   ##
   # Asserts the response status code and headers.
@@ -259,12 +220,7 @@ module Gin::Test::Helpers
 
   include Gin::Test::Assertions
 
-  def self.included subclass
-    setup_klass subclass
-  end
-
-
-  def self.setup_klass subclass
+  def self.setup_klass subclass   # :nodoc:
     subclass.instance_eval do
       def app_klass= klass
         @app_klass = klass
@@ -286,6 +242,17 @@ module Gin::Test::Helpers
         @default_controller = ctrl_klass if ctrl_klass
         defined?(@default_controller) && @default_controller
       end
+
+
+      def correct_302_redirect
+        @correct_302_redirect = true
+      end
+
+
+      def correct_302_redirect?
+        @correct_302_redirect = false unless defined?(@correct_302_redirect)
+        @correct_302_redirect
+      end
     end
   end
 
@@ -299,6 +266,11 @@ module Gin::Test::Helpers
 you are trying to use.
 Run the following command and try again: gem install #{gemname}"
     exit 1
+  end
+
+
+  def correct_302_redirect?
+    self.class.correct_302_redirect?
   end
 
 
@@ -488,7 +460,8 @@ Run the following command and try again: gem install #{gemname}"
   #   #=> {:value => "foo", :expires => <#Time>}
 
   def cookies
-    return @cookies if @cookies || !rack_response
+    return @cookies if defined?(@cookie_key) &&
+                        @cookie_key == rack_response[1]['Set-Cookie']
 
     tmp_cookies = {}
 
@@ -507,7 +480,7 @@ Run the following command and try again: gem install #{gemname}"
         keyvalue = result[2]
         if first
           args[:name] = result[1]
-          args[:value] = keyvalue
+          args[:value] = CGI.unescape(keyvalue.to_s)
           first = false
         else
           case key
@@ -533,7 +506,9 @@ Run the following command and try again: gem install #{gemname}"
       tmp_cookies[args[:name]] = args
     end
 
-    @cookies = tmp_cookies
+    @cookie_key = rack_response[1]['Set-Cookie']
+    (@cookies ||= {}).merge!(tmp_cookies)
+    @cookies
   end
 
 
@@ -637,4 +612,40 @@ Run the following command and try again: gem install #{gemname}"
 
     app.router.path_to(*args)
   end
+end
+
+
+class Gin::App  # :nodoc:
+  class << self
+    alias old_inherited inherited
+
+    def inherited subclass
+      old_inherited subclass
+      subclass.define_test_helper
+    end
+
+
+    def define_test_helper
+      return const_get(:TestHelper) if const_defined?(:TestHelper)
+
+      class_eval <<-STR
+        module TestHelper
+          include Gin::Test::Helpers
+
+          def self.included subclass
+            Gin::Test::Helpers.setup_klass subclass
+            subclass.app_klass = #{self}
+          end
+        end
+      STR
+
+      const_get :TestHelper
+    end
+  end
+end
+
+
+ObjectSpace.each_object(Class) do |klass|
+  next unless klass < Gin::App
+  klass.define_test_helper
 end
