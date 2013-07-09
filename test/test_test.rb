@@ -490,6 +490,53 @@ class TestTest < Test::Unit::TestCase
   end
 
 
+  def test_assert_view
+    @tests.get :index_foo
+    assert @tests.assert_view("bar")
+    assert @tests.assert_view("bar.erb")
+  end
+
+
+  def test_assert_view_failure
+    @tests.get :index_foo
+    assert_raises(MockAssertionError) do
+      @tests.assert_view("bar.md")
+    end
+    assert_equal "Expected view `#{@tests.controller.template_path("bar.md")}' \
+in:\n #{@tests.templates.join("\n ")}", @tests.last_message
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_view("views/bar.erb")
+    end
+    assert_equal "Expected view `#{@tests.controller.template_path("views/bar.erb")}' \
+in:\n #{@tests.templates.join("\n ")}", @tests.last_message
+  end
+
+
+  def test_assert_layout
+    @tests.get :index_foo
+    assert @tests.assert_layout("foo")
+    assert @tests.assert_layout("foo.erb")
+  end
+
+
+  def test_assert_layout_failure
+    @tests.get :index_foo
+    assert_raises(MockAssertionError) do
+      @tests.assert_layout("bar")
+    end
+    assert_equal "Expected layout `#{@tests.controller.template_path("bar", true)}' \
+in:\n #{@tests.templates.join("\n ")}", @tests.last_message
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_layout("layouts/foo.erb")
+    end
+    assert_equal "Expected layout `#{@tests.controller.template_path("layouts/foo.erb", true)}' \
+in:\n #{@tests.templates.join("\n ")}", @tests.last_message
+  end
+
+
+
   class MockAssertionError < StandardError; end
 
   module ::Gin::Test::Assertions
