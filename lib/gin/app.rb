@@ -839,6 +839,8 @@ class Gin::App
 
     ctrl, action = env[GIN_CTRL].class, env[GIN_ACTION]
     target = "#{ctrl}##{action}" if ctrl && action
+    target = resp[2].path if !target && resp[2].respond_to?(:path)
+    target = "<stream>" if !target && (!(Array === resp[2]) || !resp[2].empty?)
 
     logger << ( LOG_FORMAT % [
         env[FWD_FOR] || env[REMOTE_ADDR] || "-",
