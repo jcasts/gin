@@ -625,20 +625,24 @@ class Gin::Controller
   #
   #   view '/foo/template'
   #   #=> Renders file "<root_dir>/foo/template"
+  #
+  #   # Render without layout
+  #   view 'foo/template', layout: false
 
   def view template, opts={}, &block
     content_type(opts.delete(:content_type)) if opts[:content_type]
 
-    scope    = opts[:scope]  || self
-    locals   = opts[:locals] || {}
-    r_layout = opts[:layout] || layout
+    scope  = opts[:scope]  || self
+    locals = opts[:locals] || {}
 
     template   = template_path(template)
     v_template = @app.template_for template, opts[:engine]
     raise Gin::TemplateMissing, "No such template `#{template}'" unless v_template
 
-    r_layout   = template_path(r_layout, true)
-    r_template = @app.template_for r_layout, opts[:layout_engine] if r_layout
+    if opts[:layout] != false
+      r_layout   = template_path((opts[:layout] || layout), true)
+      r_template = @app.template_for r_layout, opts[:layout_engine] if r_layout
+    end
 
     if !@response[CNT_TYPE]
       mime_type = v_template.class.default_mime_type ||

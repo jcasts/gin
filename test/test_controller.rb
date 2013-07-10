@@ -187,6 +187,14 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_view_no_layout
+    str = @ctrl.view :bar, layout: false
+    assert_equal "Value is BarHelper\n", str
+    assert_equal [File.join(@app.views_dir, "bar.erb")],
+                  @ctrl.env[Gin::Constants::GIN_TEMPLATES]
+  end
+
+
   def test_view_missing
     assert_raises(Gin::TemplateMissing){ @ctrl.view :missing }
   end
