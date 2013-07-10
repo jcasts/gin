@@ -159,6 +159,9 @@ class Gin::Controller
 
   ##
   # Get or set the HTTP response Content-Type header.
+  #   content_type :json
+  #   content_type 'application/json;charset=us-ascii'
+  #   content_type :json, charset: 'us-ascii'
 
   def content_type type=nil, params={}
     return @response[CNT_TYPE] unless type
