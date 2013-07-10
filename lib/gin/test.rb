@@ -35,8 +35,8 @@ module Gin::Test::Assertions
       assert (200..299).include?(status),
         msg || "Status expected to be in range 200..299 but was #{status.inspect}"
     when :redirect
-      assert (301..303).include?(status),
-        msg || "Status expected to be in range 301..303 but was #{status.inspect}"
+      assert [301,302,303,307,308].include?(status),
+        msg || "Status expected to be in range 301..303 or 307..308 but was #{status.inspect}"
     when :unauthorized
       assert 401 == status,
         msg || "Status expected to be 401 but was #{status.inspect}"
@@ -215,33 +215,20 @@ module Gin::Test::Assertions
 
 
   ##
-  # Checks that the response is a redirect to a given url or controller+action.
+  # Checks that the response is a redirect to a given path or url.
+  #   assert_redirect "/path/to/thing"
+  #   assert_redirect "http://example.com"
+  #   assert_redirect 302, "/path/to/thing"
 
-  def assert_redirected_to url_or_ctrl, exp_action=nil, msg=nil
-    msg, exp_action = exp_action, nil if
-      String === url_or_ctrl && String === exp_action
+  def assert_redirect url, *args
+    status   = args.shift if Integer === args[0]
+    location = rack_response[1]['Location']
 
-    if Class === url_or_ctrl && url_or_ctrl < Gin::Controller
-      verb = if correct_302_redirect? && rack_response[0] == 302
-              @env['REQUEST_METHOD']
-             else
-              'GET'
-             end
+    msg = args.pop ||
+      "Expected redirect to #{url.inspect} but was #{location.inspect}"
 
-      ctrl, action, = @app.router.resources_for(verb, path)
-      expected = "#{url_or_ctrl}##{exp_action}"
-      real     = "#{ctrl}##{action}"
-
-      errmsg = msg || "Expected redirect to #{expected.inspect} but got #{real.inspect}"
-      raise MiniTest::Assertion, errmsg unless expected == real
-
-    else
-      real = rack_response[1]['Location']
-      errmsg = msg || "Expected redirect to #{url_or_ctrl.inspect} but got #{real.inspect}"
-      raise MiniTest::Assertion, errmsg unless url_or_ctrl == real
-    end
-
-    assert_response :redirect
+    raise MiniTest::Assertion, msg unless url == location
+    assert_response(status || :redirect)
   end
 
 

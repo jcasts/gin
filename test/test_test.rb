@@ -237,7 +237,7 @@ class TestTest < Test::Unit::TestCase
       @tests.assert_response(:redirect)
     end
 
-    assert_equal "Status expected to be in range 301..303 but was 500",
+    assert_equal "Status expected to be in range 301..303 or 307..308 but was 500",
                   @tests.last_message
   end
 
@@ -556,6 +556,28 @@ got TestTest::FooController#index", @tests.last_message
   end
 
 
+  def test_assert_redirect
+    @tests.get :see_other_bar
+    assert @tests.assert_redirect("http://example.com")
+    assert @tests.assert_redirect("http://example.com", 301)
+    assert_equal 2, @tests.assertions
+  end
+
+
+  def test_assert_redirect_failure
+    @tests.get :see_other_bar
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_redirect("http://foo.com")
+    end
+    assert_equal 'Expected redirect to "http://foo.com" but was "http://example.com"', @tests.last_message
+
+    assert_raises(MockAssertionError) do
+      @tests.assert_redirect("http://example.com", 302)
+    end
+    assert_equal "Status expected to be 302 but was 301", @tests.last_message
+  end
+
 
   class MockAssertionError < StandardError; end
 
@@ -613,6 +635,10 @@ got TestTest::FooController#index", @tests.last_message
 
     def index
       raise "OH NOES"
+    end
+
+    def see_other
+      redirect "http://example.com", 301
     end
   end
 
@@ -684,6 +710,7 @@ got TestTest::FooController#index", @tests.last_message
     mount BarController do
       get :show, "/:id"
       get :index, "/"
+      defaults
     end
 
     mount FooController
