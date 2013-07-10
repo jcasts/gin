@@ -10,6 +10,8 @@
 * Minor Enhancements
   * Non-raising config querying
   * On-demand config loading
+
+* Bugfixes
   * Lots of thread-safety fixes
   * Fixes to rare reloader path issue
 
