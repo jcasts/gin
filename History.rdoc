@@ -1,13 +1,17 @@
-=== 1.1.0 / 2013
+=== 1.1.0 / 2013-07-10
 
 * Major Enhancements
-  * Helpers for controller and integration testing
+  * Test helper methods and assertions
   * Template support with tilt
-  * Config auto-(re)loading
+  * Config rewrite with auto-(re)loading
+  * App instances are individually configurable
+  * New app generation with gin command
 
 * Minor Enhancements
   * Non-raising config querying
   * On-demand config loading
+  * Lots of thread-safety fixes
+  * Fixes to rare reloader path issue
 
 === 1.0.4 / 2013-03-19
 
