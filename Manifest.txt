@@ -1,5 +1,3 @@
-.autotest
-.gitignore
 History.rdoc
 Manifest.txt
 README.rdoc
@@ -33,11 +31,15 @@ public/gin_sm.png
 test/app/app_foo.rb
 test/app/controllers/app_controller.rb
 test/app/controllers/foo_controller.rb
+test/app/layouts/bar.erb
+test/app/layouts/foo.erb
+test/app/views/bar.erb
 test/mock_config/backend.yml
 test/mock_config/invalid.yml
 test/mock_config/memcache.yml
 test/mock_config/not_a_config.txt
 test/test_app.rb
+test/test_cache.rb
 test/test_config.rb
 test/test_controller.rb
 test/test_errorable.rb
@@ -47,3 +49,5 @@ test/test_helper.rb
 test/test_request.rb
 test/test_response.rb
 test/test_router.rb
+test/test_rw_lock.rb
+test/test_test.rb
