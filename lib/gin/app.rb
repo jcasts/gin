@@ -342,7 +342,7 @@ class Gin::App
 
 
   ##
-  # Get or set the logger for your application. Logger instance must respond
+  # Get or set the logger for your application. Loggers must respond
   # to the << method.
 
   def self.logger new_logger=nil

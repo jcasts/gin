@@ -19,14 +19,15 @@ class Gin::Cmd
     parent_ru_path = File.expand_path(File.join(dir, "..", "*.ru"))
     standalone     = Dir[parent_ru_path].empty?
 
-    make_dirs(dir)
+    make_dirs(dir, bare)
 
     app_class_name = Gin.camelize(name)
     make_config_ru(app_class_name, name, dir) if standalone
+    make_console(name, dir) if standalone
     make_app_rb(app_class_name, name, dir, standalone)
     make_home_ctrl_rb(app_class_name, name, dir)
 
-    puts "You're all set! Your new app is waiting to be built at #{dir}.\n\n"
+    puts "You're all set! Your new app is waiting at #{dir}.\n\n"
     exit 0
   end
 
@@ -68,7 +69,7 @@ a *.ru file will not generate its own config.ru.
 
     Dir.mkdir(dir)
 
-    if bare
+    unless bare
       Dir.mkdir(File.join(dir, "views"))
       Dir.mkdir(File.join(dir, "layouts"))
       Dir.mkdir(File.join(dir, "public"))
@@ -87,7 +88,26 @@ a *.ru file will not generate its own config.ru.
     contents = <<-STR
 class #{app_class_name}::HomeController < Gin::Controller
   def index
-    File.open('#{File.join(Gin::PUBLIC_DIR, 'welcome.html')}', 'r')
+<<-HTML
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Welcome to Gin</title>
+    <link rel="stylesheet" type="text/css" href="/gin.css"/>
+  </head>
+  <body style="">
+    <div class="canvas">
+      <img src="/gin_sm.png" class="logo"/>
+      <h1>Welcome to Gin</h1>
+      <p>Gin is a lightweight framework geared towards API and Website development.</br>
+Start building your app by editing your app's root <strong>.rb</strong> file and 
+your <strong>HomeController</strong> at <strong>controllers/home_controller.rb</strong>.</p>
+      <p><center>The <a href="http://yaks.me/gin/wiki" target="_blank">WIKI</a> is available for help and documentation.
+      </center></p>
+    </div>
+  </body>
+</html>
+HTML
   end
 end
     STR
@@ -98,8 +118,10 @@ end
 
   def self.make_app_rb app_class_name, name, dir, standalone
     contents = <<-STR
-$:.unshift( File.expand_path("../../../lib", __FILE__) )
 require 'gin'
+
+$:.unshift( File.expand_path('../lib', __FILE__) )
+#{"$:.unshift( File.expand_path('../controllers', __FILE__) )\n" if standalone}
 
 class #{app_class_name} < Gin::App
   require '#{"#{name}/controllers/" if !standalone}home_controller'
@@ -114,15 +136,21 @@ end
   def self.make_config_ru app_class_name, name, dir
     contents = <<-STR
 $:.unshift File.expand_path("..", __FILE__)
-$:.unshift File.expand_path("../lib", __FILE__)
-$:.unshift File.expand_path("../controllers", __FILE__)
-
 require '#{name}'
 run #{app_class_name}.new
     STR
 
     filepath = File.join(dir, 'config.ru')
     File.write(filepath, contents)
+  end
+
+
+  def self.make_console name, dir
+    filepath = File.join(dir, 'console')
+    bash = "irb -I \"$( dirname \"${BASH_SOURCE[0]}\" )\" -r #{name}\n"
+    File.write(filepath, bash)
+    require 'fileutils'
+    FileUtils.chmod "u=wrx,go=rx", filepath
   end
 end
 

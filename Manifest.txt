@@ -30,7 +30,6 @@ public/error.html
 public/favicon.ico
 public/gin.css
 public/gin_sm.png
-public/welcome.html
 test/app/app_foo.rb
 test/app/controllers/app_controller.rb
 test/app/controllers/foo_controller.rb
