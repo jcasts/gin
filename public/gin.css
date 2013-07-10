@@ -21,7 +21,7 @@ a {
   border: 1px solid #ccc;
   padding: 12px;
   padding-top: 10px;
-  border-radius: 15px;
+  border-radius: 10px;
   box-shadow: 3px 3px 10px #aaa;
   background-color: #fff;
   margin: 0 auto;
@@ -41,7 +41,7 @@ a {
   border: 1px solid #ccc;
   overflow: scroll;
   background-color: #efefef;
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: 3px 3px -10px #aaa;
 }
 
