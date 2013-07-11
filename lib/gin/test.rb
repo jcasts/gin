@@ -32,8 +32,8 @@ module Gin::Test::Assertions
     status = rack_response[0]
     case expected
     when :success
-      assert (200..299).include?(status),
-        msg || "Status expected to be in range 200..299 but was #{status.inspect}"
+      assert((200..299).include?(status),
+        msg || "Status expected to be in range 200..299 but was #{status.inspect}")
     when :redirect
       assert [301,302,303,307,308].include?(status),
         msg || "Status expected to be in range 301..303 or 307..308 but was #{status.inspect}"
@@ -47,8 +47,8 @@ module Gin::Test::Assertions
       assert 404 == status,
         msg || "Status expected to be 404 but was #{status.inspect}"
     when :error
-      assert (500..599).include?(status),
-        msg || "Status expected to be in range 500..599 but was #{status.inspect}"
+      assert((500..599).include?(status),
+        msg || "Status expected to be in range 500..599 but was #{status.inspect}")
     else
       assert expected == status,
         msg || "Status expected to be #{expected.inspect} but was #{status.inspect}"
@@ -271,14 +271,14 @@ module Gin::Test::Helpers
   include Gin::Test::Assertions
 
   def self.setup_klass subclass   # :nodoc:
-    subclass.instance_eval do
-      def app_klass= klass
-        @app_klass = klass
-      end
+    return if subclass.respond_to?(:app_klass)
 
-      def app_klass
+    subclass.instance_eval do
+      def app_klass klass=nil
+        @app_klass = klass if klass
         defined?(@app_klass) && @app_klass
       end
+
 
       ##
       # Sets the default controller to use when making requests
@@ -291,17 +291,6 @@ module Gin::Test::Helpers
       def controller ctrl_klass=nil
         @default_controller = ctrl_klass if ctrl_klass
         defined?(@default_controller) && @default_controller
-      end
-
-
-      def correct_302_redirect
-        @correct_302_redirect = true
-      end
-
-
-      def correct_302_redirect?
-        @correct_302_redirect = false unless defined?(@correct_302_redirect)
-        @correct_302_redirect
       end
     end
   end
@@ -352,7 +341,7 @@ Run the following command and try again: gem install #{gemname}"
   # The Gin::Controller instance used by the last mock request.
 
   def controller
-    @controller
+    defined?(@controller) && @controller
   end
 
 
@@ -575,7 +564,7 @@ Run the following command and try again: gem install #{gemname}"
   # The read String body of the response.
 
   def body
-    return @body if @body
+    return @body if defined?(@body) && @body
     @body = ""
     rack_response[2].each{|str| @body << str }
     @body
@@ -591,7 +580,7 @@ Run the following command and try again: gem install #{gemname}"
   # Returns a Nokogiri document object for XML and HTML.
 
   def parsed_body
-    return @parsed_body if @parsed_body
+    return @parsed_body if defined?(@parsed_body) && @parsed_body
     ct = rack_response[1]['Content-Type']
 
     @parsed_body =
@@ -641,7 +630,7 @@ Run the following command and try again: gem install #{gemname}"
 
   def default_controller ctrl_klass=nil
     @default_controller = ctrl_klass if ctrl_klass
-    @default_controller || self.class.controller
+    defined?(@default_controller) && @default_controller || self.class.controller
   end
 
 
@@ -666,8 +655,8 @@ Run the following command and try again: gem install #{gemname}"
     return "#{args[0]}#{"?" << Gin.build_query(args[1]) if args[1]}" if String === args[0]
 
     args.unshift(@default_controller) if
-      Symbol === args[0] && @default_controller &&
-        @default_controller.actions.include?(args[0])
+      Symbol === args[0] && defined?(@default_controller) &&
+         @default_controller && @default_controller.actions.include?(args[0])
 
     app.router.path_to(*args)
   end
@@ -677,34 +666,31 @@ end
 class Gin::App  # :nodoc:
   class << self
     alias old_inherited inherited
+  end
 
-    def inherited subclass
-      old_inherited subclass
-      subclass.define_test_helper
-    end
+  def self.inherited subclass
+    old_inherited subclass
+    subclass.define_test_helper
+  end
 
 
-    def define_test_helper
-      return const_get(:TestHelper) if const_defined?(:TestHelper)
+  def self.define_test_helper
+    return const_get(:TestHelper) if const_defined?(:TestHelper)
+    class_eval <<-STR
+      module TestHelper
+        include Gin::Test::Helpers
 
-      class_eval <<-STR
-        module TestHelper
-          include Gin::Test::Helpers
-
-          def self.included subclass
-            Gin::Test::Helpers.setup_klass subclass
-            subclass.app_klass = #{self}
-          end
+        def self.included subclass
+          Gin::Test::Helpers.setup_klass(subclass)
+          subclass.app_klass #{self}
         end
-      STR
+      end
+    STR
 
-      const_get :TestHelper
-    end
+    const_get :TestHelper
   end
 end
 
-
 ObjectSpace.each_object(Class) do |klass|
-  next unless klass < Gin::App
-  klass.define_test_helper
+  klass.define_test_helper if klass < Gin::App
 end

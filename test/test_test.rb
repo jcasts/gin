@@ -1,6 +1,8 @@
 require 'test/test_helper'
 require 'gin/test'
 
+require 'test/mock_app'
+
 require 'plist'
 require 'bson'
 require 'nokogiri'
@@ -10,11 +12,9 @@ require 'json'
 class TestTest < Test::Unit::TestCase
 
   def setup
-    @testclass = Class.new MockTestClass
-    @testclass.class_eval{
-      include MockApp::TestHelper
-      include TestAccess
-    }
+    @testclass = Class.new(MockTestClass)
+    @testclass.send :include, MockApp::TestHelper
+    @testclass.send :include, TestAccess
     @tests = @testclass.new
   end
 
@@ -28,13 +28,13 @@ class TestTest < Test::Unit::TestCase
 
   def test_controller
     assert_nil @testclass.controller
-    @testclass.controller BarController
-    assert_equal BarController, @testclass.controller
-    assert_equal BarController, @tests.default_controller
+    @testclass.controller MockApp::BarController
+    assert_equal MockApp::BarController, @testclass.controller
+    assert_equal MockApp::BarController, @tests.default_controller
 
-    @tests.default_controller FooController
-    assert_equal FooController, @tests.default_controller
-    assert_equal BarController, @testclass.controller
+    @tests.default_controller MockApp::FooController
+    assert_equal MockApp::FooController, @tests.default_controller
+    assert_equal MockApp::BarController, @testclass.controller
   end
 
 
@@ -54,13 +54,13 @@ class TestTest < Test::Unit::TestCase
   def test_path_to
     assert_nil @tests.default_controller
     assert_equal "/bar/123", @tests.path_to(:show_bar, id: 123)
-    assert_equal "/bar/123", @tests.path_to(BarController, :show, id: 123)
+    assert_equal "/bar/123", @tests.path_to(MockApp::BarController, :show, id: 123)
     assert_equal "/bar?id=123", @tests.path_to("/bar", id: 123)
   end
 
 
   def test_path_to_default_ctrl
-    @tests.default_controller BarController
+    @tests.default_controller MockApp::BarController
     assert_equal "/bar/123", @tests.path_to(:show_bar, id: 123)
     assert_equal "/bar/123", @tests.path_to(:show, id: 123)
   end
@@ -97,7 +97,7 @@ class TestTest < Test::Unit::TestCase
     assert_equal ["SHOW 123!"], @tests.stream
     assert_equal [], @tests.templates
 
-    assert BarController === @tests.controller
+    assert_equal MockApp::BarController, @tests.controller.class
   end
 
 
@@ -105,7 +105,7 @@ class TestTest < Test::Unit::TestCase
     resp = @tests.make_request :get, :index_foo
 
     assert_equal "text/html;charset=UTF-8", resp[1]["Content-Type"]
-    assert /Value is LOCAL/ === @tests.body
+    assert(/Value is LOCAL/ === @tests.body)
 
     assert_equal 2, @tests.templates.length
     assert_equal File.join(MockApp.layouts_dir, "foo.erb"), @tests.templates[0]
@@ -150,7 +150,7 @@ class TestTest < Test::Unit::TestCase
       resp = @tests.send verb, :show_bar, id: 123
       assert_equal verb.upcase, @tests.req_env['REQUEST_METHOD']
       if verb == 'get'
-        assert_equal BarController,
+        assert_equal MockApp::BarController,
                      @tests.req_env[Gin::Constants::GIN_CTRL].class
         assert_equal 200, resp[0]
       else
@@ -537,22 +537,22 @@ in:\n #{@tests.templates.join("\n ")}", @tests.last_message
 
 
   def test_assert_route
-    assert @tests.assert_route(:get, "/foo", FooController, :index)
+    assert @tests.assert_route(:get, "/foo", MockApp::FooController, :index)
   end
 
 
   def test_assert_route_failure
     assert_raises(MockAssertionError) do
-      @tests.assert_route :get, "/bad_route", FooController, :bad_route
+      @tests.assert_route :get, "/bad_route", MockApp::FooController, :bad_route
     end
     assert_equal "`GET /bad_route' should map to \
-TestTest::FooController#bad_route but doesn't exist", @tests.last_message
+MockApp::FooController#bad_route but doesn't exist", @tests.last_message
 
     assert_raises(MockAssertionError) do
-      @tests.assert_route :get, "/foo", FooController, :show
+      @tests.assert_route :get, "/foo", MockApp::FooController, :show
     end
-    assert_equal "`GET /foo' should map to TestTest::FooController#show but \
-got TestTest::FooController#index", @tests.last_message
+    assert_equal "`GET /foo' should map to MockApp::FooController#show but \
+got MockApp::FooController#index", @tests.last_message
   end
 
 
@@ -623,98 +623,5 @@ got TestTest::FooController#index", @tests.last_message
     def req_env
       @req_env
     end
-  end
-
-
-  class BarController < Gin::Controller
-    controller_name "bar"
-
-    def show id
-      "SHOW #{id}!"
-    end
-
-    def index
-      raise "OH NOES"
-    end
-
-    def see_other
-      redirect "http://example.com", 301
-    end
-  end
-
-
-  class ApiController < Gin::Controller
-    controller_name "api"
-
-    def pdf
-      content_type 'application/pdf'
-      'fake pdf'
-    end
-
-    def json
-      content_type :json
-      '{"foo":1234}'
-    end
-
-    def bson
-      content_type 'application/bson'
-      BSON.serialize({'foo' => 1234}).to_s
-    end
-
-    def xml
-      content_type :xml
-      '<foo>1234</foo>'
-    end
-
-    def plist
-      content_type 'application/plist'
-      <<-STR
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">
-<dict>\n\t<key>foo</key>\n\t<integer>1234</integer>\n</dict>\n</plist>
-      STR
-    end
-  end
-
-
-  class FooController < Gin::Controller
-    controller_name "foo"
-    layout "foo"
-
-    def index
-      view :bar, locals: {test_val: "LOCAL"}
-    end
-
-    def login
-      set_cookie "foo_session", "12345",
-        expires: Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")
-      "OK"
-    end
-
-    def supercookie
-      set_cookie "supercookie", "SUPER!",
-        expires:  Time.parse("Fri, 01 Jan 2100 00:00:00 -0000"),
-        domain:   "mockapp.com",
-        path:     "/",
-        secure:   true,
-        httponly: true
-      "OK"
-    end
-  end
-
-
-  class MockApp < Gin::App
-    logger StringIO.new
-    root_dir "test/app"
-
-    mount BarController do
-      get :show, "/:id"
-      get :index, "/"
-      defaults
-    end
-
-    mount FooController
-
-    mount ApiController
   end
 end

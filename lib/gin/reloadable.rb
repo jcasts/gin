@@ -37,7 +37,7 @@ module Gin::Reloadable #:nodoc:
 
 
     def gin_constants
-      return @gin_constants if @gin_constants
+      return @gin_constants if defined?(@gin_constants) && @gin_constants
       @gin_constants = {Gin.object_id => ::Gin}
 
       each_constant(Gin) do |name, const, _|

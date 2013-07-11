@@ -38,6 +38,7 @@ test/mock_config/backend.yml
 test/mock_config/invalid.yml
 test/mock_config/memcache.yml
 test/mock_config/not_a_config.txt
+test/mock_app.rb
 test/test_app.rb
 test/test_cache.rb
 test/test_config.rb
