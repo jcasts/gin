@@ -7,7 +7,14 @@
 Gin is a small Ruby web framework, built on Rack, which borrows from
 Sinatra expressiveness, and targets larger applications.
 
+== Getting Started
+
+Gin provides a simple command for setting up a new application.
+  $ gin path/to/appname
+
 == Hello World
+
+A Hello World application requires at minimum a Gin::App instance and a Gin::Controller.
 
   # config.ru
   require 'gin'
@@ -21,6 +28,31 @@ Sinatra expressiveness, and targets larger applications.
   end
 
   run MyApp.new
+
+== Why Gin?
+
+Gin tries to fill a need for a framework that's simple and lightweight, yet scalable for large applications. Gin is comparable to Sinatra in performance and memory consumption, but supports multiple controllers and filters.
+
+=== Features
+
+* Easily mount multiple apps as Rack middleware
+* Simple and fast RESTful routing
+* Controller classes and action arguments
+* Inheritable Before/After filter chains
+* Response streaming
+* Asset urls with cache-busting and CDN support
+* Configs for multiple environments
+* Periodic config reloading
+* Inheritable error handling
+* In-app middleware
+* Rack-Session and Rack-Protection
+* Dev-mode auto-reloading
+* Templates (layouts/views) with Tilt
+
+=== What's Not Included
+
+* Helpers - those are called Modules in Ruby
+* ORM - choose your own library
 
 == Requirements
 
