@@ -2,14 +2,10 @@
 
 * Major Enhancements
   * Test helper methods and assertions
-  * Template support with tilt
-  * Config rewrite with auto-(re)loading
+  * Template/View support with tilt
+  * New config implementation with auto-(re)loading
   * App instances are individually configurable
   * New app generation with gin command
-
-* Minor Enhancements
-  * Non-raising config querying
-  * On-demand config loading
 
 * Bugfixes
   * Lots of thread-safety fixes
