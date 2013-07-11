@@ -225,7 +225,7 @@ class RouterTest < Test::Unit::TestCase
       get :bar, "/bar/:type/:id.:format"
     end
 
-    params = {'type' => 'sub', 'id' => '123', 'format' => 'json', 'more' => 'hi'}
+    params = {'type' => 'sub', 'id' => 123, 'format' => 'json', 'more' => 'hi'}
     assert_equal "/bar/sub/123.json?more=hi", @router.path_to(MyCtrl, :bar, params)
   end
 

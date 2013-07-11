@@ -1,6 +1,31 @@
+##
+# The Gin::Router class is the core of how Gin maps HTTP requests to
+# a Controller and action (target), and vice-versa.
+#
+#   router = Gin::Router.new
+#   router.add FooController do
+#     get :index, "/"
+#     get :show, "/:id"
+#   end
+#
+#   router.path_to FooController, :show, id: 123
+#   #=> "/foo/123"
+#
+#   router.path_to :show_foo, id: 123
+#   #=> "/foo/123"
+#
+#   router.resources_for "get", "/foo/123"
+#   #=> [FooController, :show, {:id => "123"}]
+
 class Gin::Router
 
+  # Raised when a Route fails to build a path due to missing params
+  # or an invalid route target.
   class PathArgumentError < Gin::Error; end
+
+  ##
+  # Class for building temporary groups of routes for a given controller.
+  # Used by the Gin::App.mount DSL.
 
   class Mount
     DEFAULT_ACTION_MAP = {
@@ -31,9 +56,11 @@ class Gin::Router
     end
 
 
-    # Create restful routes if they aren't taken already.
+    ##
+    # Create and add default restful routes if they aren't taken already.
+
     def defaults default_verb=nil
-      default_verb = (default_verb || 'get').to_s.downcase
+      default_verb = default_verb || 'get'
 
       (@ctrl.actions - @actions).each do |action|
         verb, path = DEFAULT_ACTION_MAP[action]
@@ -45,10 +72,16 @@ class Gin::Router
     end
 
 
+    ##
+    # Create routes for all standard verbs and add them to the Mount instance.
+
     def any action, path=nil
       VERBS.each{|verb| send verb, action, path}
     end
 
+
+    ##
+    # Create a single route and add it to the Mount instance.
 
     def add verb, action, *args
       path = args.shift        if String === args[0]
@@ -66,18 +99,42 @@ class Gin::Router
     end
 
 
+    ##
+    # Iterate through through all the routes in the Mount.
+
     def each_route &block
-      @routes.each{|(route, name, value)| block.call(route, name, value) }
+      @routes.each(&block)
     end
   end
 
 
-  class Route
-    attr_reader :param_keys, :match_keys, :path, :target, :name
+  ##
+  # Represents an HTTP path and path matcher, with inline params and new path
+  # generation.
+  #
+  #   r = Route.new "get", "/foo/:id.:format", [FooController, :show], :show_foo
+  #   r.to_path id: 123, format: "json"
+  #   #=> "/foo/123.json"
 
-    SEP = "/"
-    VAR_MATCHER = /:(\w+)/
-    PARAM_MATCHER = "(.*?)"
+  class Route
+    # Parsed out path param key names.
+    attr_reader :param_keys
+
+    # Array of path parts for tree-based matching.
+    attr_reader :match_keys
+
+    # Computed path String with wildcards.
+    attr_reader :path
+
+    # Target of the route, in this case an Array with controller and action.
+    attr_reader :target
+
+    # Arbitrary name of the route.
+    attr_reader :name
+
+    SEP = "/"               # :nodoc:
+    VAR_MATCHER = /:(\w+)/  # :nodoc:
+    PARAM_MATCHER = "(.*?)" # :nodoc:
 
 
     def initialize verb, path, target, name
@@ -86,6 +143,11 @@ class Gin::Router
       build verb, path
     end
 
+
+    ##
+    # Render a route path by giving it inline (and other) params.
+    #   route.to_path id: 123, format: "json", foo: "bar"
+    #   #=> "/foo/123.json?foo=bar"
 
     def to_path params={}
       rendered_path = @path.dup
@@ -99,6 +161,10 @@ class Gin::Router
     end
 
 
+    ##
+    # Returns true if the argument matches the route_id.
+    # The route id is an array with verb and original path.
+
     def === other
       @route_id == other
     end
@@ -107,6 +173,8 @@ class Gin::Router
     private
 
     def build verb, path
+      verb = verb.to_s.downcase
+
       @path = ""
       @param_keys = []
       @match_keys = []
@@ -137,7 +205,7 @@ class Gin::Router
   end
 
 
-  class Node
+  class Node    # :nodoc:
     attr_accessor :value
 
     def initialize
@@ -171,6 +239,7 @@ class Gin::Router
 
   ##
   # Add a Controller to the router with a base path.
+  # Used by Gin::App.mount.
 
   def add ctrl, base_path=nil, &block
     base_path ||= ctrl.controller_name
@@ -193,7 +262,7 @@ class Gin::Router
 
 
   ##
-  # Check if a Controller and action combo has a route.
+  # Check if a Controller and action pair has a route.
 
   def has_route? ctrl, action
     !!@routes_lookup[[ctrl, action]]
@@ -201,7 +270,7 @@ class Gin::Router
 
 
   ##
-  # Yield every Controller, action, route combination.
+  # Yield every route, controller, action combinations the router knows about.
 
   def each_route &block
     @routes_lookup.each do |key,route|
@@ -216,11 +285,14 @@ class Gin::Router
   # provided with the needed params. Routes with missing path params will raise
   # MissingParamError. Returns a String starting with "/".
   #
-  #   path_to FooController, :show, :id => 123
+  #   path_to FooController, :show, id: 123
   #   #=> "/foo/123"
   #
-  #   path_to :show_foo, :id => 123
+  #   path_to :show_foo, id: 123
   #   #=> "/foo/123"
+  #
+  #   path_to :show_foo, id: 123, more: true
+  #   #=> "/foo/123?more=true"
 
   def path_to *args
     key = Class === args[0] ? args.slice!(0..1) : args.shift
@@ -234,8 +306,12 @@ class Gin::Router
 
 
   ##
-  # Takes a path and returns an array of 3 items:
-  #   [controller_class, action_symbol, path_params_hash]
+  # Takes a path and returns an array with the
+  # controller class, action symbol, processed path params.
+  #
+  #   router.resources_for "get", "/foo/123"
+  #   #=> [FooController, :show, {:id => "123"}]
+  #
   # Returns nil if no match was found.
 
   def resources_for http_verb, path

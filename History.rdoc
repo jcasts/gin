@@ -7,6 +7,9 @@
   * App instances are individually configurable
   * Gin command for easy new app generation
 
+* Minor Enhancements
+  * Routes now support multiple embedded params between slashes
+
 * Bugfixes
   * Lots of thread-safety fixes
   * Fixes to rare reloader path issue
