@@ -109,8 +109,8 @@ class Gin::Router
 
 
   ##
-  # Represents an HTTP path and path matcher, with inline params and new path
-  # generation.
+  # Represents an HTTP path and path matcher, with inline params, and new path
+  # generation functionality.
   #
   #   r = Route.new "get", "/foo/:id.:format", [FooController, :show], :show_foo
   #   r.to_path id: 123, format: "json"
