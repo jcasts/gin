@@ -70,6 +70,17 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
+  def test_add_and_retrieve_path_matcher
+    @router.add MyCtrl, "/" do
+      get :bar, "/bar/:type/:id.:format"
+    end
+
+    expected_params = {'type' => 'sub', 'id' => '123', 'format' => 'json'}
+    assert_equal [MyCtrl, :bar, expected_params],
+      @router.resources_for("GET", "/bar/sub/123.json")
+  end
+
+
   def test_add_omit_base_path
     @router.add MyCtrl do
       get :bar
@@ -205,6 +216,28 @@ class RouterTest < Test::Unit::TestCase
 
     assert_raises Gin::Router::PathArgumentError do
       @router.path_to(MyCtrl, :show)
+    end
+  end
+
+
+  def test_path_to_complex_param
+    @router.add MyCtrl, "/" do
+      get :bar, "/bar/:type/:id.:format"
+    end
+
+    params = {'type' => 'sub', 'id' => '123', 'format' => 'json', 'more' => 'hi'}
+    assert_equal "/bar/sub/123.json?more=hi", @router.path_to(MyCtrl, :bar, params)
+  end
+
+
+  def test_path_to_complex_param_missing
+    @router.add MyCtrl, "/" do
+      get :bar, "/bar/:type/:id.:format"
+    end
+
+    params = {'type' => 'sub', 'id' => '123', 'more' => 'hi'}
+    assert_raises Gin::Router::PathArgumentError do
+      @router.path_to(MyCtrl, :bar, params)
     end
   end
 end
