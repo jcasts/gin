@@ -22,13 +22,13 @@ module Gin::Test::Assertions
   ##
   # Asserts the response status code and headers.
   # Takes an integer (status code) or Symbol as the expected value:
-  #   :success::      2XX status codes
-  #   :redirect::     301-303 status codes
-  #   :forbidden::    403 status code
-  #   :unauthorized:: 401 status code
-  #   :not_found::    404 status code
+  # :success::      2XX status codes
+  # :redirect::     301-303, 307-308 status codes
+  # :forbidden::    403 status code
+  # :unauthorized:: 401 status code
+  # :not_found::    404 status code
 
-  def assert_response expected, headers={}, msg=nil
+  def assert_response expected, msg=nil
     status = rack_response[0]
     case expected
     when :success
@@ -70,13 +70,13 @@ module Gin::Test::Assertions
   # If value is a Class, Range, or Regex, does a match.
   #
   #   # Use CSS3 for HTML
-  #   assert_data '.address[domestic=Yes]'
+  #   assert_select '.address[domestic=Yes]'
   #
   #   # Use XPath for XML data
-  #   assert_data './/address[@domestic=Yes]'
+  #   assert_select './/address[@domestic=Yes]'
   #
   #   # Use ruby-path for JSON, BSON, and PList
-  #   assert_data '**/address/domestic=YES/../value'
+  #   assert_select '**/address/domestic=YES/../value'
 
   def assert_select key_or_path, opts={}, msg=nil
     value = opts[:value]
@@ -133,6 +133,8 @@ module Gin::Test::Assertions
   # :value:: Object - The expected value of the data point.
   #
   # If value is a Class, Range, or Regex, does a match.
+  # Use for JSON, BSON, and PList data.
+  #   assert_select '**/address/domestic=YES/../value'
 
   def assert_data path, opts={}, msg=nil
     assert_select path, opts.merge(selector: :rb_path), msg
@@ -147,6 +149,8 @@ module Gin::Test::Assertions
   # :value:: Object - The expected value of the data point.
   #
   # If value is a Class, Range, or Regex, does a match.
+  # Use for XML or HTML.
+  #   assert_select '.address[domestic=Yes]'
 
   def assert_css path, opts={}, msg=nil
     assert_select path, opts.merge(selector: :css), msg
@@ -161,6 +165,8 @@ module Gin::Test::Assertions
   # :value:: Object - The expected value of the data point.
   #
   # If value is a Class, Range, or Regex, does a match.
+  # Use for XML or HTML.
+  #   assert_select './/address[@domestic=Yes]'
 
   def assert_xpath path, opts={}, msg=nil
     assert_select path, opts.merge(selector: :xpath), msg

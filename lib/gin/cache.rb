@@ -60,6 +60,6 @@ class Gin::Cache
 
   def cache key, value=nil, &block
     return self[key] if self.has_key?(key)
-    @lock.write_sync{ @data[key] = block_given? ? yield : value }
+    @lock.write_sync{ @data[key] = block_given? ? yield() : value }
   end
 end

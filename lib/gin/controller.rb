@@ -1,3 +1,52 @@
+#  Gin controllers follow only a few rules:
+#
+#  * ALL instance methods are actions (put your helper methods in a module or
+#    parent class not mounted to the app).
+#  * Filters are defined by blocks passed to special class methods.
+#  * Controller-level error handlers are defined by blocks passed to the 'error'
+#    class method.
+#
+#  Gin controller actions are any instance method defined on the controller
+#  class. The HTTP response body takes the value of the method's return value.
+#
+#  If the instance method takes arguments, matching params will be assigned to
+#  them. A required argument with a missing param triggers a Gin::BadRequest
+#  error, resulting in a 400 response.
+#
+#    class UserController < Gin::Controller
+#      # Get params id and email
+#      def show id, email=nil
+#        ...
+#      end
+#    end
+#
+#  Gin actions also support Ruby 2.0 keyed arguments, which are more flexible
+#  for assigning default values when dealing with missing params.
+#
+#    class UserController < Gin::Controller
+#      def show(id, email: nil, full: false)
+#        ...
+#      end
+#    end
+#
+#  Views are rendered by calling the 'view' method from a controller instance.
+#  Views don't halt the action but return a String of the rendered view.
+#  If a layout was set, the rendered view will include the layout.
+#
+#    class UserController < Gin::Controller
+#      layout :user
+#
+#      def show id
+#        # Renders <app.views_dir>/show_user.* with the layout <app.layouts_dir>/user.*
+#        view :show_user
+#      end
+#
+#      def tos
+#        # Renders <app.views_dir>/tos.* with no layout
+#        view :tos, :layout => false
+#      end
+#    end
+
 class Gin::Controller
   extend  GinClass
   include Gin::Constants

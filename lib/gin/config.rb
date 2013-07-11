@@ -89,7 +89,7 @@ class Gin::Config
   #   #=> data from file
   #
   #   # Loads the given file if it exists.
-  #   config.load_config 'path/to/config.yml'
+  #   config.load_config 'path/to/my_config.yml'
   #   config['my_config']
   #   #=> data from file
 
