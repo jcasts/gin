@@ -1,4 +1,9 @@
-=== 1.1.0 / 2013-07-10
+=== 1.1.1 / 2013-07-11
+
+* Bugfixes
+  * CGI encode and decode embedded path params
+
+=== 1.1.0 / 2013-07-11
 
 * Major Enhancements
   * Test helper methods and assertions

@@ -152,8 +152,9 @@ class Gin::Router
     def to_path params={}
       rendered_path = @path.dup
       rendered_path = rendered_path % @param_keys.map do |k|
-        params.delete(k) || params.delete(k.to_sym) ||
-          raise(PathArgumentError, "Missing param #{k}")
+        val = params.delete(k) || params.delete(k.to_sym)
+        raise(PathArgumentError, "Missing param #{k}") unless val
+        CGI.escape(val.to_s)
       end unless @param_keys.empty?
 
       rendered_path << "?#{Gin.build_query(params)}" unless params.empty?
@@ -326,10 +327,10 @@ class Gin::Router
         curr_node = curr_node[key]
 
       elsif curr_node["%s"]
-        param_vals << key
+        param_vals << CGI.unescape(key)
         curr_node = curr_node["%s"]
 
-      elsif child_and_matches = curr_node.match(key)
+      elsif child_and_matches = curr_node.match(CGI.unescape(key))
         param_vals.concat child_and_matches[1]
         curr_node = child_and_matches[0]
 

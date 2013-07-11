@@ -38,6 +38,26 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
+  def test_add_and_retrieve_cgi_escaped
+    @router.add MyCtrl, '/my_ctrl' do
+      get  :bar, "/bar/:id"
+    end
+
+    assert_equal [MyCtrl, :bar, {'id' => '123 456'}],
+      @router.resources_for("GET", "/my_ctrl/bar/123+456")
+  end
+
+
+  def test_add_and_retrieve_complex_cgi_escaped
+    @router.add MyCtrl, '/my_ctrl' do
+      get  :bar, "/bar/:type/:id.:format"
+    end
+
+    assert_equal [MyCtrl, :bar, {"type"=>"[I]", "id"=>"123 456", "format"=>"json"}],
+      @router.resources_for("GET", "/my_ctrl/bar/%5BI%5D/123+456.json")
+  end
+
+
   def test_add_and_retrieve_named_route
     @router.add FooController, "/foo" do
       get  :index, "/", :all_foo
@@ -239,5 +259,16 @@ class RouterTest < Test::Unit::TestCase
     assert_raises Gin::Router::PathArgumentError do
       @router.path_to(MyCtrl, :bar, params)
     end
+  end
+
+
+  def test_path_to_complex_param_cgi_escaped
+    @router.add MyCtrl, "/" do
+      get :bar, "/bar/:type/:id.:format"
+    end
+
+    params = {'type' => 'sub/thing', 'id' => '123&4', 'more' => 'hi there', 'format' => 'json'}
+    assert_equal "/bar/sub%2Fthing/123%264.json?more=hi+there",
+      @router.path_to(MyCtrl, :bar, params)
   end
 end

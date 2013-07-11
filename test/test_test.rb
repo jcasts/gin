@@ -76,9 +76,9 @@ class TestTest < Test::Unit::TestCase
 
   def test_make_request
     resp = @tests.make_request :get, :show_bar,
-              {id: 123, foo: "BAR", bar: "BAZ"},'REMOTE_ADDR' => '127.0.0.1'
+              {id: 123, foo: "BAR", bar: "BAZ Foo"},'REMOTE_ADDR' => '127.0.0.1'
 
-    assert_equal "foo=BAR&bar=BAZ", @tests.req_env['QUERY_STRING']
+    assert_equal "foo=BAR&bar=BAZ+Foo", @tests.req_env['QUERY_STRING']
     assert_equal "/bar/123", @tests.req_env['PATH_INFO']
     assert_equal "127.0.0.1", @tests.req_env['REMOTE_ADDR']
     assert_equal "127.0.0.1", @tests.request.ip
