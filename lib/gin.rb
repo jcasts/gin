@@ -2,7 +2,7 @@ require 'rack'
 require 'tilt'
 
 class Gin
-  VERSION = '1.1.0'
+  VERSION = '1.1.1'
 
   LIB_DIR    = File.expand_path("..", __FILE__)            #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
