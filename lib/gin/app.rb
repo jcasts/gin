@@ -64,7 +64,7 @@ class Gin::App
 
 
   ##
-  # Create a new intance of the app and call it.
+  # Create a new instance of the app and call it.
 
   def self.call env
     @instance ||= self.new
@@ -356,6 +356,7 @@ class Gin::App
 
   ##
   # Cache of file md5s shared across all instances of an App class.
+  # Used for static asset versioning.
 
   def self.md5s
     @md5s
@@ -600,7 +601,7 @@ class Gin::App
 
 
   ##
-  # Returns the generic asset host.
+  # Returns the default asset host.
 
   def asset_host
     asset_host_for(nil)
@@ -654,7 +655,8 @@ class Gin::App
 
 
   ##
-  # Returns an Array of file paths that match a valid template engine.
+  # Returns an Array of file paths that match a valid path and maps
+  # to a known template engine.
   #   app.template_files 'views/foo'
   #   #=> ['views/foo.erb', 'views/foo.md']
 
@@ -734,8 +736,8 @@ class Gin::App
 
 
   ##
-  # Returns a static file Rack response Array from the given gin.static
-  # env filename.
+  # Returns a static file Rack response Array from the filename set
+  # in env['gin.static'].
 
   def call_static env
     with_log_request(env) do
@@ -746,7 +748,8 @@ class Gin::App
 
   ##
   # Check if the request is for a static file and set the gin.static env
-  # variable to the filepath.
+  # variable to the filepath. Returns true if request is to a static asset,
+  # otherwise false.
 
   def static! env
     filepath = %w{GET HEAD}.include?(env[REQ_METHOD]) &&
@@ -763,6 +766,7 @@ class Gin::App
   # Check if the request routes to a controller and action and set
   # gin.controller, gin.action, gin.path_query_hash,
   # and gin.http_route env variables.
+  # Returns true if a route is found, otherwise false.
 
   def route! env
     http_route = "#{env[REQ_METHOD]} #{env[PATH_INFO]}"

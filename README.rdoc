@@ -26,6 +26,7 @@ Sinatra expressiveness, and targets larger applications.
 
 * rack
 * rack-protection
+* tilt
 
 == Install
 
