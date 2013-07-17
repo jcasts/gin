@@ -210,7 +210,7 @@ module Gin::Test::Assertions
 
 
   ##
-  # Checks that a specific layout was use to render the response.
+  # Checks that a specific layout was used to render the response.
 
   def assert_layout layout, msg=nil
     path = @controller.template_path(layout, true)
@@ -311,11 +311,6 @@ module Gin::Test::Helpers
 you are trying to use.
 Run the following command and try again: gem install #{gemname}"
     exit 1
-  end
-
-
-  def correct_302_redirect?
-    self.class.correct_302_redirect?
   end
 
 
