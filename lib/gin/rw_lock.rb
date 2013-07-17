@@ -34,7 +34,7 @@ class Gin::RWLock
   class WriteTimeout < StandardError; end
 
   TIMEOUT_MSG = "Took too long to lock all config mutexes. \
-Try increasing the value of Config#write_timeout."
+Try increasing the value of write_timeout."
 
   # The amount of time to wait for writer threads to get all the read locks.
   attr_accessor :write_timeout
@@ -50,25 +50,18 @@ Try increasing the value of Config#write_timeout."
 
   def write_sync
     lock_mutexes = []
-    relock_curr  = false
     was_locked   = Thread.current[@mutex_owned_id]
-
-    curr_mutex = read_mutex
 
     write_mutex.lock unless was_locked
     Thread.current[@mutex_owned_id] = true
-
-    # Protect against same-thread deadlocks
-    if curr_mutex && curr_mutex.locked?
-      relock_curr = curr_mutex.unlock rescue false
-    end
 
     start = Time.now
 
     Thread.list.each do |t|
       mutex = t[@mutex_id]
-      next if !mutex || !relock_curr && t == Thread.current
+      next if !mutex || t == Thread.current
       until mutex.try_lock
+        Thread.pass
         raise WriteTimeout, TIMEOUT_MSG if Time.now - start > @write_timeout
       end
       lock_mutexes << mutex
@@ -77,7 +70,6 @@ Try increasing the value of Config#write_timeout."
     yield
   ensure
     lock_mutexes.each(&:unlock)
-    curr_mutex.try_lock if relock_curr
     unless was_locked
       Thread.current[@mutex_owned_id] = false
       write_mutex.unlock
@@ -90,7 +82,7 @@ Try increasing the value of Config#write_timeout."
     read_mutex.lock unless was_locked
     yield
   ensure
-    read_mutex.unlock if was_locked
+    read_mutex.unlock if !was_locked
   end
 
 
@@ -104,6 +96,10 @@ Try increasing the value of Config#write_timeout."
 
   def read_mutex
     return Thread.current[@mutex_id] if Thread.current[@mutex_id]
-    @wmutex.synchronize{ Thread.current[@mutex_id] = Mutex.new }
+    if Thread.current[@mutex_owned_id]
+      Thread.current[@mutex_id] = Mutex.new
+    else
+      @wmutex.synchronize{ Thread.current[@mutex_id] = Mutex.new }
+    end
   end
 end

@@ -17,13 +17,18 @@ class CacheTest < Test::Unit::TestCase
 
   def test_write_thread_safe
     @cache[:num] = 0
+    @mutex = Mutex.new
+    @num = 0
+
     threads = []
-    10.times do
+    30.times do
       threads << Thread.new{ @cache[:num] += 1 }
     end
-    threads.each(&:join)
+    threads.each do |t|
+      t.join
+    end
 
-    assert_equal 10, @cache[:num]
+    assert_equal 30, @cache[:num]
   end
 
 
