@@ -45,6 +45,7 @@ Try increasing the value of write_timeout."
     @write_timeout = write_timeout || 0.05
     @mutex_id      = :"rwlock_#{self.object_id}"
     @mutex_owned_id = :"#{@mutex_id}_owned"
+    @rmutex_owned_id = :"#{@mutex_id}_r_owned"
   end
 
 
@@ -78,11 +79,17 @@ Try increasing the value of write_timeout."
 
 
   def read_sync
-    was_locked = read_mutex.locked?
-    read_mutex.lock unless was_locked
+    was_locked = Thread.current[@rmutex_owned_id]
+    unless was_locked
+      read_mutex.lock
+      Thread.current[@rmutex_owned_id] = true
+    end
     yield
   ensure
-    read_mutex.unlock if !was_locked
+    if !was_locked
+      Thread.current[@rmutex_owned_id] = false
+      read_mutex.unlock
+    end
   end
 
 
