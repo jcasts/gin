@@ -47,7 +47,7 @@ class Gin::Config
 
   def initialize environment, opts={}
     @environment = environment
-    @logger      = opts[:logger] || $stdout
+    @logger      = opts[:logger] || Logger.new($stdout)
     @ttl         = opts[:ttl]    || false
     @dir         = opts[:dir]    || "./config"
 
