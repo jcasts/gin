@@ -52,7 +52,7 @@ class Gin::App
     @options[:environment]    = ENV['RACK_ENV'] || ENV_DEV
     @options[:error_delegate] = Gin::Controller
     @options[:middleware]     = []
-    @options[:logger]         = $stdout
+    @options[:logger]         = Logger.new($stdout)
     @options[:router]         = Gin::Router.new
     @options[:session_secret] = SESSION_SECRET
     @options[:protection]     = false
