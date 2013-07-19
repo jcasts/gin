@@ -1,3 +1,11 @@
+=== 1.1.2 / 2013-07-19
+
+* Minor Enhancements
+  * User the Ruby Logger instead of $stdout as the default logger
+
+* Bugfixes
+  * Fixes to the RWLock which made reads blocking in some instances
+
 === 1.1.1 / 2013-07-11
 
 * Bugfixes
