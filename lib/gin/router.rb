@@ -132,12 +132,15 @@ class Gin::Router
     # Arbitrary name of the route.
     attr_reader :name
 
+    # HTTP verb used by the route.
+    attr_reader :verb
+
     SEP = "/"               # :nodoc:
     VAR_MATCHER = /:(\w+)/  # :nodoc:
     PARAM_MATCHER = "(.*?)" # :nodoc:
 
 
-    def initialize verb, path, target, name
+    def initialize verb, path, target=[], name=nil
       @target = target
       @name   = name
       build verb, path
@@ -146,10 +149,11 @@ class Gin::Router
 
     ##
     # Render a route path by giving it inline (and other) params.
-    #   route.to_path id: 123, format: "json", foo: "bar"
+    #   route.to_path :id => 123, :format => "json", :foo => "bar"
     #   #=> "/foo/123.json?foo=bar"
 
     def to_path params={}
+      params ||= {}
       rendered_path = @path.dup
       rendered_path = rendered_path % @param_keys.map do |k|
         val = params.delete(k) || params.delete(k.to_sym)
@@ -159,6 +163,26 @@ class Gin::Router
 
       rendered_path << "?#{Gin.build_query(params)}" unless params.empty?
       rendered_path
+    end
+
+
+    ##
+    # Creates a Rack env hash with the given params and headers.
+
+    def to_env params={}, headers={}
+      headers ||= {}
+      params  ||= {}
+
+      path_info, query_string = to_path(params).split('?', 2)
+
+      env = headers.merge(
+        PATH_INFO => path_info,
+        REQ_METHOD => @verb,
+        QUERY_STRING => query_string
+      )
+
+      env[RACK_INPUT] ||= ''
+      env
     end
 
 
@@ -174,14 +198,14 @@ class Gin::Router
     private
 
     def build verb, path
-      verb = verb.to_s.downcase
+      @verb = verb.to_s.upcase
 
       @path = ""
       @param_keys = []
       @match_keys = []
-      @route_id = [verb, path]
+      @route_id = [@verb, path]
 
-      parts = [verb].concat path.split(SEP)
+      parts = [@verb].concat path.split(SEP)
 
       parts.each_with_index do |p, i|
         next if p.empty?
@@ -284,7 +308,8 @@ class Gin::Router
   ##
   # Get the path to the given Controller and action combo or route name,
   # provided with the needed params. Routes with missing path params will raise
-  # MissingParamError. Returns a String starting with "/".
+  # MissingParamError. Missing routes will raise a RouterError.
+  # Returns a String starting with "/".
   #
   #   path_to FooController, :show, id: 123
   #   #=> "/foo/123"
@@ -296,13 +321,25 @@ class Gin::Router
   #   #=> "/foo/123?more=true"
 
   def path_to *args
+    params = args.pop.dup if Hash === args.last
+    route = route_to(*args)
+    route.to_path(params)
+  end
+
+
+  ##
+  # Get the route object to the given Controller and action combo or route name.
+  # MissingParamError. Returns a Gin::Router::Route instance.
+  # Raises a RouterError if no route can be found.
+  #
+  #   route_to FooController, :show
+  #   route_to :show_foo
+
+  def route_to *args
     key = Class === args[0] ? args.slice!(0..1) : args.shift
     route = @routes_lookup[key]
-    raise PathArgumentError, "No route for #{Array(key).join("#")}" unless route
-
-    params = (args.pop || {}).dup
-
-    route.to_path(params)
+    raise Gin::RouterError, "No route for #{Array(key).join("#")}" unless route
+    route
   end
 
 
@@ -317,7 +354,7 @@ class Gin::Router
 
   def resources_for http_verb, path
     param_vals = []
-    curr_node  = @routes_tree[http_verb.to_s.downcase]
+    curr_node  = @routes_tree[http_verb.to_s.upcase]
     return unless curr_node
 
     path.scan(%r{/([^/]+|$)}) do |(key)|

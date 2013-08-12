@@ -15,8 +15,6 @@ class Gin::App
   extend GinClass
   include Gin::Constants
 
-  class RouterError < Gin::Error; end
-
   CALLERS_TO_IGNORE = [ # :nodoc:
     /lib\/gin(\/(.*?))?\.rb/,           # all gin code
     /lib\/tilt.*\.rb/,                  # all tilt code
@@ -781,6 +779,32 @@ class Gin::App
   end
 
 
+  def rewrite! env, *args
+    headers = args.pop if Hash === args.last && /^[A-Z_]+$/ === args.last.keys.first
+    params  = args.pop if Hash === args.last
+
+    route = if String === args.first
+              verb = (headers && headers[REQ_METHOD] || 'GET').upcase
+              Gin::Router::Route.new(verb, args[0])
+            else
+              @app.router.route_to(*args)
+            end
+
+    new_env = env.dup
+    new_env.delete_if{|k, v| k.start_with?('gin.') }
+    new_env[GIN_RELOADED]  = env[GIN_RELOADED]
+    new_env[GIN_TIMESTAMP] = env[GIN_TIMESTAMP]
+
+    new_env.merge!(headers) if headers
+    new_env = route.to_env(params, new_env)
+
+    logger << "[REWRITE] %s %s -> %s %s\n" %
+      [new_env[REQ_METHOD], new_env[PATH_INFO], env[REQ_METHOD], env[PATH_INFO]]
+
+    call(new_env)
+  end
+
+
   STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
 
   ##
@@ -915,11 +939,11 @@ class Gin::App
 
     actions_map.each do |ctrl, actions|
       not_mounted   = ctrl.actions - actions
-      raise RouterError, "#{ctrl}##{not_mounted[0]} has no route." unless
+      raise Gin::RouterError, "#{ctrl}##{not_mounted[0]} has no route." unless
         not_mounted.empty?
 
       extra_mounted = actions - ctrl.actions
-      raise RouterError, "#{ctrl}##{extra_mounted[0]} is not a method" unless
+      raise Gin::RouterError, "#{ctrl}##{extra_mounted[0]} is not a method" unless
         extra_mounted.empty?
     end
   end

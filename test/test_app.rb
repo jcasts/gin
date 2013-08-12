@@ -663,14 +663,14 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_init_missing_routes
-    assert_raises Gin::App::RouterError do
+    assert_raises Gin::RouterError do
       MissingRouteApp.new
     end
   end
 
 
   def test_init_extra_routes
-    assert_raises Gin::App::RouterError do
+    assert_raises Gin::RouterError do
       ExtraRouteApp.new
     end
   end

@@ -22,6 +22,8 @@ class Gin
 
   class TemplateMissing < Error; end
 
+  class RouterError < Error; end
+
 
   ##
   # Change string to underscored version.

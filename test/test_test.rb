@@ -68,7 +68,7 @@ class TestTest < Test::Unit::TestCase
 
   def test_path_to_no_ctrl
     assert_nil @tests.default_controller
-    assert_raises(Gin::Router::PathArgumentError) do
+    assert_raises(Gin::RouterError) do
       @tests.path_to(:show, id: 123)
     end
   end

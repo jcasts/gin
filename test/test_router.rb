@@ -212,7 +212,7 @@ class RouterTest < Test::Unit::TestCase
       get :bar, "/bar"
     end
 
-    assert_raises Gin::Router::PathArgumentError do
+    assert_raises Gin::RouterError do
       @router.path_to(MyCtrl, :foo)
     end
   end

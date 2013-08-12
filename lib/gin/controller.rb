@@ -301,8 +301,6 @@ class Gin::Controller
   end
 
 
-
-
   ##
   # Set multiple response headers with Hash.
 
@@ -468,6 +466,87 @@ class Gin::Controller
 
     @response[LOCATION] = url_to(uri.to_s)
     halt(*args)
+  end
+
+
+  ##
+  # Halt execution of the current controller action and create a new request to
+  # another action and/or controller, or path.
+  #
+  # The rewrite method acts just as if a request had been sent from the client,
+  # and will re-run any of the in-app middleware. If the app is itself running
+  # as middleware, you may use rewrite to pass a request down to the next item
+  # in the stack by specifying a path not supported by the app.
+  #
+  # Supports the same arguments at the Gin::Controller#url_to method.
+  #
+  #   rewrite MyController, :action
+  #   #=> Calls app with route for MyController#action
+  #
+  #   rewrite MyController, :show, :id => 123
+  #   #=> Calls app with route for MyController#action with the given params
+  #
+  #   rewrite :show_foo
+  #   #=> Calls app with route for the current controller's :show_foo action,
+  #   #=> or if missing the controller and action for the :show_foo named route.
+  #
+  #   # Rewrite and execute the request with the given headers.
+  #   rewrite :show_foo, 'HTTP_X_CUSTOM_HEADER' => 'foo'
+  #   rewrite :show_foo, params, 'HTTP_X_CUSTOM_HEADER' => 'foo'
+  #
+  #   # Rewrite to an arbitrary path.
+  #   rewrite '/path/to/something/else', 'REQUEST_METHOD' => 'POST'
+  #
+  # Note that params are not forwarded with the rewrite call. The app
+  # considers this to be a completely different request, which means all params
+  # required must be passed explicitely.
+  #
+  # Streamed and IO request content is also ignored unless it is explicitely
+  # assigned to the 'rack.input' (as a part of the headers argument).
+
+  def rewrite *args
+    args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
+    halt(*@app.rewrite!(@env, *args))
+  end
+
+
+  ##
+  # Unlike Gin::Controller#rewrite, the reroute method forwards the current
+  # request and params to the provided controller and/or action, or named route.
+  # Halts further execution in the action. Raises RouterError if the controller
+  # and/or action can't be found from a named route.
+  #
+  #   reroute MyController, :action
+  #   #=> Executes MyController#action
+  #
+  #   reroute MyController, :show, :id => 123
+  #   #=> Executes MyController#action with the given params merged to
+  #   #=> the current params.
+  #
+  #   reroute :show_foo
+  #   #=> Executes the current controller's :show_foo action, or if missing
+  #   #=> the controller and action for the :show_foo named route.
+  #
+  #   # Reroute with the given headers.
+  #   reroute :show_foo, 'HTTP_X_CUSTOM_HEADER' => 'foo'
+
+  def reroute *args
+    args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
+    nheaders = args.pop if Hash === args.last && /^[A-Z_]+$/ === args.last.keys.first
+    nparams  = args.pop if Hash === args.last
+
+    if Class === args[0]
+      ctrl_klass, naction = args[0..1]
+    else
+      route = @app.router.route_to(*args)
+      ctrl_klass, naction = route.target
+    end
+
+    nenv = @env.merge(nheaders || {})
+    ctrl = ctrl_klass.new(@app, nenv)
+    ctrl.params.merge!(nparams) if nparams
+
+    halt(*ctrl.call_action(naction))
   end
 
 

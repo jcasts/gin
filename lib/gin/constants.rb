@@ -14,6 +14,7 @@ module Gin::Constants
   IF_NONE_MATCH  = 'HTTP_IF_NONE_MATCH'.freeze
   IF_MOD_SINCE   = 'HTTP_IF_MODIFIED_SINCE'.freeze
   IF_UNMOD_SINCE = 'HTTP_IF_UNMODIFIED_SINCE'.freeze
+  RACK_INPUT     = 'rack.input'.freeze
 
   ASYNC_CALLBACK = 'async.callback'.freeze
 
