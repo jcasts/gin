@@ -135,8 +135,8 @@ class AppTest < Test::Unit::TestCase
   def test_protection
     assert_equal false, FooApp.protection
 
-    FooApp.protection(test: "thing")
-    assert_equal({test:"thing"}, FooApp.protection)
+    FooApp.protection(:test => "thing")
+    assert_equal({:test =>"thing"}, FooApp.protection)
 
     FooApp.protection false
     assert_equal false, FooApp.protection
@@ -178,8 +178,8 @@ class AppTest < Test::Unit::TestCase
   def test_sessions
     assert_equal false, FooApp.sessions
 
-    FooApp.sessions(test: "thing")
-    assert_equal({test:"thing"}, FooApp.sessions)
+    FooApp.sessions(:test => "thing")
+    assert_equal({:test =>"thing"}, FooApp.sessions)
 
     FooApp.sessions false
     assert_equal false, FooApp.sessions
@@ -317,7 +317,7 @@ class AppTest < Test::Unit::TestCase
 
   def test_template_for
     FooApp.default_template Tilt::ERBTemplate, "erb"
-    @app = FooApp.new root_dir: "./test/app"
+    @app = FooApp.new :root_dir => "./test/app"
     template = @app.template_for "./test/app/layouts/foo"
 
     assert Tilt::ERBTemplate === template
@@ -326,14 +326,14 @@ class AppTest < Test::Unit::TestCase
 
 
   def test_template_for_invalid
-    @app = FooApp.new root_dir: "./test/app"
+    @app = FooApp.new :root_dir => "./test/app"
     template = @app.template_for "./test/app/layouts/ugh"
     assert_nil template
   end
 
 
   def test_template_files
-    @app = FooApp.new root_dir: "./test/app"
+    @app = FooApp.new :root_dir => "./test/app"
 
     files = @app.template_files "./test/app/layouts/foo"
     assert_equal ["./test/app/layouts/foo.erb"], files
@@ -355,7 +355,7 @@ class AppTest < Test::Unit::TestCase
     assert_equal [FooMiddleware, :foo, :bar], FooApp.middleware[0]
     assert !FooMiddleware.called?
 
-    myapp = FooApp.new logger: @error_io
+    myapp = FooApp.new :logger => @error_io
     myapp.call({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'})
     assert FooMiddleware.called?
 

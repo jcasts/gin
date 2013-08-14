@@ -106,7 +106,7 @@ class ControllerTest < Test::Unit::TestCase
     MockApp.options[:environment] = 'test'
     MockApp.options[:asset_host] = nil
     BarController.instance_variable_set("@layout", nil)
-    @app  = MockApp.new logger: StringIO.new
+    @app  = MockApp.new :logger => StringIO.new
     @ctrl = BarController.new(@app, rack_env)
   end
 
@@ -169,7 +169,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_view_layout_missing
-    str = @ctrl.view :bar, layout: "missing"
+    str = @ctrl.view :bar, :layout => "missing"
     assert_equal "Value is BarHelper\n", str
     assert_equal [File.join(@app.views_dir, "bar.erb")],
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES]
@@ -177,7 +177,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_view_other_layout
-    str = @ctrl.view :bar, layout: "bar.erb"
+    str = @ctrl.view :bar, :layout => "bar.erb"
     assert(/Bar Layout/ === str)
     assert(/BarHelper/ === str)
     assert_equal File.join(@app.layouts_dir, "bar.erb"),
@@ -188,7 +188,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_view_no_layout
-    str = @ctrl.view :bar, layout: false
+    str = @ctrl.view :bar, :layout => false
     assert_equal "Value is BarHelper\n", str
     assert_equal [File.join(@app.views_dir, "bar.erb")],
                   @ctrl.env[Gin::Constants::GIN_TEMPLATES]
@@ -201,7 +201,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_view_locals
-    str = @ctrl.view :bar, locals: {test_val: "LOCAL"}
+    str = @ctrl.view :bar, :locals => {:test_val => "LOCAL"}
     assert(/Foo Layout/ === str)
     assert(str !~ /BarHelper/)
     assert(/Value is LOCAL/ === str)
@@ -214,7 +214,7 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_view_scope
     scope = Struct.new(:test_val).new("SCOPED")
-    str = @ctrl.view :bar, scope: scope
+    str = @ctrl.view :bar, :scope => scope
     assert(/Foo Layout/ === str)
     assert(str !~ /BarHelper/)
     assert(/Value is SCOPED/ === str)
@@ -226,7 +226,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_view_engine
-    str = @ctrl.view :bar, engine: MockTemplateEngine
+    str = @ctrl.view :bar, :engine => MockTemplateEngine
     assert(/Foo Layout/ === str)
     assert(str !~ /BarHelper/)
     assert(/mock render/ === str)
@@ -238,7 +238,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_view_layout_engine
-    str = @ctrl.view :bar, layout_engine: MockTemplateEngine
+    str = @ctrl.view :bar, :layout_engine => MockTemplateEngine
     assert_equal "mock render", str
   end
 
@@ -246,7 +246,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_view_content_type
     @ctrl.content_type "text/html"
     MockTemplateEngine.default_mime_type = "application/json"
-    @ctrl.view :bar, engine: MockTemplateEngine, content_type: "application/xml"
+    @ctrl.view :bar, :engine => MockTemplateEngine, :content_type => "application/xml"
     assert_equal "application/xml;charset=UTF-8",
                  @ctrl.response[Gin::Constants::CNT_TYPE]
   end
@@ -255,7 +255,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_view_template_content_type
     @ctrl.response[Gin::Constants::CNT_TYPE] = nil
     MockTemplateEngine.default_mime_type = "application/json"
-    @ctrl.view :bar, engine: MockTemplateEngine
+    @ctrl.view :bar, :engine => MockTemplateEngine
     assert_equal "application/json;charset=UTF-8",
                  @ctrl.response[Gin::Constants::CNT_TYPE]
   end
@@ -264,7 +264,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_view_default_content_type
     @ctrl.content_type "text/html"
     MockTemplateEngine.default_mime_type = "application/json"
-    @ctrl.view :bar, engine: MockTemplateEngine
+    @ctrl.view :bar, :engine => MockTemplateEngine
     assert_equal "text/html;charset=UTF-8",
                  @ctrl.response[Gin::Constants::CNT_TYPE]
   end
@@ -279,7 +279,7 @@ class ControllerTest < Test::Unit::TestCase
     @ctrl.etag("my-etag")
     assert_equal "my-etag".inspect, @ctrl.response['ETag']
 
-    @ctrl.etag("my-etag", kind: :strong)
+    @ctrl.etag("my-etag", :kind => :strong)
     assert_equal "my-etag".inspect, @ctrl.response['ETag']
 
     @ctrl.etag("my-etag", :strong)
@@ -288,7 +288,7 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_etag_weak
-    @ctrl.etag("my-etag", kind: :weak)
+    @ctrl.etag("my-etag", :kind => :weak)
     assert_equal 'W/"my-etag"', @ctrl.response['ETag']
 
     @ctrl.etag("my-etag", :weak)
@@ -308,7 +308,7 @@ class ControllerTest < Test::Unit::TestCase
     assert_equal "my-etag".inspect, @ctrl.response['ETag']
 
     rack_env['HTTP_IF_MATCH'] = '*'
-    resp = catch(:halt){ @ctrl.etag "my-etag", new_resource: true }
+    resp = catch(:halt){ @ctrl.etag "my-etag", :new_resource => true }
     assert_equal 412, resp
     assert_equal "my-etag".inspect, @ctrl.response['ETag']
 
@@ -340,7 +340,7 @@ class ControllerTest < Test::Unit::TestCase
 
     rack_env['REQUEST_METHOD'] = 'POST'
     rack_env['HTTP_IF_NONE_MATCH'] = '*'
-    resp = catch(:halt){ @ctrl.etag "my-etag", new_resource: false }
+    resp = catch(:halt){ @ctrl.etag "my-etag", :new_resource => false }
     assert_equal 412, resp
     assert_equal "my-etag".inspect, @ctrl.response['ETag']
   end
@@ -369,11 +369,11 @@ class ControllerTest < Test::Unit::TestCase
 
 
   def test_cache_control
-    @ctrl.cache_control :public, :must_revalidate, max_age: 60
+    @ctrl.cache_control :public, :must_revalidate, :max_age => 60
     assert_equal "public, must-revalidate, max-age=60",
                  @ctrl.response['Cache-Control']
 
-    @ctrl.cache_control public:true, must_revalidate:false, max_age:'foo'
+    @ctrl.cache_control :public =>true, :must_revalidate =>false, :max_age =>'foo'
     assert_equal "public, max-age=0", @ctrl.response['Cache-Control']
   end
 
@@ -391,7 +391,7 @@ class ControllerTest < Test::Unit::TestCase
 
   def test_expires_time
     time = Time.now + 60
-    @ctrl.expires time, :public, must_revalidate:false, max_age:20
+    @ctrl.expires time, :public, :must_revalidate =>false, :max_age =>20
 
     assert_equal "public, max-age=20",
                  @ctrl.response['Cache-Control']
@@ -403,7 +403,7 @@ class ControllerTest < Test::Unit::TestCase
   def test_expires_str
     time = Time.now + 60
     @ctrl.expires time.strftime("%Y/%m/%d %H:%M:%S"),
-                  :public, must_revalidate:false, max_age:20
+                  :public, :must_revalidate =>false, :max_age =>20
 
     assert_equal "public, max-age=20",
                  @ctrl.response['Cache-Control']
@@ -592,7 +592,7 @@ if RUBY_VERSION =~ /^2.0/
 
   def test_action_arguments_key_parameters
     @ctrl = SpecialCtrl.new nil, rack_env.merge('QUERY_STRING'=>'q=pizza&count=20')
-    assert_equal ["pizza", {count: 20}], @ctrl.send("action_arguments", "find")
+    assert_equal ["pizza", {:count => 20}], @ctrl.send("action_arguments", "find")
   end
 end
 
@@ -781,11 +781,11 @@ end
 
 
   def test_path_to
-    assert_equal "/bar/123", @ctrl.path_to(BarController, :show, id: 123)
-    assert_equal "/bar/123", @ctrl.path_to(:show, id: 123)
-    assert_equal "/bar/delete?id=123", @ctrl.path_to(:rm_bar, id: 123)
+    assert_equal "/bar/123", @ctrl.path_to(BarController, :show, :id => 123)
+    assert_equal "/bar/123", @ctrl.path_to(:show, :id => 123)
+    assert_equal "/bar/delete?id=123", @ctrl.path_to(:rm_bar, :id => 123)
     assert_equal "/bar/delete", @ctrl.path_to(:rm_bar)
-    assert_equal "/test?id=123", @ctrl.path_to("/test", id: 123)
+    assert_equal "/test?id=123", @ctrl.path_to("/test", :id => 123)
     assert_equal "/test", @ctrl.path_to("/test")
   end
 
@@ -999,7 +999,7 @@ end
 
   def test_send_file_last_modified
     mod_date = Time.now
-    catch(:halt){ @ctrl.send_file "./Manifest.txt", last_modified: mod_date }
+    catch(:halt){ @ctrl.send_file "./Manifest.txt", :last_modified => mod_date }
     assert_equal mod_date.httpdate, @ctrl.headers["Last-Modified"]
     assert_nil @ctrl.headers['Content-Disposition']
   end
@@ -1038,10 +1038,10 @@ end
 
   def test_content_type_params
     assert_equal "application/json;charset=ASCII-8BIT",
-      @ctrl.content_type(".json", charset: "ASCII-8BIT")
+      @ctrl.content_type(".json", :charset => "ASCII-8BIT")
 
     assert_equal "application/json;foo=bar, charset=UTF-8",
-      @ctrl.content_type(".json", foo: "bar")
+      @ctrl.content_type(".json", :foo => "bar")
   end
 
 
@@ -1051,7 +1051,7 @@ end
     end
 
     assert_equal "text/html;charset=UTF-8",
-      @ctrl.content_type('fhwbghd', default: 'text/html')
+      @ctrl.content_type('fhwbghd', :default => 'text/html')
   end
 
 

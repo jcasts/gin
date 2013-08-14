@@ -23,7 +23,7 @@ class GinTest < Test::Unit::TestCase
 
 
   def test_build_query
-    hash = {a: "bob", b: [1,2.2,-3,{ba:"test"}], c:true, d:false}
+    hash = {:a => "bob", :b => [1,2.2,-3,{:ba =>"test"}], :c =>true, :d =>false}
     expected = "a=bob&b[]=1&b[]=2.2&b[]=-3&b[][ba]=test&c=true&d=false"
     assert_equal expected, Gin.build_query(hash)
   end

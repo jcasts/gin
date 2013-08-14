@@ -47,7 +47,7 @@ class FilterableTest < Test::Unit::TestCase
 
     private
 
-    def __call_filters__ type, action #:nodoc:
+    def __call_filters__ type, action
       filter(*__send__(:"#{type}_filters_for", action))
     end
   end

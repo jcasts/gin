@@ -8,7 +8,7 @@ class ConfigTest < Test::Unit::TestCase
   def setup
     @error_io = StringIO.new
     @config = Gin::Config.new "development",
-                dir: CONFIG_DIR, logger: @error_io, ttl: 300
+                :dir => CONFIG_DIR, :logger => @error_io, :ttl => 300
   end
 
 
@@ -23,7 +23,7 @@ class ConfigTest < Test::Unit::TestCase
 
 
   def test_config_unknown_env
-    @config = Gin::Config.new "foo", dir: CONFIG_DIR
+    @config = Gin::Config.new "foo", :dir => CONFIG_DIR
 
     assert_equal "example.com", @config['memcache.host']
     assert_equal 5, @config['memcache.connections']

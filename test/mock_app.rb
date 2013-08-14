@@ -5,22 +5,22 @@ class MockApp < Gin::App
     layout "foo"
 
     def index
-      view :bar, locals: {test_val: "LOCAL"}
+      view :bar, :locals => {:test_val => "LOCAL"}
     end
 
     def login
       set_cookie "foo_session", "12345",
-        expires: Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")
+        :expires => Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")
       "OK"
     end
 
     def supercookie
       set_cookie "supercookie", "SUPER!",
-        expires:  Time.parse("Fri, 01 Jan 2100 00:00:00 -0000"),
-        domain:   "mockapp.com",
-        path:     "/",
-        secure:   true,
-        httponly: true
+        :expires =>  Time.parse("Fri, 01 Jan 2100 00:00:00 -0000"),
+        :domain =>   "mockapp.com",
+        :path =>     "/",
+        :secure =>   true,
+        :httponly => true
       "OK"
     end
   end

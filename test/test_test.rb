@@ -53,30 +53,30 @@ class TestTest < Test::Unit::TestCase
 
   def test_path_to
     assert_nil @tests.default_controller
-    assert_equal "/bar/123", @tests.path_to(:show_bar, id: 123)
-    assert_equal "/bar/123", @tests.path_to(MockApp::BarController, :show, id: 123)
-    assert_equal "/bar?id=123", @tests.path_to("/bar", id: 123)
+    assert_equal "/bar/123", @tests.path_to(:show_bar, :id => 123)
+    assert_equal "/bar/123", @tests.path_to(MockApp::BarController, :show, :id => 123)
+    assert_equal "/bar?id=123", @tests.path_to("/bar", :id => 123)
   end
 
 
   def test_path_to_default_ctrl
     @tests.default_controller MockApp::BarController
-    assert_equal "/bar/123", @tests.path_to(:show_bar, id: 123)
-    assert_equal "/bar/123", @tests.path_to(:show, id: 123)
+    assert_equal "/bar/123", @tests.path_to(:show_bar, :id => 123)
+    assert_equal "/bar/123", @tests.path_to(:show, :id => 123)
   end
 
 
   def test_path_to_no_ctrl
     assert_nil @tests.default_controller
     assert_raises(Gin::RouterError) do
-      @tests.path_to(:show, id: 123)
+      @tests.path_to(:show, :id => 123)
     end
   end
 
 
   def test_make_request
     resp = @tests.make_request :get, :show_bar,
-              {id: 123, foo: "BAR", bar: "BAZ Foo"},'REMOTE_ADDR' => '127.0.0.1'
+              {:id => 123, :foo => "BAR", :bar => "BAZ Foo"},'REMOTE_ADDR' => '127.0.0.1'
 
     assert_equal "foo=BAR&bar=BAZ+Foo", @tests.req_env['QUERY_STRING']
     assert_equal "/bar/123", @tests.req_env['PATH_INFO']
@@ -119,11 +119,11 @@ class TestTest < Test::Unit::TestCase
                  resp[1]["Set-Cookie"]
 
     time = Time.parse "2100-01-01 00:00:00 UTC"
-    cookie = {name: "foo_session", value: "12345", expires_at: time}
+    cookie = {:name => "foo_session", :value => "12345", :expires_at => time}
     assert_equal cookie, @tests.cookies["foo_session"]
 
     @tests.set_cookie "bar", 5678
-    resp = @tests.make_request :get, :show_bar, id: 123
+    resp = @tests.make_request :get, :show_bar, :id => 123
     assert_equal "foo_session=12345; bar=5678", @tests.req_env['HTTP_COOKIE']
   end
 
@@ -136,18 +136,18 @@ class TestTest < Test::Unit::TestCase
 
     time = Time.parse "2100-01-01 00:00:00 UTC"
 
-    expected = {name: "foo_session", value: "12345", expires_at: time}
+    expected = {:name => "foo_session", :value => "12345", :expires_at => time}
     assert_equal expected, @tests.cookies['foo_session']
 
-    expected = {name: "supercookie", value: "SUPER!", domain: "mockapp.com",
-      path: "/", expires_at: time, secure: true, http_only: true}
+    expected = {:name => "supercookie", :value => "SUPER!", :domain => "mockapp.com",
+      :path => "/", :expires_at => time, :secure => true, :http_only => true}
     assert_equal expected, @tests.cookies['supercookie']
   end
 
 
   def test_make_request_verb_methods
     %w{get post put patch delete head options}.each do |verb|
-      resp = @tests.send verb, :show_bar, id: 123
+      resp = @tests.send verb, :show_bar, :id => 123
       assert_equal verb.upcase, @tests.req_env['REQUEST_METHOD']
       if verb == 'get'
         assert_equal MockApp::BarController,
@@ -326,33 +326,33 @@ class TestTest < Test::Unit::TestCase
   def test_assert_data_json
     @tests.rack_response[1]['Content-Type'] = 'application/json'
     @tests.rack_response[2] =
-      [{name:"bob",addresses:[{street:"123 bob st"},{street:"321 foo st"}]}.to_json]
+      [{:name =>"bob",:addresses =>[{:street =>"123 bob st"},{:street =>"321 foo st"}]}.to_json]
 
     assert @tests.assert_data("name=bob")
-    assert @tests.assert_data("name", value: "bob", count: 1)
-    assert @tests.assert_data("addresses/*/street", count: 2)
+    assert @tests.assert_data("name", :value => "bob", :count => 1)
+    assert @tests.assert_data("addresses/*/street", :count => 2)
   end
 
 
   def test_assert_data_bson
     @tests.rack_response[1]['Content-Type'] = 'application/bson'
     @tests.rack_response[2] =
-      [BSON.serialize({name:"bob",addresses:[{street:"123 bob st"},{street:"321 foo st"}]}).to_s]
+      [BSON.serialize({:name =>"bob",:addresses =>[{:street =>"123 bob st"},{:street =>"321 foo st"}]}).to_s]
 
     assert @tests.assert_data("name=bob")
-    assert @tests.assert_data("name", value: "bob", count: 1)
-    assert @tests.assert_data("addresses/*/street", count: 2)
+    assert @tests.assert_data("name", :value => "bob", :count => 1)
+    assert @tests.assert_data("addresses/*/street", :count => 2)
   end
 
 
   def test_assert_data_plist
     @tests.rack_response[1]['Content-Type'] = 'application/plist'
     @tests.rack_response[2] =
-      [{name:"bob",addresses:[{street:"123 bob st"},{street:"321 foo st"}]}.to_plist]
+      [{:name =>"bob",:addresses =>[{:street =>"123 bob st"},{:street =>"321 foo st"}]}.to_plist]
 
     assert @tests.assert_data("name=bob")
-    assert @tests.assert_data("name", value: "bob", count: 1)
-    assert @tests.assert_data("addresses/*/street", count: 2)
+    assert @tests.assert_data("name", :value => "bob", :count => 1)
+    assert @tests.assert_data("addresses/*/street", :count => 2)
   end
 
 
@@ -368,8 +368,8 @@ class TestTest < Test::Unit::TestCase
     @tests.rack_response[1]['Content-Type'] = 'application/xml'
     @tests.rack_response[2] = [data]
 
-    assert @tests.assert_xpath("/root/name", value: "bob", count: 1)
-    assert @tests.assert_xpath(".//street", count: 2)
+    assert @tests.assert_xpath("/root/name", :value => "bob", :count => 1)
+    assert @tests.assert_xpath(".//street", :count => 2)
   end
 
 
@@ -388,8 +388,8 @@ class TestTest < Test::Unit::TestCase
     @tests.rack_response[1]['Content-Type'] = 'application/html'
     @tests.rack_response[2] = [html]
 
-    assert @tests.assert_css(".name", value: "bob", count: 1)
-    assert @tests.assert_css(".address>.street", count: 2)
+    assert @tests.assert_css(".name", :value => "bob", :count => 1)
+    assert @tests.assert_css(".address>.street", :count => 2)
   end
 
 
@@ -397,7 +397,7 @@ class TestTest < Test::Unit::TestCase
     @tests.rack_response[1]['Content-Type'] = 'application/json'
     @tests.rack_response[2] = ['{"foo":123}']
     assert_raises(RuntimeError) do
-      @tests.assert_select(".name", selector: :foo)
+      @tests.assert_select(".name", :selector => :foo)
     end
   end
 
@@ -413,13 +413,13 @@ class TestTest < Test::Unit::TestCase
                   @tests.last_message
 
     assert_raises(MockAssertionError) do
-      @tests.assert_select "/foo", count: 2
+      @tests.assert_select "/foo", :count => 2
     end
     assert_equal "Expected 2 items matching '/foo' but found 1",
                   @tests.last_message
 
     assert_raises(MockAssertionError) do
-      @tests.assert_select "/foo", value: 321
+      @tests.assert_select "/foo", :value => 321
     end
 
     assert_equal "Expected at least one item matching '/foo' with value 321 but found none",
@@ -431,11 +431,11 @@ class TestTest < Test::Unit::TestCase
     @tests.get :supercookie_foo
 
     assert @tests.assert_cookie("supercookie")
-    assert @tests.assert_cookie("supercookie", value: "SUPER!")
-    assert @tests.assert_cookie("supercookie", domain: "mockapp.com")
+    assert @tests.assert_cookie("supercookie", :value => "SUPER!")
+    assert @tests.assert_cookie("supercookie", :domain => "mockapp.com")
 
-    attribs = {domain: "mockapp.com", value: "SUPER!", path: "/", secure: true,
-      http_only: true, expires_at: Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")}
+    attribs = {:domain => "mockapp.com", :value => "SUPER!", :path => "/", :secure => true,
+      :http_only => true, :expires_at => Time.parse("Fri, 01 Jan 2100 00:00:00 -0000")}
     assert @tests.assert_cookie("supercookie", attribs)
   end
 
@@ -469,7 +469,7 @@ class TestTest < Test::Unit::TestCase
     @tests.get :supercookie_foo
 
     assert_raises(MockAssertionError) do
-      @tests.assert_cookie "supercookie", value: "BLAH"
+      @tests.assert_cookie "supercookie", :value => "BLAH"
     end
     assert_equal "Expected cookie value to be \"BLAH\" but was \"SUPER!\"",
                  @tests.last_message
