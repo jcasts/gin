@@ -24,8 +24,8 @@ class GinTest < Test::Unit::TestCase
 
   def test_build_query
     hash = {:a => "bob", :b => [1,2.2,-3,{:ba =>"test"}], :c =>true, :d =>false}
-    expected = "a=bob&b[]=1&b[]=2.2&b[]=-3&b[][ba]=test&c=true&d=false"
-    assert_equal expected, Gin.build_query(hash)
+    expected = %w{a=bob b[]=1 b[]=2.2 b[]=-3 b[][ba]=test c=true d=false}
+    assert_equal expected.sort, Gin.build_query(hash).split("&").sort
   end
 
 
@@ -39,9 +39,10 @@ class GinTest < Test::Unit::TestCase
 
 
   def test_find_loadpath
-    assert_equal __FILE__, Gin.find_loadpath("test/test_gin")
-    assert_equal __FILE__, Gin.find_loadpath("test/test_gin.rb")
-    assert_equal __FILE__, Gin.find_loadpath(__FILE__)
+    curr_file = File.expand_path(__FILE__)
+    assert_equal curr_file, Gin.find_loadpath("test/test_gin")
+    assert_equal curr_file, Gin.find_loadpath("test/test_gin.rb")
+    assert_equal curr_file, Gin.find_loadpath(__FILE__)
     assert_nil Gin.find_loadpath("FUUUUU")
   end
 

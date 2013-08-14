@@ -47,7 +47,7 @@ class ConfigTest < Test::Unit::TestCase
     assert @config.instance_variable_get("@data").empty?
     @config.load!
     assert_equal %w{backend memcache},
-                 @config.instance_variable_get("@data").keys
+                 @config.instance_variable_get("@data").keys.sort
   end
 
 
@@ -58,7 +58,7 @@ class ConfigTest < Test::Unit::TestCase
 
 
   def test_invalid_yaml
-    assert_raise Psych::SyntaxError do
+    assert_raise Gin::Config::SYNTAX_ERROR do
       YAML.load_file @config.send(:filepath_for, 'invalid')
     end
     assert_nil @config.load_config('invalid')

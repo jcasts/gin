@@ -15,20 +15,21 @@ class CacheTest < Test::Unit::TestCase
   end
 
 
-  def test_write_thread_safe
+  # This test only valid for non-GC Ruby implementations
+  def test_readwrite_thread_safe
     @cache[:num] = 0
-    @mutex = Mutex.new
     @num = 0
 
     threads = []
-    30.times do
-      threads << Thread.new{ @cache[:num] += 1 }
+    15.times do
+      threads << Thread.new{ @cache[:num] = Thread.current.object_id }
+    end
+    15.times do
+      threads << Thread.new{ assert @cache[:num] }
     end
     threads.each do |t|
       t.join
     end
-
-    assert_equal 30, @cache[:num]
   end
 
 

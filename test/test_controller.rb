@@ -889,7 +889,7 @@ end
     assert_equal time.httpdate, @ctrl.response['Last-Modified']
 
     date = Date.parse time.to_s
-    expected = Time.new(time.year, time.month, time.day)
+    expected = Time.local(time.year, time.month, time.day)
     @ctrl.last_modified date
     assert_equal expected.httpdate, @ctrl.response['Last-Modified']
   end
@@ -954,7 +954,8 @@ end
       rack_env['HTTP_IF_MODIFIED_SINCE'] = Time.parse("10 Feb 3012").httpdate
       time = Time.now
       @ctrl.status code
-      @ctrl.last_modified time
+      res = catch(:halt){ @ctrl.last_modified time }
+      assert_equal 304, res if code == 200
       assert_equal time.httpdate, @ctrl.response['Last-Modified']
     end
   end

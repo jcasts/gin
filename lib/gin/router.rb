@@ -213,14 +213,16 @@ class Gin::Router
       parts.each_with_index do |p, i|
         next if p.empty?
 
+        is_param = false
         part = Regexp.escape(p).gsub!(VAR_MATCHER) do
           @param_keys << $1
+          is_param = true
           PARAM_MATCHER
         end
 
         if part == PARAM_MATCHER
           part = "%s"
-        elsif $1
+        elsif is_param
           part = /^#{part}$/
         else
           part = p
@@ -360,7 +362,8 @@ class Gin::Router
     curr_node  = @routes_tree[http_verb.to_s.upcase]
     return unless curr_node
 
-    path.scan(%r{/([^/]+|$)}) do |(key)|
+    path.scan(%r{/([^/]+|$)}) do |matches|
+      key = matches[0]
       next if key.empty?
 
       if curr_node[key]
@@ -385,6 +388,6 @@ class Gin::Router
     path_params = param_vals.empty? ?
       {} : route.param_keys.inject({}){|h, name| h[name] = param_vals.shift; h}
 
-    [*route.target, path_params]
+    route.target.dup << path_params
   end
 end

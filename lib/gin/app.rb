@@ -199,9 +199,9 @@ class Gin::App
 
   def self.make_config opts={}  # :nodoc:
     Gin::Config.new opts[:environment] || self.environment,
-        dir:    opts[:config_dir]    || self.config_dir,
-        logger: opts[:logger]        || self.logger,
-        ttl:    opts[:config_reload] || self.config_reload
+        :dir =>    opts[:config_dir]    || self.config_dir,
+        :logger => opts[:logger]        || self.logger,
+        :ttl =>    opts[:config_reload] || self.config_reload
   end
 
 
@@ -517,11 +517,11 @@ class Gin::App
     end
 
     @options = {
-      config_dir:  self.class.config_dir,
-      public_dir:  self.class.public_dir,
-      layouts_dir: self.class.layouts_dir,
-      views_dir:   self.class.views_dir,
-      config:      self.class.config
+      :config_dir =>  self.class.config_dir,
+      :public_dir =>  self.class.public_dir,
+      :layouts_dir => self.class.layouts_dir,
+      :views_dir =>   self.class.views_dir,
+      :config =>      self.class.config
     }.merge(self.class.options).merge(options)
 
     @options[:config] = self.class.make_config(@options) if

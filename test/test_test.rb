@@ -78,7 +78,7 @@ class TestTest < Test::Unit::TestCase
     resp = @tests.make_request :get, :show_bar,
               {:id => 123, :foo => "BAR", :bar => "BAZ Foo"},'REMOTE_ADDR' => '127.0.0.1'
 
-    assert_equal "foo=BAR&bar=BAZ+Foo", @tests.req_env['QUERY_STRING']
+    assert_equal %w{bar=BAZ+Foo foo=BAR}, @tests.req_env['QUERY_STRING'].split('&').sort
     assert_equal "/bar/123", @tests.req_env['PATH_INFO']
     assert_equal "127.0.0.1", @tests.req_env['REMOTE_ADDR']
     assert_equal "127.0.0.1", @tests.request.ip
@@ -124,7 +124,8 @@ class TestTest < Test::Unit::TestCase
 
     @tests.set_cookie "bar", 5678
     resp = @tests.make_request :get, :show_bar, :id => 123
-    assert_equal "foo_session=12345; bar=5678", @tests.req_env['HTTP_COOKIE']
+    assert_equal %w{bar=5678 foo_session=12345},
+                 @tests.req_env['HTTP_COOKIE'].split('; ').sort
   end
 
 
@@ -357,11 +358,11 @@ class TestTest < Test::Unit::TestCase
 
 
   def test_assert_xpath
-    data = Nokogiri::XML::Builder.new do
-      root{
-        name "bob"
-        address{ street "123 bob st" }
-        address{ street "321 foo st" }
+    data = Nokogiri::XML::Builder.new do |xml|
+      xml.root{
+        xml.name "bob"
+        xml.address{ xml.street "123 bob st" }
+        xml.address{ xml.street "321 foo st" }
       }
     end.to_xml
 
@@ -586,9 +587,9 @@ got MockApp::FooController#index", @tests.last_message
       Assertion = MockAssertionError unless const_defined?(:Assertion)
     end
 
-    def raise err, msg=nil
-      err, msg = RuntimeError, err if String === err && msg.nil?
-      @last_message = err.respond_to?(:message) ? err.message : msg
+    def raise *args
+      @last_message = String === args.last && args.last ||
+                      args.last.respond_to?(:message) && args.last.message
       super
     end
   end

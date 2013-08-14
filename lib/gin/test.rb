@@ -137,7 +137,7 @@ module Gin::Test::Assertions
   #   assert_select '**/address/domestic=YES/../value'
 
   def assert_data path, opts={}, msg=nil
-    assert_select path, opts.merge(selector: :rb_path), msg
+    assert_select path, opts.merge(:selector => :rb_path), msg
   end
 
 
@@ -153,7 +153,7 @@ module Gin::Test::Assertions
   #   assert_select '.address[domestic=Yes]'
 
   def assert_css path, opts={}, msg=nil
-    assert_select path, opts.merge(selector: :css), msg
+    assert_select path, opts.merge(:selector => :css), msg
   end
 
 
@@ -169,7 +169,7 @@ module Gin::Test::Assertions
   #   assert_select './/address[@domestic=Yes]'
 
   def assert_xpath path, opts={}, msg=nil
-    assert_select path, opts.merge(selector: :xpath), msg
+    assert_select path, opts.merge(:selector => :xpath), msg
   end
 
 

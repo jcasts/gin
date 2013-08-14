@@ -41,6 +41,8 @@ class Gin::Config
 
   attr_accessor :dir, :logger, :ttl, :environment
 
+  SYNTAX_ERROR = defined?(Psych) ? Psych::SyntaxError : ArgumentError
+
   ##
   # Create a new config instance for the given environment name.
   # The environment dictates which part of the config files gets exposed.
@@ -120,7 +122,7 @@ class Gin::Config
       @data[name] = c
     end
 
-  rescue Psych::SyntaxError
+  rescue SYNTAX_ERROR
     @logger.write "[ERROR] Could not parse config `#{filepath}' as YAML"
     return nil
   end

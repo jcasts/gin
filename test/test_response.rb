@@ -37,7 +37,7 @@ class ResponseTest < Test::Unit::TestCase
     @res.body = file
     resp = @res.finish
 
-    assert_equal file.size.to_s, resp[1]['Content-Length']
+    assert_equal File.size(file.path).to_s, resp[1]['Content-Length']
   end
 
 

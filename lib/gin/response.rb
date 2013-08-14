@@ -8,13 +8,15 @@ class Gin::Response < Rack::Response
 
   def body= value
     value = value.body while Rack::Response === value
-    @body = value.respond_to?(:each) ? value : [value.to_s]
+    @body = value.respond_to?(:each) && !value.is_a?(String) ?
+              value : [value.to_s]
     @body
   end
 
 
   def finish
     body_out = body
+    body_out = [body_out] if String === body_out
     header[CNT_TYPE] ||= 'text/html;charset=UTF-8'
 
     if NO_HEADER_STATUSES.include?(status.to_i)
@@ -43,7 +45,7 @@ class Gin::Response < Rack::Response
                                l + Rack::Utils.bytesize(p)
                              end.to_s
       when File
-        header[CNT_LENGTH] = body.size.to_s
+        header[CNT_LENGTH] = File.size(body.path).to_s
       end
     end
   end

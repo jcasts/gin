@@ -1,6 +1,7 @@
 === 1.1.3 / 2013-08-19
 
 * Minor Enhancements
+  * Runs on Rubinius
   * More robust indifferent access hash implementation
   * Support for rewriting requests from the controller
   * Support for rerouting requests to other controllers and actions

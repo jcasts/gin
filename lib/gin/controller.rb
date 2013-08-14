@@ -84,7 +84,7 @@ class Gin::Controller
   # Array of action names for this controller.
 
   def self.actions
-    instance_methods(false)
+    instance_methods(false).map{|a| a.to_sym }
   end
 
 
@@ -598,9 +598,15 @@ class Gin::Controller
   def last_modified time
     return unless time
 
-    time = Time.at(time)    if Integer === time
-    time = Time.parse(time) if String === time
-    time = time.to_time     if time.respond_to?(:to_time)
+    time = if Integer === time
+             Time.at(time)
+           elsif time.respond_to?(:to_time)
+             time.to_time
+           elsif !time.is_a?(Time)
+             Time.parse time.to_s
+           else
+             time
+           end
 
     @response[LAST_MOD] = time.httpdate
     return if @env[IF_NONE_MATCH]
@@ -684,7 +690,7 @@ class Gin::Controller
 
   def expire_cache_control
     @response[PRAGMA] = 'no-cache'
-    expires EPOCH, :no_cache, :no_store, :must_revalidate, max_age: 0
+    expires EPOCH, :no_cache, :no_store, :must_revalidate, :max_age => 0
   end
 
 
@@ -693,7 +699,7 @@ class Gin::Controller
 
   def asset_url name
     url = File.join(@app.asset_host_for(name).to_s, name)
-    url = [url, *@app.asset_version(url)].join("?") if url !~ %r{^https?://}
+    url = [url, *@app.asset_version(url)].compact.join("?") if url !~ %r{^https?://}
     url
   end
 
@@ -731,7 +737,7 @@ class Gin::Controller
   #   #=> "<root_dir>/other/foo"
 
   def template_path template, is_layout=false
-    dir = if template[0] == ?/
+    dir = if template.to_s[0] == ?/
             @app.root_dir
           elsif is_layout
             @app.layouts_dir

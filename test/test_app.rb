@@ -582,7 +582,7 @@ class AppTest < Test::Unit::TestCase
     env = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
     err = ArgumentError.new("Unexpected Argument")
 
-    resp = @app.handle_error ArgumentError.new("Unexpected Argument"), env
+    resp = @app.handle_error err, env
     assert_equal 500, resp[0]
     assert_equal File.read(@app.asset("500.html")), resp[2].read
     assert_equal({"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"348"}, resp[1])
