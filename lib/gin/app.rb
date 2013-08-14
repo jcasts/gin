@@ -779,8 +779,8 @@ class Gin::App
   end
 
 
-  def rewrite! env, *args
-    headers = args.pop if Hash === args.last && /^[A-Z_]+$/ === args.last.keys.first
+  def rewrite_env env, *args  # :nodoc:
+    headers = args.pop if Hash === args.last && Hash === args[-2] && args[-2] != args[-1]
     params  = args.pop if Hash === args.last
 
     route = if String === args.first
@@ -796,10 +796,20 @@ class Gin::App
     new_env[GIN_TIMESTAMP] = env[GIN_TIMESTAMP]
 
     new_env.merge!(headers) if headers
-    new_env = route.to_env(params, new_env)
+    route.to_env(params, new_env)
+  end
+
+
+  ##
+  # Rewrites the given Rack env and processes the new request.
+  # You're probably looking for Gin::Controller#rewrite or
+  # Gin::Controller#reroute.
+
+  def rewrite! env, *args
+    new_env = rewrite_env(env, *args)
 
     logger << "[REWRITE] %s %s -> %s %s\n" %
-      [new_env[REQ_METHOD], new_env[PATH_INFO], env[REQ_METHOD], env[PATH_INFO]]
+      [env[REQ_METHOD], env[PATH_INFO], new_env[REQ_METHOD], new_env[PATH_INFO]]
 
     call(new_env)
   end

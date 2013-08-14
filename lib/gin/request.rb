@@ -56,7 +56,7 @@ class Gin::Request < Rack::Request
   def process_params object
     case object
     when Hash
-      new_hash = indifferent_hash
+      new_hash = Gin::StrictHash.new
       object.each { |key, value| new_hash[key] = process_params(value) }
       new_hash
     when Array
@@ -70,13 +70,5 @@ class Gin::Request < Rack::Request
     else
       object
     end
-  end
-
-
-  ##
-  # Creates a Hash with indifferent access.
-
-  def indifferent_hash
-    Hash.new {|hash,key| hash[key.to_s] if Symbol === key }
   end
 end

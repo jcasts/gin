@@ -117,6 +117,8 @@ class Gin::Router
   #   #=> "/foo/123.json"
 
   class Route
+    include Gin::Constants
+
     # Parsed out path param key names.
     attr_reader :param_keys
 
@@ -181,6 +183,7 @@ class Gin::Router
         QUERY_STRING => query_string
       )
 
+      # TODO: implement multipart streams for requests that support a body
       env[RACK_INPUT] ||= ''
       env
     end

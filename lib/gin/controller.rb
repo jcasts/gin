@@ -402,7 +402,8 @@ class Gin::Controller
 
   def path_to *args
     return "#{args[0]}#{"?" << Gin.build_query(args[1]) if args[1]}" if String === args[0]
-    args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
+    args.unshift(self.class) if Symbol === args[0] &&
+                                self.class.actions.include?(args[0])
     @app.router.path_to(*args)
   end
 
@@ -473,6 +474,9 @@ class Gin::Controller
   # Halt execution of the current controller action and create a new request to
   # another action and/or controller, or path.
   #
+  # Raises Gin::RouterError if the controller and action don't have a route.
+  # Returns a 404 response if an unrecognized path is given.
+  #
   # The rewrite method acts just as if a request had been sent from the client,
   # and will re-run any of the in-app middleware. If the app is itself running
   # as middleware, you may use rewrite to pass a request down to the next item
@@ -495,7 +499,7 @@ class Gin::Controller
   #   rewrite :show_foo, params, 'HTTP_X_CUSTOM_HEADER' => 'foo'
   #
   #   # Rewrite to an arbitrary path.
-  #   rewrite '/path/to/something/else', 'REQUEST_METHOD' => 'POST'
+  #   rewrite '/path/to/something/else', {}, 'REQUEST_METHOD' => 'POST'
   #
   # Note that params are not forwarded with the rewrite call. The app
   # considers this to be a completely different request, which means all params
@@ -505,7 +509,8 @@ class Gin::Controller
   # assigned to the 'rack.input' (as a part of the headers argument).
 
   def rewrite *args
-    args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
+    args.unshift(self.class) if Symbol === args[0] &&
+                                self.class.actions.include?(args[0])
     halt(*@app.rewrite!(@env, *args))
   end
 
@@ -513,8 +518,8 @@ class Gin::Controller
   ##
   # Unlike Gin::Controller#rewrite, the reroute method forwards the current
   # request and params to the provided controller and/or action, or named route.
-  # Halts further execution in the action. Raises RouterError if the controller
-  # and/or action can't be found from a named route.
+  # Halts further execution in the current action.
+  # Raises RouterError if a given named route isn't found in the app's routes.
   #
   #   reroute MyController, :action
   #   #=> Executes MyController#action
@@ -528,11 +533,12 @@ class Gin::Controller
   #   #=> the controller and action for the :show_foo named route.
   #
   #   # Reroute with the given headers.
-  #   reroute :show_foo, 'HTTP_X_CUSTOM_HEADER' => 'foo'
+  #   reroute :show_foo, {}, 'HTTP_X_CUSTOM_HEADER' => 'foo'
 
   def reroute *args
-    args.unshift(self.class) if Symbol === args[0] && respond_to?(args[0])
-    nheaders = args.pop if Hash === args.last && /^[A-Z_]+$/ === args.last.keys.first
+    args.unshift(self.class) if Symbol === args[0] &&
+                                self.class.actions.include?(args[0])
+    nheaders = args.pop if Hash === args.last && Hash === args[-2] && args[-2] != args[-1]
     nparams  = args.pop if Hash === args.last
 
     if Class === args[0]
@@ -543,7 +549,10 @@ class Gin::Controller
     end
 
     nenv = @env.merge(nheaders || {})
+    nenv[GIN_PATH_PARAMS] = {}
     ctrl = ctrl_klass.new(@app, nenv)
+
+    ctrl.params.merge!(params)
     ctrl.params.merge!(nparams) if nparams
 
     halt(*ctrl.call_action(naction))

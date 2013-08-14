@@ -271,4 +271,39 @@ class RouterTest < Test::Unit::TestCase
     assert_equal "/bar/sub%2Fthing/123%264.json?more=hi+there",
       @router.path_to(MyCtrl, :bar, params)
   end
+
+
+  def test_route_to
+    @router.add MyCtrl, '/my_ctrl/' do
+      get :show, "/:id"
+    end
+
+    route = @router.route_to(MyCtrl, :show)
+    assert_equal [MyCtrl, :show], route.target
+    assert_equal '/my_ctrl/123', route.to_path(:id => 123)
+
+    named_route = @router.route_to(:show_my_ctrl)
+    assert_equal route, named_route
+  end
+
+
+  def test_route_to_env
+    @router.add MyCtrl, '/my_ctrl/' do
+      post :update, "/:id"
+    end
+
+    route = @router.route_to(MyCtrl, :update)
+    expected_env = {'rack.input' => '', 'PATH_INFO' => '/my_ctrl/123',
+      'REQUEST_METHOD' => 'POST', 'QUERY_STRING' => 'blah=456'}
+
+    assert_equal expected_env, route.to_env(:id => 123, :blah => 456)
+
+    assert_raises Gin::Router::PathArgumentError do
+      route.to_env(:blah => 456)
+    end
+
+    expected_env['rack.input'] = 'foo=bar'
+    assert_equal expected_env,
+      route.to_env({:id => 123, :blah => 456}, {'rack.input' => 'foo=bar'})
+  end
 end

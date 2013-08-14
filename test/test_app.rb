@@ -4,6 +4,7 @@ require "stringio"
 class FooController < Gin::Controller;
   def index; "FOO"; end
   def create; end
+  def show id; "FOO ID = #{id}"; end
   def error; raise "Something bad happened"; end
 end
 
@@ -21,6 +22,7 @@ class FooApp < Gin::App
     get  :index,  "/"
     post :create, "/"
     get  :error,  "/error"
+    get  :show, "/:id"
   end
 
   def reloaded?
@@ -71,6 +73,8 @@ end
 
 
 class AppTest < Test::Unit::TestCase
+  include Gin::Constants
+
   class NamespacedApp < Gin::App; end
 
   FOO_ROUTER = FooApp.router
@@ -358,6 +362,88 @@ class AppTest < Test::Unit::TestCase
     FooMiddleware.reset!
     myapp.dispatch({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}, FooController, :index)
     assert !FooMiddleware.called?
+  end
+
+
+  def test_rewrite_env
+    time = Time.now
+    env = {'rack.input' => 'id=foo', 'PATH_INFO' => '/foobar', 'REQUEST_METHOD' => 'GET',
+          'REMOTE_ADDR' => '127.0.0.1', GIN_RELOADED => true, GIN_TIMESTAMP => time,
+          GIN_CTRL => FooController, GIN_ACTION => :index}
+
+    expected_env = env.dup
+    expected_env.delete(GIN_CTRL)
+    expected_env.delete(GIN_ACTION)
+    expected_env['REQUEST_METHOD'] = 'POST'
+    expected_env['PATH_INFO'] = '/foo'
+    expected_env['QUERY_STRING'] = nil
+
+    assert_equal expected_env, @app.rewrite_env(env, FooController, :create)
+
+    assert_raises Gin::RouterError do
+      @app.rewrite_env(env, FooController, :bad_action)
+    end
+
+    assert_raises Gin::Router::PathArgumentError do
+      @app.rewrite_env(env, FooController, :show)
+    end
+
+    expected_env['REQUEST_METHOD'] = 'GET'
+    expected_env['PATH_INFO'] = '/foo/123'
+    expected_env['QUERY_STRING'] = 'blah=456'
+
+    assert_equal expected_env,
+      @app.rewrite_env(env, FooController, :show, {:id => 123, :blah => 456}, 'REQUEST_METHOD' => 'POST')
+  end
+
+
+  def test_rewrite_env_custom_path
+    time = Time.now
+    env = {'rack.input' => 'id=foo', 'PATH_INFO' => '/foobar', 'REQUEST_METHOD' => 'GET',
+          'REMOTE_ADDR' => '127.0.0.1', GIN_RELOADED => true, GIN_TIMESTAMP => time,
+          GIN_CTRL => FooController, GIN_ACTION => :index}
+
+    expected_env = env.dup
+    expected_env.delete(GIN_CTRL)
+    expected_env.delete(GIN_ACTION)
+    expected_env['REQUEST_METHOD'] = 'POST'
+    expected_env['PATH_INFO'] = '/foo'
+    expected_env['QUERY_STRING'] = nil
+
+    assert_equal expected_env, @app.rewrite_env(env, '/foo', {}, 'REQUEST_METHOD' => 'POST')
+    assert_raises Gin::Router::PathArgumentError do
+      @app.rewrite_env(env, '/foo/:id', {}, 'REQUEST_METHOD' => 'POST')
+    end
+
+    expected_env['PATH_INFO'] = '/foo/123'
+    expected_env['QUERY_STRING'] = 'blah=456'
+
+    assert_equal expected_env,
+      @app.rewrite_env(env, '/foo/:id', {:id => 123, :blah => 456}, 'REQUEST_METHOD' => 'POST')
+  end
+
+
+  def test_rewrite
+    env = {'rack.input' => 'id=foo', 'PATH_INFO' => '/foobar', 'REQUEST_METHOD' => 'GET',
+          'REMOTE_ADDR' => '127.0.0.1'}
+
+    resp = @app.rewrite!(env, FooController, :show, :id => 123)
+    @app.logger.rewind
+
+    assert_equal ["FOO ID = 123"], resp[2]
+    assert_equal "[REWRITE] GET /foobar -> GET /foo/123\n", @app.logger.readline
+  end
+
+
+  def test_rewrite_path
+    env = {'rack.input' => 'id=foo', 'PATH_INFO' => '/foobar', 'REQUEST_METHOD' => 'GET',
+          'REMOTE_ADDR' => '127.0.0.1'}
+
+    resp = @app.rewrite!(env, '/other/path/:id', {:id => 123}, 'REQUEST_METHOD' => 'PUT')
+    @app.logger.rewind
+
+    assert_equal 404, resp[0]
+    assert_equal "[REWRITE] GET /foobar -> PUT /other/path/123\n", @app.logger.readline
   end
 
 

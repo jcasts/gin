@@ -25,7 +25,7 @@ end
 
 class TestController < Gin::Controller
   def show id
-    "SHOW #{id}!"
+    "TEST SHOW #{id}!"
   end
 end
 
@@ -660,6 +660,110 @@ end
     assert_equal 302, @ctrl.status
     assert_equal "https://google.com/foo", @ctrl.response['Location']
     assert_equal [301, {'X-LOC' => "test"}, "Move Along"], resp
+  end
+
+
+  def test_rewrite
+    resp = catch(:halt){ @ctrl.rewrite BarController, :show, :id => 123 }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 123!"]]
+    assert_equal expected, resp
+  end
+
+
+  def test_rewrite_action
+    resp = catch(:halt){ @ctrl.rewrite :show, :id => 123 }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 123!"]]
+    assert_equal expected, resp
+  end
+
+
+  def test_rewrite_named_route
+    resp = catch(:halt){ @ctrl.rewrite :show_bar, :id => 123 }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 123!"]]
+    assert_equal expected, resp
+  end
+
+
+  def test_rewrite_path
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 123!"]]
+
+    resp = catch(:halt){ @ctrl.rewrite '/bar/123' }
+    assert_equal expected, resp
+
+    resp = catch(:halt){ @ctrl.rewrite '/bar/:id', :id => 123 }
+    assert_equal expected, resp
+
+    resp = catch(:halt){ @ctrl.rewrite '/bad/path', :id => 123 }
+    assert_equal 404, resp[0]
+  end
+
+
+  def test_rewrite_missing_param
+    assert_raises Gin::Router::PathArgumentError do
+      @ctrl.rewrite :show
+    end
+  end
+
+
+  def test_rewrite_missing_route
+    assert_raises Gin::RouterError do
+      @ctrl.rewrite TestController, :show
+    end
+  end
+
+
+  def test_reroute
+    resp = catch(:halt){ @ctrl.reroute BarController, :show, :id => 456 }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 456!"]]
+    assert_equal expected, resp
+  end
+
+
+  def test_reroute_action
+    resp = catch(:halt){ @ctrl.reroute :show, :id => 456 }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 456!"]]
+    assert_equal expected, resp
+  end
+
+
+  def test_reroute_named_route
+    assert_raises Gin::RouterError do
+      @ctrl.rewrite :unknown_route
+    end
+
+    resp = catch(:halt){ @ctrl.reroute :show_bar }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      ["SHOW 123!"]]
+    assert_equal expected, resp
+  end
+
+
+  def test_reroute_missing_param
+    @ctrl.params.delete('id')
+    resp = catch(:halt){ @ctrl.reroute :show }
+    assert_equal 400, resp[0]
+  end
+
+
+  def test_reroute_missing_route
+    resp = catch(:halt){ @ctrl.reroute TestController, :show }
+    expected = [200,
+      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"14"},
+      ["TEST SHOW 123!"]]
+    assert_equal expected, resp
   end
 
 
