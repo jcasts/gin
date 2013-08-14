@@ -33,6 +33,64 @@ class CacheTest < Test::Unit::TestCase
   end
 
 
+  def test_increase
+    assert_equal 1, @cache.increase(:num)
+    assert_equal 1, @cache[:num]
+
+    @cache.increase(:num, 0.2)
+    assert_equal 1.2, @cache[:num]
+  end
+
+
+  def test_increase_invalid
+    @cache[:num] = "foo"
+    assert_nil @cache.increase(:num)
+    assert_equal "foo", @cache[:num]
+  end
+
+
+  def test_decrease
+    @cache.decrease(:num)
+    assert_equal -1, @cache[:num]
+
+    @cache.decrease(:num, 0.2)
+    assert_equal -1.2, @cache[:num]
+  end
+
+
+  def test_decrease_invalid
+    @cache[:num] = "foo"
+    assert_nil @cache.decrease(:num)
+    assert_equal "foo", @cache[:num]
+  end
+
+
+  def test_increase_thread_safe
+    threads = []
+    15.times do
+      threads << Thread.new{ @cache.increase(:num) }
+    end
+    threads.each do |t|
+      t.join
+    end
+
+    assert_equal 15, @cache[:num]
+  end
+
+
+  def test_decrease_thread_safe
+    threads = []
+    15.times do
+      threads << Thread.new{ @cache.decrease(:num) }
+    end
+    threads.each do |t|
+      t.join
+    end
+
+    assert_equal -15, @cache[:num]
+  end
+
+
   def test_has_key
     assert !@cache.has_key?(:num)
     @cache[:num] = 123

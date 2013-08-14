@@ -46,6 +46,34 @@ class Gin::Cache
 
 
   ##
+  # Increases the value of the given key in a thread-safe manner.
+  # Only Numerics and nil values are supported.
+  # Treats nil or non-existant values as 0.
+
+  def increase key, amount=1
+    @lock.write_sync do
+      return unless @data[key].nil? || Numeric === @data[key]
+      @data[key] ||= 0
+      @data[key] += amount
+    end
+  end
+
+
+  ##
+  # Decreases the value of the given key in a thread-safe manner.
+  # Only Numerics and nil values are supported.
+  # Treats nil or non-existant values as 0.
+
+  def decrease key, amount=1
+    @lock.write_sync do
+      return unless @data[key].nil? || Numeric === @data[key]
+      @data[key] ||= 0
+      @data[key] -= amount
+    end
+  end
+
+
+  ##
   # Check if the current key exists in the cache.
 
   def has_key? key

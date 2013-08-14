@@ -5,6 +5,7 @@
   * More robust indifferent access hash implementation
   * Support for rewriting requests from the controller
   * Support for rerouting requests to other controllers and actions
+  * Cache#increase and Cache#decrease for numeric values
 
 === 1.1.2 / 2013-07-19
 
