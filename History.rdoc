@@ -1,16 +1,15 @@
 === 1.1.3 / 2013-08-19
 
 * Minor Enhancements
-  * Runs on Rubinius
-  * More robust indifferent access hash implementation
-  * Support for rewriting requests from the controller
-  * Support for rerouting requests to other controllers and actions
+  * Rubinius officially supported
+  * Support for rewriting or rerouting requests from the controller
   * Cache#increase and Cache#decrease for numeric values
+  * More robust indifferent access hash implementation
 
 === 1.1.2 / 2013-07-19
 
 * Minor Enhancements
-  * User the Ruby Logger instead of $stdout as the default logger
+  * Use the Ruby Logger instead of $stdout as the default logger
 
 * Bugfixes
   * Fixes to the RWLock which made reads blocking in some instances
