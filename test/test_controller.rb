@@ -121,6 +121,8 @@ class ControllerTest < Test::Unit::TestCase
       'HTTP_HOST' => 'example.com',
       'rack.input' => '',
       'gin.path_query_hash' => {'id' => 123},
+      'SERVER_NAME' => 'localhost',
+      'SERVER_PORT' => '80'
     }
   end
 
@@ -666,7 +668,8 @@ end
   def test_rewrite
     resp = catch(:halt){ @ctrl.rewrite BarController, :show, :id => 123 }
     expected = [200,
-      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      {"Content-Type"=>"text/html;charset=UTF-8",
+        "Content-Length"=>"9", "Host"=>"localhost:80"},
       ["SHOW 123!"]]
     assert_equal expected, resp
   end
@@ -675,7 +678,8 @@ end
   def test_rewrite_action
     resp = catch(:halt){ @ctrl.rewrite :show, :id => 123 }
     expected = [200,
-      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      {"Content-Type"=>"text/html;charset=UTF-8",
+        "Content-Length"=>"9", "Host"=>"localhost:80"},
       ["SHOW 123!"]]
     assert_equal expected, resp
   end
@@ -684,7 +688,8 @@ end
   def test_rewrite_named_route
     resp = catch(:halt){ @ctrl.rewrite :show_bar, :id => 123 }
     expected = [200,
-      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      {"Content-Type"=>"text/html;charset=UTF-8",
+        "Content-Length"=>"9", "Host"=>"localhost:80"},
       ["SHOW 123!"]]
     assert_equal expected, resp
   end
@@ -692,7 +697,8 @@ end
 
   def test_rewrite_path
     expected = [200,
-      {"Content-Type"=>"text/html;charset=UTF-8", "Content-Length"=>"9"},
+      {"Content-Type"=>"text/html;charset=UTF-8",
+        "Content-Length"=>"9", "Host"=>"localhost:80"},
       ["SHOW 123!"]]
 
     resp = catch(:halt){ @ctrl.rewrite '/bar/123' }

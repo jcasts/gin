@@ -463,6 +463,8 @@ Run the following command and try again: gem install #{gemname}"
     env['REQUEST_METHOD'] = verb.to_s.upcase
     env['QUERY_STRING']   = query
     env['PATH_INFO']      = path
+    env['SERVER_NAME']    = 'localhost'
+    env['SERVER_PORT']    = '80'
     env.merge! headers
 
     @rack_response = app.call(env)

@@ -859,10 +859,11 @@ class Gin::Controller
 
   def html_error_page err, code=nil
     if @app.development?
-      fulltrace = err.backtrace.join("\n")
+      backtrace = err.backtrace || ['No backtrace :(']
+      fulltrace = backtrace.join("\n")
       fulltrace = "<pre>#{h(fulltrace)}</pre>"
 
-      apptrace  = Gin.app_trace(err.backtrace).join("\n")
+      apptrace  = Gin.app_trace(backtrace).join("\n")
       apptrace  = "<pre>#{h(apptrace)}</pre>" unless apptrace.empty?
 
       DEV_ERROR_HTML %

@@ -317,6 +317,23 @@ class Gin::App
 
 
   ##
+  # Get or et the Host header on responses if not set by the called action.
+  # If the enforce options is given, the app will only respond to requests that
+  # explicitely match the specified host, or regexp.
+  # This is useful for running multiple apps on the same middleware stack that
+  # might have conflicting routes, or need explicit per-host routing (such
+  # as an admin app).
+  #   hostname 'host.com'
+  #   hostname 'admin.host.com:443', :enforce => true
+  #   hostname 'admin.host.com', :enforce => /^admin\.(localhost|host\.com)/
+
+  def self.hostname host=nil, opts={}
+    @options[:host] = {:name => host}.merge(opts) if host
+    @options[:host][:name] if @options[:host]
+  end
+
+
+  ##
   # Get or set the layout name. Layout file location is assumed to be in
   # the views_dir. If the views dir has a controller wildcard '*', the layout
   # is assumed to be one level above the controller-specific directory.
@@ -629,6 +646,14 @@ class Gin::App
 
 
   ##
+  # The name defined by App.hostname.
+
+  def hostname
+    @options[:host][:name] if @options[:host]
+  end
+
+
+  ##
   # Returns the tilt template for the given template name.
   # Returns nil if no template file is found.
   #   template_for 'user/show'
@@ -692,18 +717,33 @@ class Gin::App
   def call env
     try_autoreload(env)
 
-    if @app.route!(env)
-      @app.call!(env)
+    valid_host = valid_host?(env)
 
-    elsif @app.static!(env)
-      @app.call_static(env)
+    resp =
+      if valid_host && @app.route!(env)
+        @app.call!(env)
 
-    elsif @rack_app
-      @rack_app.call(env)
+      elsif valid_host && @app.static!(env)
+        @app.call_static(env)
 
-    else
-      @app.call!(env)
-    end
+      elsif @rack_app
+        @rack_app.call(env)
+
+      elsif !valid_host
+        bt  = caller
+        msg = "No route for host '%s:%s'" % [env[SERVER_NAME], env[SERVER_PORT]]
+        err = Gin::BadRequest.new(msg)
+        err.set_backtrace(bt)
+        handle_error(err, env)
+
+      else
+        @app.call!(env)
+      end
+
+    resp[1][HOST_NAME] ||=
+      (hostname || env[SERVER_NAME]).sub(/(:[0-9]+)?$/, ":#{env[SERVER_PORT]}")
+
+    resp
   end
 
 
@@ -955,6 +995,21 @@ class Gin::App
       extra_mounted = actions - ctrl.actions
       raise Gin::RouterError, "#{ctrl}##{extra_mounted[0]} is not a method" unless
         extra_mounted.empty?
+    end
+  end
+
+
+  def valid_host? env
+    return true unless @options[:host] && @options[:host][:enforce]
+
+    name, port = @options[:host][:name].split(":", 2)
+
+    if @options[:host][:enforce] == true
+      name == env[SERVER_NAME] && (port.nil? || port == env[SERVER_PORT])
+    else
+      @options[:host][:enforce] === "#{env[SERVER_NAME]}:#{env[SERVER_PORT]}" ||
+        @options[:host][:enforce] === env[SERVER_NAME] &&
+          (port.nil? || port == env[SERVER_PORT])
     end
   end
 

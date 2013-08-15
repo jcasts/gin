@@ -25,6 +25,12 @@ class FooApp < Gin::App
     get  :show, "/:id"
   end
 
+  def call env
+    env['SERVER_NAME'] ||= 'foo.com'
+    env['SERVER_PORT'] ||= '80'
+    super
+  end
+
   def reloaded?
     @reloaded ||= false
   end
@@ -123,6 +129,54 @@ class AppTest < Test::Unit::TestCase
 
     FooApp.call env
     assert_equal app, FooApp.instance_variable_get("@instance")
+  end
+
+
+  def test_hostname
+    FooApp.hostname 'example.com'
+    @app = FooApp.new
+
+    assert_equal 'example.com', FooApp.hostname
+    assert_equal 'example.com', @app.hostname
+    assert @app.send(:valid_host?,{})
+  end
+
+
+  def test_hostname_enforce
+    FooApp.hostname 'example.com', :enforce => true
+    @app = FooApp.new
+
+    assert_equal 'example.com', FooApp.hostname
+    assert_equal 'example.com', @app.hostname
+    assert !@app.send(:valid_host?,{'SERVER_NAME' => 'admin.example.com', 'SERVER_PORT' => '80'})
+    assert @app.send(:valid_host?,{'SERVER_NAME' => 'example.com', 'SERVER_PORT' => '443'})
+    assert @app.send(:valid_host?,{'SERVER_NAME' => 'example.com', 'SERVER_PORT' => '80'})
+  end
+
+
+  def test_hostname_enforce_port
+    FooApp.hostname 'example.com:80', :enforce => true
+    @app = FooApp.new
+
+    assert_equal 'example.com:80', FooApp.hostname
+    assert_equal 'example.com:80', @app.hostname
+    assert !@app.send(:valid_host?,{'SERVER_NAME' => 'admin.example.com', 'SERVER_PORT' => '80'})
+    assert !@app.send(:valid_host?,{'SERVER_NAME' => 'example.com', 'SERVER_PORT' => '443'})
+    assert @app.send(:valid_host?,{'SERVER_NAME' => 'example.com', 'SERVER_PORT' => '80'})
+  end
+
+
+  def test_hostname_enforce_regexp
+    FooApp.hostname 'admin.example.com',
+                    :enforce => /^admin\.(example\.com|localhost)$/
+
+    @app = FooApp.new
+
+    assert_equal 'admin.example.com', FooApp.hostname
+    assert_equal 'admin.example.com', @app.hostname
+    assert !@app.send(:valid_host?,{'SERVER_NAME' => 'example.com'})
+    assert @app.send(:valid_host?,{'SERVER_NAME' => 'admin.example.com'})
+    assert @app.send(:valid_host?,{'SERVER_NAME' => 'admin.localhost'})
   end
 
 
@@ -478,6 +532,116 @@ class AppTest < Test::Unit::TestCase
     assert_equal expected, resp
   end
 
+
+  def test_call_host
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET',
+           'SERVER_NAME' => 'foo.com', 'SERVER_PORT' => '80'}
+    FooApp.hostname 'example.com'
+    @app = FooApp.new
+    resp = @app.call env
+
+    assert_equal 200, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+  end
+
+
+  def test_call_validate_host
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET',
+           'SERVER_NAME' => 'foo.com', 'SERVER_PORT' => '80'}
+    FooApp.hostname 'example.com', :enforce => true
+    @app = FooApp.new
+    resp = @app.call env
+
+    assert_equal 400, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+    assert resp[2][0].include?("No route for host &#39;foo.com:80&#39;")
+
+    env['SERVER_NAME'] = 'example.com'
+    resp = @app.call env
+
+    assert_equal 200, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+  end
+
+
+  def test_call_validate_host_regexp
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET',
+           'SERVER_NAME' => 'foo.com', 'SERVER_PORT' => '80'}
+    FooApp.hostname 'admin.example.com', :enforce => /^admin\.(example\.com|localhost)$/
+    @app = FooApp.new
+    resp = @app.call env
+
+    assert_equal 400, resp[0]
+    assert_equal 'admin.example.com:80', resp[1]['Host']
+    assert resp[2][0].include?("No route for host &#39;foo.com:80&#39;")
+
+    env['SERVER_NAME'] = 'admin.example.com'
+    env['SERVER_PORT'] = '443'
+    resp = @app.call env
+
+    assert_equal 200, resp[0]
+    assert_equal 'admin.example.com:443', resp[1]['Host']
+  end
+
+
+  def test_call_validate_host_and_port
+    env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET',
+           'SERVER_NAME' => 'example.com', 'SERVER_PORT' => '80'}
+    FooApp.hostname 'example.com:443', :enforce => true
+    @app = FooApp.new
+    resp = @app.call env
+
+    assert_equal 400, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+    assert resp[2][0].include?("No route for host &#39;example.com:80&#39;")
+
+    env['SERVER_PORT'] = '443'
+    resp = @app.call env
+
+    assert_equal 200, resp[0]
+    assert_equal 'example.com:443', resp[1]['Host']
+  end
+
+
+  def test_call_validate_host_static
+    env = {'rack.input' => "", 'PATH_INFO' => '/gin.css', 'REQUEST_METHOD' => 'GET',
+           'SERVER_NAME' => 'foo.com', 'SERVER_PORT' => '80'}
+    FooApp.hostname 'example.com', :enforce => true
+    @app = FooApp.new
+    resp = @app.call env
+
+    assert_equal 400, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+    assert resp[2][0].include?("No route for host &#39;foo.com:80&#39;")
+
+    env['SERVER_NAME'] = 'example.com'
+    resp = @app.call env
+
+    assert_equal 200, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+  end
+
+
+  def test_call_validate_host_rack_app
+    env = {'rack.input' => "", 'PATH_INFO' => '/gin.css', 'REQUEST_METHOD' => 'GET',
+           'SERVER_NAME' => 'foo.com', 'SERVER_PORT' => '80'}
+
+    FooApp.hostname 'example.com', :enforce => true
+
+    expected = [200, {'Content-Length'=>"5", 'Host' => 'foo.com:80'}, "AHOY!"]
+    myapp = lambda{|_| expected }
+    @app = FooApp.new myapp
+    resp = @app.call env
+
+    assert_equal expected, resp
+
+    env['SERVER_NAME'] = 'example.com'
+    resp = @app.call env
+
+    assert_equal 200, resp[0]
+    assert_equal 'example.com:80', resp[1]['Host']
+    assert resp[2].is_a?(File)
+  end
 
 
   def test_call!

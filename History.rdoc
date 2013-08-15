@@ -5,6 +5,7 @@
   * Support for rewriting or rerouting requests from the controller
   * Cache#increase and Cache#decrease for numeric values
   * More robust indifferent access hash implementation
+  * Allow enforcing server name for routing
 
 === 1.1.2 / 2013-07-19
 

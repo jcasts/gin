@@ -7,6 +7,8 @@ module Gin::Constants
   REMOTE_ADDR    = 'REMOTE_ADDR'.freeze
   REMOTE_USER    = 'REMOTE_USER'.freeze
   HTTP_VERSION   = 'HTTP_VERSION'.freeze
+  SERVER_NAME    = 'SERVER_NAME'.freeze
+  SERVER_PORT    = 'SERVER_PORT'.freeze
   REQ_METHOD     = 'REQUEST_METHOD'.freeze
   PATH_INFO      = 'PATH_INFO'.freeze
   QUERY_STRING   = 'QUERY_STRING'.freeze
@@ -28,6 +30,7 @@ module Gin::Constants
   CACHE_CTRL      = 'Cache-Control'.freeze
   EXPIRES         = 'Expires'.freeze
   PRAGMA          = 'Pragma'.freeze
+  HOST_NAME       = 'Host'.freeze
 
   # Gin env constants
   GIN_STACK       = 'gin.stack'.freeze
