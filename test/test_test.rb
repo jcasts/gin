@@ -75,8 +75,13 @@ class TestTest < Test::Unit::TestCase
 
 
   def test_make_request
+    @tests.app.options[:host] = {:name => 'example.com:443'}
     resp = @tests.make_request :get, :show_bar,
               {:id => 123, :foo => "BAR", :bar => "BAZ Foo"},'REMOTE_ADDR' => '127.0.0.1'
+
+    assert_equal "example.com", @tests.req_env['SERVER_NAME']
+    assert_equal "443", @tests.req_env['SERVER_PORT']
+    assert_equal "example.com:443", resp[1]['Host']
 
     assert_equal %w{bar=BAZ+Foo foo=BAR}, @tests.req_env['QUERY_STRING'].split('&').sort
     assert_equal "/bar/123", @tests.req_env['PATH_INFO']
