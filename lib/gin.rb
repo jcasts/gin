@@ -48,6 +48,22 @@ class Gin
 
 
   ##
+  # Like CGI.escape but doesn't escape forward slashes.
+
+  def self.escape_path str
+    CGI.escape(str).gsub('%2F', '/')
+  end
+
+
+  ##
+  # Reverse of Gin.escape_path.
+
+  def self.unescape_path str
+    CGI.unescape(str)
+  end
+
+
+  ##
   # Create a URI query from a Hash.
 
   def self.build_query value, prefix=nil

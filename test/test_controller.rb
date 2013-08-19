@@ -610,7 +610,7 @@ end
 
     @app = MockApp.new
     file_id  = @app.md5 __FILE__
-    expected = "/test_controller.rb?#{file_id}"
+    expected = "/test_controller-#{file_id}.rb"
 
     @ctrl = BarController.new(@app, rack_env)
 

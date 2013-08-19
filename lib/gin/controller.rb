@@ -744,9 +744,7 @@ class Gin::Controller
   # Returns the url to an asset, including predefined asset cdn hosts if set.
 
   def asset_url name
-    url = File.join(@app.asset_host_for(name).to_s, name)
-    url = [url, *@app.asset_version(url)].compact.join("?") if url !~ %r{^https?://}
-    url
+    @app.asset_url name
   end
 
 

@@ -2,6 +2,7 @@
 
 * Major Enhancements
   * Rubinius officially supported
+  * Asset pipeline support
   * Support for rewriting or rerouting requests from the controller
   * Support generic App-mountable controller-like objects
 

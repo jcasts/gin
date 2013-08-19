@@ -102,6 +102,10 @@ Create and control Gin applications.
     unless bare
       Dir.mkdir(File.join(dir, "views"))
       Dir.mkdir(File.join(dir, "layouts"))
+      Dir.mkdir(File.join(dir, "assets"))
+      Dir.mkdir(File.join(dir, "assets", "js"))
+      Dir.mkdir(File.join(dir, "assets", "css"))
+      Dir.mkdir(File.join(dir, "assets", "img"))
       Dir.mkdir(File.join(dir, "public"))
       Dir.mkdir(File.join(dir, "public", "js"))
       Dir.mkdir(File.join(dir, "public", "css"))

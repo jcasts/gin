@@ -32,7 +32,7 @@ class Gin::App
   end
 
 
-  def self.setup   # :nodoc:
+  def self.setup   #:nodoc:
     caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
     filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
     dir = File.dirname(filepath)
@@ -550,6 +550,7 @@ class Gin::App
 
     @app   = self
     @stack = build_app Rack::Builder.new
+    @sprockets = nil
   end
 
 
@@ -628,8 +629,90 @@ class Gin::App
   # File path is assumed relative to the public_dir.
 
   def asset_version path
+    if asset_pipeline
+      asset = asset_pipeline.find_asset(path)
+      return asset.digest if asset
+    end
+
     path = File.expand_path(File.join(public_dir, path))
     md5(path)
+  end
+
+
+  ##
+  # Returns the url to an asset, including predefined asset CDN hosts if set,
+  # and/or asset pipeline path.
+
+  def asset_url name
+    if asset_pipeline
+      asset = asset_pipeline.find_asset(name)
+      name  = asset.digest_path if asset
+    end
+
+    name = Gin.unescape_path(name)
+    url  = File.join(asset_host_for(name).to_s, name)
+
+    if !asset && url !~ %r{^https?://}
+      hash = asset_version(url)
+      url.sub!(%r{(\.[^.]+)?$}, "-#{hash}" + '\1') if hash
+    end
+
+    url
+  end
+
+
+  ##
+  # Returns a Sprockets::Environment instance if asset pipelining is being used,
+  # otherwise nil.
+
+  def asset_pipeline
+    @sprockets
+  end
+
+
+  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
+  STATIC_MD5_CLEANER = %r{-([0-9a-f]{7,40})(\.[^.]+)$} #:nodoc:
+
+  ##
+  # Check if an asset exists in the public directory, or the asset pipeline.
+  #
+  # Returns the full path to the asset if found, otherwise nil.
+  # Does not support ./ or ../ for security reasons,
+  # and ignores asset fingerprint.
+  #
+  #   # Asset in public directory
+  #   asset '/img/foo.jpg'
+  #   #=> '/usr/local/.../public/img/foo.jpg
+  #
+  #   # Asset in public directory with fingerprint.
+  #   asset '/img/foo-f89a0ed613f.jpg'
+  #   #=> '/usr/local/.../public/img/foo.jpg
+  #
+  #   # Asset in asset pipeline.
+  #   asset '/foo-f89a0ed613f.jpg'
+  #   #=> '/usr/local/.../assets/img/foo.jpg
+
+  def asset path
+    path  = Gin.escape_path(path)
+    path.gsub!(STATIC_PATH_CLEANER, '')
+    apath = path.sub(STATIC_MD5_CLEANER, '\2')
+
+    if asset_pipeline
+      asset = asset_pipeline.find_asset(apath)
+      return asset.pathname.to_s if asset
+    end
+
+    filepath = File.expand_path(File.join(public_dir, path))
+    return filepath if File.file? filepath
+
+    filepath = File.expand_path(File.join(public_dir, apath))
+    return filepath if File.file? filepath
+
+    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
+    return filepath if File.file? filepath
+
+    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, apath))
+    return filepath if File.file? filepath
   end
 
 
@@ -779,7 +862,12 @@ class Gin::App
 
   def call_static env
     with_log_request(env) do
-      error_delegate.exec(self, env){ send_file env[GIN_STATIC] }
+      if asset_pipeline && asset = asset_pipeline[env[GIN_STATIC]]
+        error_delegate.exec(self, env){
+          headers[CNT_LENGTH] = asset.length; asset }
+      else
+        error_delegate.exec(self, env){ send_file env[GIN_STATIC] }
+      end
     end
   end
 
@@ -851,24 +939,6 @@ class Gin::App
       [env[REQ_METHOD], env[PATH_INFO], new_env[REQ_METHOD], new_env[PATH_INFO]]
 
     call(new_env)
-  end
-
-
-  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
-
-  ##
-  # Check if an asset exists.
-  # Returns the full path to the asset if found, otherwise nil.
-  # Does not support ./ or ../ for security reasons.
-
-  def asset path
-    path = path.gsub STATIC_PATH_CLEANER, ""
-
-    filepath = File.expand_path(File.join(public_dir, path))
-    return filepath if File.file? filepath
-
-    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
-    return filepath if File.file? filepath
   end
 
 
