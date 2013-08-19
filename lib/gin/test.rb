@@ -93,7 +93,7 @@ module Gin::Test::Assertions
 
     case selector
     when :rb_path
-      use_lib 'path', 'ruby-path'
+      Gin.use_lib 'path', 'ruby-path'
       data.find_data(key_or_path) do |p,k,pa|
         count += 1 if value.nil? || value === p[k]
         break unless opts[:count]
@@ -299,18 +299,6 @@ module Gin::Test::Helpers
         defined?(@default_controller) && @default_controller
       end
     end
-  end
-
-
-  def use_lib lib, gemname=nil # :nodoc:
-    require lib
-  rescue LoadError => e
-    raise unless e.message == "cannot load such file -- #{lib}"
-    gemname ||= lib
-    $stderr.puts "You need the `#{gemname}' gem to access some of the features \
-you are trying to use.
-Run the following command and try again: gem install #{gemname}"
-    exit 1
   end
 
 
@@ -591,23 +579,23 @@ Run the following command and try again: gem install #{gemname}"
     @parsed_body =
       case ct
       when /[\/+]json/i
-        use_lib 'json'
+        Gin.use_lib 'json'
         JSON.parse(body)
 
       when /[\/+]bson/i
-        use_lib 'bson'
+        Gin.use_lib 'bson'
         BSON.deserialize(body)
 
       when /[\/+]plist/i
-        use_lib 'plist'
+        Gin.use_lib 'plist'
         Plist.parse_xml(body)
 
       when /[\/+]xml/i
-        use_lib 'nokogiri'
+        Gin.use_lib 'nokogiri'
         Nokogiri::XML(body)
 
       when /[\/+]html/i
-        use_lib 'nokogiri'
+        Gin.use_lib 'nokogiri'
         Nokogiri::HTML(body)
 
       else

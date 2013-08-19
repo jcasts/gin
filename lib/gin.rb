@@ -125,6 +125,18 @@ class Gin
   end
 
 
+  def self.use_lib lib, gemname=nil # :nodoc:
+    require lib
+  rescue LoadError => e
+    raise unless e.message == "cannot load such file -- #{lib}"
+    gemname ||= lib
+    $stderr.puts "You need the `#{gemname}' gem to access some of the features \
+you are trying to use.
+Run the following command and try again: gem install #{gemname}"
+    exit 1
+  end
+
+
   APP_START_MATCH = %r{/gin/app\.rb:\d+:in `dispatch'} #:nodoc:
 
   ##

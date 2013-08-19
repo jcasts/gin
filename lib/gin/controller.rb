@@ -625,6 +625,7 @@ class Gin::Controller
         "%s; filename=\"%s\"" % [disposition, filename]
     end
 
+    etag @app.md5(path)
     last_modified opts[:last_modified] || File.mtime(path).httpdate
     halt 200 if @request.head?
 

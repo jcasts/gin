@@ -47,6 +47,7 @@ class Gin::App
 
     @options = {}
     @options[:root_dir]       = dir
+    @options[:asset_dirs]     = %w{assets lib/assets vendor/**/assets}
     @options[:environment]    = ENV['RACK_ENV'] || ENV_DEV
     @options[:error_delegate] = Gin::Controller
     @options[:middleware]     = []
@@ -194,6 +195,23 @@ class Gin::App
     @options[:asset_host] = host  if host
     @options[:asset_host] = block if block_given?
     @options[:asset_host]
+  end
+
+
+  ##
+  # Get or append directories for the asset pipeline to find files.
+  # Files are added recursively from each directory.
+  #
+  #   # Default asset directories
+  #   assets_dir
+  #   #=> ["assets", "lib/assets", "vendor/**/assets"]
+  #
+  #   assets_dir 'foo/assets', '/usr/local/other_repo/assets'
+  #   #=> ["assets", "lib/assets", "vendor/**/assets", "foo/assets", "/usr/local/other_repo/assets"]
+
+  def self.assets_dir *dirs
+    (@options[:asset_dirs] ||= []).concat(dirs) if dirs
+    @options[:asset_dirs]
   end
 
 
@@ -550,7 +568,7 @@ class Gin::App
 
     @app   = self
     @stack = build_app Rack::Builder.new
-    @sprockets = nil
+    setup_asset_pipeline
   end
 
 
@@ -862,9 +880,8 @@ class Gin::App
 
   def call_static env
     with_log_request(env) do
-      if asset_pipeline && asset = asset_pipeline[env[GIN_STATIC]]
-        error_delegate.exec(self, env){
-          headers[CNT_LENGTH] = asset.length; asset }
+      if asset_pipeline && asset_pipeline[env[GIN_STATIC]]
+        asset_pipeline.call(env)
       else
         error_delegate.exec(self, env){ send_file env[GIN_STATIC] }
       end
@@ -1055,6 +1072,22 @@ class Gin::App
     opts[:except] += [:session_hijacking, :remote_token] unless sessions
     opts[:reaction] ||= :drop_session
     builder.use Rack::Protection, opts
+  end
+
+
+  def setup_asset_pipeline
+    return unless @options[:asset_dirs] && !@options[:asset_dirs].empty?
+
+    Gin.use_lib 'sprockets'
+    @sprockets = Sprockets::Environment.new(root_dir)
+
+    @options[:asset_dirs].each do |spath|
+      spath = File.join(@sprockets.root, spath) unless spath.start_with?(?/)
+      Dir[File.join(spath, '**/')].each do |path|
+        @sprockets.append_path path
+      end
+    end
+    @sprockets = nil if @sprockets.paths.empty?
   end
 
 
