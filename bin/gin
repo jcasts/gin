@@ -78,8 +78,11 @@ Create and control Gin applications.
     make_dirs(dir, bare)
 
     app_class_name = Gin.camelize(name)
-    make_config_ru(app_class_name, name, dir) if standalone
-    make_console(name, dir) if standalone
+    if standalone
+      make_config_ru(app_class_name, name, dir)
+      make_console(name, dir)
+      make_gemfile(dir, bare)
+    end
     make_app_rb(app_class_name, name, dir, standalone)
     make_home_ctrl_rb(app_class_name, name, dir)
 
@@ -185,6 +188,20 @@ run #{app_class_name}.new
     File.write(filepath, bash)
     require 'fileutils'
     FileUtils.chmod "u=wrx,go=rx", filepath
+  end
+
+
+  def self.make_gemfile dir, bare=false
+    filepath = File.join(dir, 'Gemfile')
+    contents = <<-STR
+source 'https://rubygems.org'
+
+gem 'gin', '~>#{Gin::VERSION}'
+#{"gem 'sprockets'\ngem 'uglifier'\ngem 'sass'\n" unless bare}
+
+group :test do
+end
+    STR
   end
 end
 

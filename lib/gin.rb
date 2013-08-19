@@ -1,3 +1,4 @@
+require 'rubygems' if RUBY_VERSION < '1.9.2'
 require 'logger'
 require 'rack'
 require 'tilt'

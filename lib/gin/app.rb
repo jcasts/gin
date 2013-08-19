@@ -215,6 +215,41 @@ class Gin::App
   end
 
 
+  ##
+  # Get or set asset pipeline functionality.
+  # Off when set to false, on when set to true. A Sprocket::Environment instance
+  # may also be passed if a more fine-tuned setup is required.
+  #
+  #   # Turn off asset pipelining
+  #   asset_pipeline false
+  #
+  #   # Turn on asset pipelining
+  #   asset_pipeline true
+  #
+  #   # Custom set asset pipeline
+  #   sprockets = Sprockets::Environment.new('/usr/local/assets_repo')
+  #   sprockets.css_compressor = Sprockets::SassCompressor
+  #   asset_pipeline sprockets
+  #
+  # Asset pipelining is only turned on if the asset directories are present.
+
+  def self.asset_pipeline val=nil
+    @options[:asset_pipeline] = val unless val.nil?
+    @options[:asset_pipeline]
+  end
+
+
+  ##
+  # Get or set whether the asset pipeline should compress CSS and Javascript.
+  # Defaults to true in production. Defaults to false when not in production.
+  # Default compressors used are sass and uglifier.
+
+  def self.asset_compression val=nil
+    @options[:asset_compression] = val unless val.nil?
+    @options[:asset_compression]
+  end
+
+
   def self.make_config opts={}  # :nodoc:
     Gin::Config.new opts[:environment] || self.environment,
         :dir =>    opts[:config_dir]    || self.config_dir,
@@ -552,12 +587,15 @@ class Gin::App
     end
 
     @options = {
-      :config_dir =>  self.class.config_dir,
-      :public_dir =>  self.class.public_dir,
+      :config_dir  =>  self.class.config_dir,
+      :public_dir  =>  self.class.public_dir,
       :layouts_dir => self.class.layouts_dir,
-      :views_dir =>   self.class.views_dir,
-      :config =>      self.class.config
+      :views_dir   =>   self.class.views_dir,
+      :config      =>      self.class.config
     }.merge(self.class.options).merge(options)
+
+    @options[:asset_pipeline_compression] = production? if
+      @options[:asset_pipeline_compression].nil?
 
     @options[:config] = self.class.make_config(@options) if
       @options[:environment] != @options[:config].environment ||
@@ -1076,10 +1114,13 @@ class Gin::App
 
 
   def setup_asset_pipeline
-    return unless @options[:asset_dirs] && !@options[:asset_dirs].empty?
+    return unless @options[:asset_dirs] && !@options[:asset_dirs].empty? &&
+                  !@options[:asset_pipeline] == false
 
     Gin.use_lib 'sprockets'
-    @sprockets = Sprockets::Environment.new(root_dir)
+    @sprockets = Sprockets::Environment === @options[:asset_pipeline] ?
+                   @options[:asset_pipeline] :
+                   Sprockets::Environment.new(root_dir)
 
     @options[:asset_dirs].each do |spath|
       spath = File.join(@sprockets.root, spath) unless spath.start_with?(?/)
@@ -1087,7 +1128,16 @@ class Gin::App
         @sprockets.append_path path
       end
     end
-    @sprockets = nil if @sprockets.paths.empty?
+
+    if @sprockets.paths.empty?
+      @sprockets = nil
+      return
+    end
+
+    if @options[:asset_compression]
+      @sprockets.js_compressor  ||= Sprockets::UglifierCompressor
+      @sprockets.css_compressor ||= Sprockets::SassCompressor
+    end
   end
 
 
