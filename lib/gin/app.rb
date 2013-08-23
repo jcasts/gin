@@ -916,10 +916,7 @@ class Gin::App
     now  = Time.now
     time = now - env[GIN_TIMESTAMP] if env[GIN_TIMESTAMP]
 
-    ctrl, action = env[GIN_CTRL].class, env[GIN_ACTION]
-    target = "#{ctrl}##{action}" if ctrl && action
-    target = resp[2].path if !target && resp[2].respond_to?(:path)
-    target = "<stream>" if !target && (!(Array === resp[2]) || !resp[2].empty?)
+    target = request_target_name(env, resp)
 
     logger << ( LOG_FORMAT % [
         env[FWD_FOR] || env[REMOTE_ADDR] || "-",
@@ -933,6 +930,17 @@ class Gin::App
         resp[1][CNT_LENGTH] || "-",
         time || "-",
         target || "-" ] )
+  end
+
+
+  def request_target_name env, resp
+    if Gin::Controller === env[GIN_CTRL]
+      [env[GIN_CTRL].class, env[GIN_ACTION]].join("#")
+    elsif resp[2].respond_to?(:path)
+      resp[2].path
+    elsif !(Array === resp[2]) || !resp[2].empty?
+      "<stream>"
+    end
   end
 
 
