@@ -881,8 +881,9 @@ class Gin::App
       "No route exists for: #{env[REQ_METHOD]} #{env[PATH_INFO]}" unless
       ctrl && action
 
-    env[GIN_CTRL] = ctrl.new(self, env)
-    env[GIN_CTRL].call_action action
+    env[GIN_APP]    = self
+    env[GIN_ACTION] = action
+    ctrl.call(env)
 
   rescue ::Exception => err
     handle_error(err, env)

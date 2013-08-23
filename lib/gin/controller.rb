@@ -124,6 +124,17 @@ class Gin::Controller
 
 
   ##
+  # Call the Controller with an Rack env hash. Requires the hash to have
+  # the keys 'gin.action' and 'gin.app'.
+
+  def self.call env
+    inst = new(env[GIN_APP], env)
+    env[GIN_CTRL] = inst
+    inst.call_action(env[GIN_ACTION])
+  end
+
+
+  ##
   # Get or set a layout for a given controller.
   # Value can be a symbol or filepath.
   # Layout file is expected to be in the Gin::App.layout_dir directory

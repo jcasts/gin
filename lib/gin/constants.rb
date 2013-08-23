@@ -33,6 +33,7 @@ module Gin::Constants
   HOST_NAME       = 'Host'.freeze
 
   # Gin env constants
+  GIN_APP         = 'gin.app'.freeze
   GIN_STACK       = 'gin.stack'.freeze
   GIN_ROUTE       = 'gin.http_route'.freeze
   GIN_PATH_PARAMS = 'gin.path_query_hash'.freeze
