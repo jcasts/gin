@@ -168,14 +168,18 @@ class Gin::Controller
 
   def initialize app, env
     @app      = app
-    @action   = nil
+    @action   = env[GIN_ACTION]
     @env      = env
     @request  = Gin::Request.new env
     @response = Gin::Response.new
   end
 
 
-  def call_action action #:nodoc:
+  ##
+  # Calls the given or preset action and returns a Rack response Array.
+
+  def call_action action=nil
+    action ||= @action
     invoke{ dispatch action }
     invoke{ handle_status(@response.status) }
     content_type self.class.content_type unless @response[CNT_TYPE]
@@ -913,7 +917,7 @@ class Gin::Controller
   # Get action arguments from the params.
   # Raises Gin::BadRequest if a required argument has no matching param.
 
-  def action_arguments action=@action
+  def action_arguments action
     raise Gin::NotFound, "No action #{self.class}##{action}" unless
       self.class.actions.include? action.to_sym
 
