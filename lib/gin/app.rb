@@ -883,6 +883,7 @@ class Gin::App
 
     env[GIN_APP]    = self
     env[GIN_ACTION] = action
+    env[GIN_CTRL]   = ctrl
     ctrl.call(env)
 
   rescue ::Exception => err
