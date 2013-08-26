@@ -12,6 +12,14 @@ class Gin::Cache
 
 
   ##
+  # Clear all cache entries.
+
+  def clear
+    @lock.write_sync{ @data.clear }
+  end
+
+
+  ##
   # Set the write timeout when waiting for reader thread locks.
   # Defaults to 0.05 sec. See Gin::RWLock for more details.
 

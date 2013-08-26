@@ -7,6 +7,15 @@ class CacheTest < Test::Unit::TestCase
   end
 
 
+  def test_clear
+    @cache[:foo] = "blah"
+    assert @cache[:foo]
+
+    @cache.clear
+    assert_nil @cache[:foo]
+  end
+
+
   def test_write_timeout
     assert_equal 0.05, @cache.write_timeout
     @cache.write_timeout = 0.1
