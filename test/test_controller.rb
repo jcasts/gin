@@ -4,6 +4,11 @@ unless defined? EventMachine
   class EventMachine; end
 end
 
+module FooNamespace
+  class NamespacedController < Gin::Controller
+  end
+end
+
 class AppController < Gin::Controller
   FILTERS_RUN = []
 
@@ -1047,8 +1052,9 @@ end
     assert_equal "application/json;charset=ASCII-8BIT",
       @ctrl.content_type(".json", :charset => "ASCII-8BIT")
 
-    assert_equal "application/json;foo=bar, charset=UTF-8",
-      @ctrl.content_type(".json", :foo => "bar")
+    ctype, more = @ctrl.content_type(".json", :foo => "bar").split(';')
+    assert_equal "application/json", ctype
+    assert_equal %w{charset=UTF-8 foo=bar}, more.split(', ').sort
   end
 
 
@@ -1102,6 +1108,15 @@ end
     assert_equal "bar", BarController.controller_name
 
     assert_equal "app", AppController.new(nil,rack_env).controller_name
+  end
+
+
+  def test_class_controller_name_namespaced
+    assert_equal 'foo_namespace/namespaced',
+      FooNamespace::NamespacedController.controller_name
+
+    assert_equal :show_namespaced,
+      FooNamespace::NamespacedController.route_name_for(:show)
   end
 
 
