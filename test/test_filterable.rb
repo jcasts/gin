@@ -66,11 +66,18 @@ class FilterableTest < Test::Unit::TestCase
       self.class.is_custom_thing
     end
 
+    filter :only_foo do
+      FILTER_CALLS << :only_foo
+      "onlyfoo"
+    end
+
     before_filter :custom_thing
 
     skip_before_filter :find_device
     skip_before_filter :logged_in, :only => [:create, :new]
     skip_after_filter :set_login_cookie, :except => [:logout]
+
+    after_filter :only_foo, :only => :foo
   end
 
 
@@ -96,6 +103,14 @@ class FilterableTest < Test::Unit::TestCase
 
     assert_equal [:log_action, :other_filter],
       SessionCtrl.after_filters[nil]
+  end
+
+
+  def test_filter_chain_exceptions
+    assert_equal [:log_action], AppCtrl.after_filters[:foo]
+    assert_equal [:log_action, :only_foo], SessionCtrl.after_filters[:foo]
+    assert_equal [:log_action, :set_login_cookie, :other_filter],
+                  SessionCtrl.after_filters[:logout]
   end
 
 

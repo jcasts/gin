@@ -74,14 +74,14 @@ module Gin::Filterable
 
       elsif opts[:except]
         except = Array(opts[:except])
-        filter_hsh.keys.each do |action|
-          next if action.nil?
-          filter_hsh[action] ||= filter_hsh[nil].dup and next if
-            except.include?(action)
+        except.each do |action|
+          filter_hsh[action] ||= filter_hsh[nil].dup
+        end
 
+        filter_hsh.keys.each do |action|
+          next if except.include?(action)
           yield filter_hsh, action, names
         end
-        yield filter_hsh, nil, names
 
       else
         filter_hsh.keys.each do |action|

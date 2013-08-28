@@ -1,4 +1,4 @@
-=== 1.1.3 / 2013-08-19
+=== 1.2.0 / 2013-08-19
 
 * Minor Enhancements
   * Rubinius officially supported
@@ -6,6 +6,10 @@
   * Cache#increase and Cache#decrease for numeric values
   * More robust indifferent access hash implementation
   * Allow enforcing server name for routing
+
+* Bugfixes
+  * Reload bugfix which didn't recognize Controller classes in routes
+  * Fix for ignored exclusions when adding filter to filter chain
 
 === 1.1.2 / 2013-07-19
 
