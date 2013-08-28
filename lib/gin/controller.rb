@@ -49,6 +49,7 @@
 
 class Gin::Controller
   extend  GinClass
+  extend  Gin::Mountable
   include Gin::Constants
   include Gin::Filterable
   include Gin::Errorable
@@ -74,6 +75,7 @@ class Gin::Controller
 
   def self.setup   # :nodoc:
     @layout = nil
+# FIX controller names with slashes in them
     @ctrl_name = Gin.underscore(self.to_s).gsub(/_?controller_?/,'')
   end
 
@@ -97,6 +99,32 @@ class Gin::Controller
   def self.controller_name new_name=nil
     @ctrl_name = new_name if new_name
     @ctrl_name
+  end
+
+
+  DEFAULT_ACTION_MAP = {
+    :index   => %w{GET /},
+    :show    => %w{GET /:id},
+    :new     => %w{GET /new},
+    :create  => %w{POST /},
+    :edit    => %w{GET /:id/edit},
+    :update  => %w{PUT /:id},
+    :destroy => %w{DELETE /:id}
+  } # :nodoc:
+
+
+  def self.default_route_for action #:nodoc:
+    DEFAULT_ACTION_MAP[action] || ['GET', "/#{action}"]
+  end
+
+
+  def self.route_name_for action #:nodoc:
+    "#{action}_#{controller_name}".to_sym
+  end
+
+
+  def self.display_name action=nil #:nodoc:
+    [self, action].compact.join("#")
   end
 
 
@@ -125,12 +153,13 @@ class Gin::Controller
 
   ##
   # Call the Controller with an Rack env hash. Requires the hash to have
-  # the keys 'gin.action' and 'gin.app'.
+  # the keys 'gin.target' with the action name as the second item of the array,
+  # and 'gin.app'.
 
   def self.call env
     inst = new(env[GIN_APP], env)
     env[GIN_CTRL] = inst
-    inst.call_action(env[GIN_ACTION])
+    inst.call_action(env[GIN_TARGET][1])
   end
 
 
@@ -168,7 +197,7 @@ class Gin::Controller
 
   def initialize app, env
     @app      = app
-    @action   = env[GIN_ACTION]
+    @action   = nil
     @env      = env
     @request  = Gin::Request.new env
     @response = Gin::Response.new
@@ -918,8 +947,11 @@ class Gin::Controller
   # Raises Gin::BadRequest if a required argument has no matching param.
 
   def action_arguments action
+    raise Gin::NotFound,
+      "No action exists for: #{env[REQ_METHOD]} #{env[PATH_INFO]}" unless action
+
     raise Gin::NotFound, "No action #{self.class}##{action}" unless
-      self.class.actions.include? action.to_sym
+      self.class.actions.include?(action.to_sym)
 
     args = []
     temp = []

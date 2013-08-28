@@ -706,6 +706,7 @@ class Gin::App
         require self.class.source_file
       end
 
+# FIX: remove options
       @app = self.class.source_class.new @rack_app, @options
     end
   end
@@ -762,7 +763,7 @@ class Gin::App
 
   def call! env
     if env[GIN_STACK]
-      dispatch env, env[GIN_CTRL], env[GIN_ACTION]
+      dispatch env
 
     else
       env[GIN_STACK] = true
@@ -810,12 +811,12 @@ class Gin::App
     http_route = "#{env[REQ_METHOD]} #{env[PATH_INFO]}"
     return true if env[GIN_ROUTE] == http_route
 
-    env[GIN_CTRL], env[GIN_ACTION], env[GIN_PATH_PARAMS] =
+    env[GIN_TARGET], env[GIN_PATH_PARAMS] =
       router.resources_for env[REQ_METHOD], env[PATH_INFO]
 
     env[GIN_ROUTE] = http_route
 
-    !!(env[GIN_CTRL] && env[GIN_ACTION])
+    !!env[GIN_TARGET]
   end
 
 
@@ -876,15 +877,13 @@ class Gin::App
   ##
   # Dispatch the Rack env to the given controller and action.
 
-  def dispatch env, ctrl, action
+  def dispatch env
     raise Gin::NotFound,
       "No route exists for: #{env[REQ_METHOD]} #{env[PATH_INFO]}" unless
-      ctrl && action
+      env[GIN_TARGET]
 
-    env[GIN_APP]    = self
-    env[GIN_ACTION] = action
-    env[GIN_CTRL]   = ctrl
-    ctrl.call(env)
+    env[GIN_APP] = self
+    env[GIN_TARGET][0].call(env)
 
   rescue ::Exception => err
     handle_error(err, env)
@@ -935,8 +934,8 @@ class Gin::App
 
 
   def request_target_name env, resp
-    if Gin::Controller === env[GIN_CTRL]
-      [env[GIN_CTRL].class, env[GIN_ACTION]].join("#")
+    if env[GIN_TARGET] && env[GIN_TARGET][0] < Gin::Mountable
+      env[GIN_TARGET][0].display_name(env[GIN_TARGET][1])
     elsif resp[2].respond_to?(:path)
       resp[2].path
     elsif !(Array === resp[2]) || !resp[2].empty?
@@ -998,12 +997,14 @@ class Gin::App
     end
 
     actions_map.each do |ctrl, actions|
-      not_mounted   = ctrl.actions - actions
-      raise Gin::RouterError, "#{ctrl}##{not_mounted[0]} has no route." unless
+      ctrl.verify_mount!
+
+      not_mounted = ctrl.actions - actions
+      raise Gin::RouterError, "#{ctrl.display_name(not_mounted[0])} has no route" unless
         not_mounted.empty?
 
       extra_mounted = actions - ctrl.actions
-      raise Gin::RouterError, "#{ctrl}##{extra_mounted[0]} is not a method" unless
+      raise Gin::RouterError, "#{ctrl.display_name(extra_mounted[0])} is not an action" unless
         extra_mounted.empty?
     end
   end

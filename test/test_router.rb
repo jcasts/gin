@@ -23,16 +23,16 @@ class RouterTest < Test::Unit::TestCase
       any  :thing
     end
 
-    assert_equal [MyCtrl, :bar, {}],
+    assert_equal [[MyCtrl, :bar], {}],
       @router.resources_for("GET", "/my_ctrl/bar")
 
-    assert_equal [MyCtrl, :foo, {}],
+    assert_equal [[MyCtrl, :foo], {}],
       @router.resources_for("post", "/my_ctrl/foo")
 
     assert_nil @router.resources_for("post", "/my_ctrl")
 
     %w{get post put delete head options trace}.each do |verb|
-      assert_equal [MyCtrl, :thing, {}],
+      assert_equal [[MyCtrl, :thing], {}],
         @router.resources_for(verb, "/my_ctrl/thing")
     end
   end
@@ -43,7 +43,7 @@ class RouterTest < Test::Unit::TestCase
       get  :bar, "/bar/:id"
     end
 
-    assert_equal [MyCtrl, :bar, {'id' => '123 456'}],
+    assert_equal [[MyCtrl, :bar], {'id' => '123 456'}],
       @router.resources_for("GET", "/my_ctrl/bar/123+456")
   end
 
@@ -53,7 +53,7 @@ class RouterTest < Test::Unit::TestCase
       get  :bar, "/bar/:type/:id.:format"
     end
 
-    assert_equal [MyCtrl, :bar, {"type"=>"[I]", "id"=>"123 456", "format"=>"json"}],
+    assert_equal [[MyCtrl, :bar], {"type"=>"[I]", "id"=>"123 456", "format"=>"json"}],
       @router.resources_for("GET", "/my_ctrl/bar/%5BI%5D/123+456.json")
   end
 
@@ -65,11 +65,11 @@ class RouterTest < Test::Unit::TestCase
       post :create
     end
 
-    assert_equal [FooController, :bar, {}],
+    assert_equal [[FooController, :bar], {}],
       @router.resources_for("GET", "/foo/bar")
 
     assert_equal "/foo/bar", @router.path_to(:my_bar)
-    assert_equal "/foo/create", @router.path_to(:create_foo)
+    assert_equal "/foo", @router.path_to(:create_foo)
     assert_equal "/foo", @router.path_to(:all_foo)
   end
 
@@ -82,10 +82,10 @@ class RouterTest < Test::Unit::TestCase
 
     assert_nil @router.resources_for("post", "/my_ctrl")
 
-    assert_equal [MyCtrl, :bar, {'str' => 'item'}],
+    assert_equal [[MyCtrl, :bar], {'str' => 'item'}],
       @router.resources_for("GET", "/my_ctrl/item/bar")
 
-    assert_equal [MyCtrl, :foo, {'str' => 'item'}],
+    assert_equal [[MyCtrl, :foo], {'str' => 'item'}],
       @router.resources_for("post", "/my_ctrl/item")
   end
 
@@ -96,7 +96,7 @@ class RouterTest < Test::Unit::TestCase
     end
 
     expected_params = {'type' => 'sub', 'id' => '123', 'format' => 'json'}
-    assert_equal [MyCtrl, :bar, expected_params],
+    assert_equal [[MyCtrl, :bar], expected_params],
       @router.resources_for("GET", "/bar/sub/123.json")
   end
 
@@ -106,7 +106,7 @@ class RouterTest < Test::Unit::TestCase
       get :bar
     end
 
-    assert_equal [MyCtrl, :bar, {}],
+    assert_equal [[MyCtrl, :bar], {}],
       @router.resources_for("GET", "/my_ctrl/bar")
   end
 
@@ -116,7 +116,7 @@ class RouterTest < Test::Unit::TestCase
       get :index, '/'
     end
 
-    assert_equal [FooController, :index, {}],
+    assert_equal [[FooController, :index], {}],
       @router.resources_for("GET", "/foo")
   end
 
@@ -126,7 +126,7 @@ class RouterTest < Test::Unit::TestCase
       get :bar, "/"
     end
 
-    assert_equal [MyCtrl, :bar, {}],
+    assert_equal [[MyCtrl, :bar], {}],
       @router.resources_for("GET", "/")
 
     assert !@router.has_route?(MyCtrl, :show)
@@ -155,33 +155,16 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
-  def test_add_all_with_default_verb
-    @router.add MyCtrl, "/" do
-      get :show, "/:id"
-      defaults :post
-    end
-
-    assert_equal [MyCtrl, :index, {}],
-      @router.resources_for("GET", "/")
-
-    assert_equal [MyCtrl, :show, {'id' => '123'}],
-      @router.resources_for("GET", "/123")
-
-    assert_equal [MyCtrl, :unmounted_action, {}],
-      @router.resources_for("POST", "/unmounted_action")
-  end
-
-
   def test_add_all
     @router.add MyCtrl, "/"
 
-    assert_equal [MyCtrl, :index, {}],
+    assert_equal [[MyCtrl, :index], {}],
       @router.resources_for("GET", "/")
 
-    assert_equal [MyCtrl, :show, {'id' => '123'}],
+    assert_equal [[MyCtrl, :show], {'id' => '123'}],
       @router.resources_for("GET", "/123")
 
-    assert_equal [MyCtrl, :unmounted_action, {}],
+    assert_equal [[MyCtrl, :unmounted_action], {}],
       @router.resources_for("GET", "/unmounted_action")
   end
 

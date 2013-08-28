@@ -243,7 +243,7 @@ module Gin::Test::Assertions
   # controller and action.
 
   def assert_route verb, path, exp_ctrl, exp_action, msg=nil
-    ctrl, action, = app.router.resources_for(verb, path)
+    ctrl, action, = Array(app.router.resources_for(verb, path))[0]
     expected = "#{exp_ctrl}##{exp_action}"
     real     = "#{ctrl}##{action}"
     real_msg = ctrl && action ? "got #{real}" : "doesn't exist"

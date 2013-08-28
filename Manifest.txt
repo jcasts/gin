@@ -15,6 +15,7 @@ lib/gin/core_ext/rack_commonlogger.rb
 lib/gin/core_ext/time.rb
 lib/gin/errorable.rb
 lib/gin/filterable.rb
+lib/gin/mountable.rb
 lib/gin/reloadable.rb
 lib/gin/request.rb
 lib/gin/response.rb

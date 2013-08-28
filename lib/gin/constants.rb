@@ -37,6 +37,7 @@ module Gin::Constants
   GIN_STACK       = 'gin.stack'.freeze
   GIN_ROUTE       = 'gin.http_route'.freeze
   GIN_PATH_PARAMS = 'gin.path_query_hash'.freeze
+  GIN_TARGET      = 'gin.target'.freeze
   GIN_CTRL        = 'gin.controller'.freeze
   GIN_ACTION      = 'gin.action'.freeze
   GIN_STATIC      = 'gin.static'.freeze

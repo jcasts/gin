@@ -28,15 +28,6 @@ class Gin::Router
   # Used by the Gin::App.mount DSL.
 
   class Mount
-    DEFAULT_ACTION_MAP = {
-      :index   => %w{get /},
-      :show    => %w{get /:id},
-      :new     => %w{get /new},
-      :create  => %w{post /:id},
-      :edit    => %w{get /:id/edit},
-      :update  => %w{put /:id},
-      :destroy => %w{delete /:id}
-    }
 
     VERBS = %w{get post put delete head options trace}
 
@@ -59,14 +50,11 @@ class Gin::Router
     ##
     # Create and add default restful routes if they aren't taken already.
 
-    def defaults default_verb=nil
-      default_verb = default_verb || 'get'
-
+    def defaults
       (@ctrl.actions - @actions).each do |action|
-        verb, path = DEFAULT_ACTION_MAP[action]
-        verb, path = [default_verb, "/#{action}"] if verb.nil?
+        verb, path = @ctrl.default_route_for(action)
 
-        add(verb, action, path) unless verb.nil? ||
+        add(verb, action, path) unless
           @routes.any?{|route| route === [verb, path] }
       end
     end
@@ -87,8 +75,8 @@ class Gin::Router
       path = args.shift        if String === args[0]
       name = args.shift.to_sym if args[0]
 
-      path ||= action.to_s
-      name ||= :"#{action}_#{@ctrl.controller_name}"
+      path ||= @ctrl.default_route_for(action)[1]
+      name ||= @ctrl.route_name_for(action)
 
       path = File.join(@base_path, path)
       target = [@ctrl, action]
@@ -343,7 +331,14 @@ class Gin::Router
   def route_to *args
     key = Class === args[0] ? args.slice!(0..1) : args.shift
     route = @routes_lookup[key]
-    raise Gin::RouterError, "No route for #{Array(key).join("#")}" unless route
+
+    unless route
+      name = Array === key && Gin::Mountable === key[0] ?
+              key[0].display_name(key[1]) : name.inspect
+
+      raise Gin::RouterError, "No route for #{name}"
+    end
+
     route
   end
 
@@ -388,6 +383,6 @@ class Gin::Router
     path_params = param_vals.empty? ?
       {} : route.param_keys.inject({}){|h, name| h[name] = param_vals.shift; h}
 
-    route.target.dup << path_params
+    [route.target, path_params]
   end
 end

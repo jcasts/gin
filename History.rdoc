@@ -1,15 +1,19 @@
 === 1.2.0 / 2013-08-19
 
-* Minor Enhancements
+* Major Enhancements
   * Rubinius officially supported
   * Support for rewriting or rerouting requests from the controller
+  * Support generic App-mountable controller-like objects
+
+* Minor Enhancements
+  * Allow enforcing server name for routing
   * Cache#increase and Cache#decrease for numeric values
   * More robust indifferent access hash implementation
-  * Allow enforcing server name for routing
+  * Removed support for passing default verb to Mount#default
 
 * Bugfixes
-  * Reload bugfix which didn't recognize Controller classes in routes
   * Fix for ignored exclusions when adding filter to filter chain
+  * Fix for default controller create action request path mapping
 
 === 1.1.2 / 2013-07-19
 

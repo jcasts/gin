@@ -3,7 +3,7 @@ require 'rack'
 require 'tilt'
 
 class Gin
-  VERSION = '1.1.2'
+  VERSION = '1.2.0'
 
   LIB_DIR    = File.expand_path("..", __FILE__)            #:nodoc:
   PUBLIC_DIR = File.expand_path("../../public/", __FILE__) #:nodoc:
@@ -139,6 +139,7 @@ class Gin
   require 'gin/stream'
   require 'gin/errorable'
   require 'gin/filterable'
+  require 'gin/mountable'
   require 'gin/controller'
   require 'gin/app'
 end

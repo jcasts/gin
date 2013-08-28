@@ -414,7 +414,8 @@ class AppTest < Test::Unit::TestCase
     assert FooMiddleware.called?
 
     FooMiddleware.reset!
-    myapp.dispatch({'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}, FooController, :index)
+    myapp.dispatch('rack.input' => "", 'PATH_INFO' => '/foo',
+      'REQUEST_METHOD' => 'GET', GIN_TARGET => [FooController, :index])
     assert !FooMiddleware.called?
   end
 
@@ -423,11 +424,10 @@ class AppTest < Test::Unit::TestCase
     time = Time.now
     env = {'rack.input' => 'id=foo', 'PATH_INFO' => '/foobar', 'REQUEST_METHOD' => 'GET',
           'REMOTE_ADDR' => '127.0.0.1', GIN_RELOADED => true, GIN_TIMESTAMP => time,
-          GIN_CTRL => FooController, GIN_ACTION => :index}
+          GIN_TARGET => [FooController, :index]}
 
     expected_env = env.dup
-    expected_env.delete(GIN_CTRL)
-    expected_env.delete(GIN_ACTION)
+    expected_env.delete(GIN_TARGET)
     expected_env['REQUEST_METHOD'] = 'POST'
     expected_env['PATH_INFO'] = '/foo'
     expected_env['QUERY_STRING'] = nil
@@ -455,11 +455,10 @@ class AppTest < Test::Unit::TestCase
     time = Time.now
     env = {'rack.input' => 'id=foo', 'PATH_INFO' => '/foobar', 'REQUEST_METHOD' => 'GET',
           'REMOTE_ADDR' => '127.0.0.1', GIN_RELOADED => true, GIN_TIMESTAMP => time,
-          GIN_CTRL => FooController, GIN_ACTION => :index}
+          GIN_TARGET => [FooController, :index]}
 
     expected_env = env.dup
-    expected_env.delete(GIN_CTRL)
-    expected_env.delete(GIN_ACTION)
+    expected_env.delete(GIN_TARGET)
     expected_env['REQUEST_METHOD'] = 'POST'
     expected_env['PATH_INFO'] = '/foo'
     expected_env['QUERY_STRING'] = nil
@@ -659,7 +658,7 @@ class AppTest < Test::Unit::TestCase
     FooApp.environment 'test'
     env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
 
-    resp = @app.dispatch env, FooController, :index
+    resp = @app.dispatch env.merge(GIN_TARGET => [FooController, :index])
     assert_equal 200, resp[0]
     assert_equal "3", resp[1]['Content-Length']
     assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
@@ -672,7 +671,7 @@ class AppTest < Test::Unit::TestCase
     @app = FooApp.new
     env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
 
-    resp = @app.dispatch env, FooController, :bad
+    resp = @app.dispatch env.merge(GIN_TARGET => [FooController, :bad])
     assert_equal 404, resp[0]
     assert_equal "288", resp[1]['Content-Length']
     assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
@@ -685,13 +684,13 @@ class AppTest < Test::Unit::TestCase
     @app = FooApp.new
     env = {'rack.input' => "", 'PATH_INFO' => '/foo', 'REQUEST_METHOD' => 'GET'}
 
-    resp = @app.dispatch env, FooController, nil
+    resp = @app.dispatch env.merge(GIN_TARGET => [FooController, nil])
     assert_equal 404, resp[0]
     assert_equal "288", resp[1]['Content-Length']
     assert_equal 'text/html;charset=UTF-8', resp[1]['Content-Type']
     assert_equal @app.asset("404.html"), resp[2].path
 
-    msg = "[ERROR] Gin::NotFound: No route exists for: GET /foo"
+    msg = "[ERROR] Gin::NotFound: No action exists for: GET /foo"
     @error_io.rewind
     assert @error_io.read.include?(msg)
   end
@@ -701,7 +700,7 @@ class AppTest < Test::Unit::TestCase
     FooApp.environment 'test'
     @app = FooApp.new
     env  = {'rack.input' => "", 'PATH_INFO' => '/bad', 'REQUEST_METHOD' => 'GET'}
-    resp = @app.dispatch env, FooController, :error
+    resp = @app.dispatch env.merge(GIN_TARGET => [FooController, :error])
 
     assert_equal 500, resp[0]
     assert_equal @app.asset("500.html"), resp[2].path
