@@ -706,8 +706,7 @@ class Gin::App
         require self.class.source_file
       end
 
-# FIX: remove options
-      @app = self.class.source_class.new @rack_app, @options
+      @app = self.class.source_class.new @rack_app
     end
   end
 
