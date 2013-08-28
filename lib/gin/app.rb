@@ -802,8 +802,7 @@ class Gin::App
 
   ##
   # Check if the request routes to a controller and action and set
-  # gin.controller, gin.action, gin.path_query_hash,
-  # and gin.http_route env variables.
+  # gin.target, gin.path_query_hash, and gin.http_route env variables.
   # Returns true if a route is found, otherwise false.
 
   def route! env

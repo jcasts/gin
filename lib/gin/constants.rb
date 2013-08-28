@@ -39,7 +39,6 @@ module Gin::Constants
   GIN_PATH_PARAMS = 'gin.path_query_hash'.freeze
   GIN_TARGET      = 'gin.target'.freeze
   GIN_CTRL        = 'gin.controller'.freeze
-  GIN_ACTION      = 'gin.action'.freeze
   GIN_STATIC      = 'gin.static'.freeze
   GIN_RELOADED    = 'gin.reloaded'.freeze
   GIN_ERRORS      = 'gin.errors'.freeze
