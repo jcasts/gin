@@ -932,8 +932,12 @@ class Gin::App
 
 
   def request_target_name env, resp
-    if env[GIN_TARGET] && env[GIN_TARGET][0] < Gin::Mountable
-      env[GIN_TARGET][0].display_name(env[GIN_TARGET][1])
+    if env[GIN_TARGET]
+      if env[GIN_TARGET][0] < Gin::Mountable
+        env[GIN_TARGET][0].display_name(env[GIN_TARGET][1])
+      else
+        "#{env[GIN_TARGET][0].inspect}->#{env[GIN_TARGET][1].inspect}"
+      end
     elsif resp[2].respond_to?(:path)
       resp[2].path
     elsif !(Array === resp[2]) || !resp[2].empty?
@@ -995,6 +999,7 @@ class Gin::App
     end
 
     actions_map.each do |ctrl, actions|
+      next unless Gin::Mountable === ctrl
       ctrl.verify_mount!
 
       not_mounted = ctrl.actions - actions

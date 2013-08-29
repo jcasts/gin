@@ -29,6 +29,8 @@ class Gin::Router
 
   class Mount
 
+    PATH_NAME_MATCHER = %r{\A[-+\w/]+\Z}m  #:nodoc:
+
     VERBS = %w{get post put delete head options trace}
 
     VERBS.each do |verb|
@@ -36,14 +38,35 @@ class Gin::Router
     end
 
 
-    def initialize ctrl, base_path, &block
+    def initialize ctrl, base_path=nil, &block
+      raise ArgumentError,
+        "#{ctrl.inspect} must respond to `call'" unless ctrl.respond_to?(:call)
+
+      base_path ||= ctrl.controller_name if Gin::Mountable === ctrl
+
+      if !base_path
+        uname = Gin.underscore(ctrl.to_s)
+        base_path = File.join("", uname) if uname =~ PATH_NAME_MATCHER
+      end
+
+      raise ArgumentError,
+        "Could not deduce base path from #{ctrl.inspect}" unless base_path
+
       @ctrl      = ctrl
       @routes    = []
       @actions   = []
       @base_path = base_path
 
-      instance_eval(&block) if block_given?
-      defaults unless block_given?
+      if block_given?
+        instance_eval(&block)
+        return
+      end
+
+      if !(Gin::Mountable === @ctrl)
+        any :call, "/"
+      else
+        defaults
+      end
     end
 
 
@@ -51,6 +74,10 @@ class Gin::Router
     # Create and add default restful routes if they aren't taken already.
 
     def defaults
+      raise TypeError,
+        "#{@ctrl.inspect} must inherit Gin::Mountable to support defaults" unless
+        Gin::Mountable === @ctrl
+
       (@ctrl.actions - @actions).each do |action|
         verb, path = @ctrl.default_route_for(action)
 
@@ -75,15 +102,25 @@ class Gin::Router
       path = args.shift        if String === args[0]
       name = args.shift.to_sym if args[0]
 
-      path ||= @ctrl.default_route_for(action)[1]
-      name ||= @ctrl.route_name_for(action)
+      if Gin::Mountable === @ctrl
+        path ||= @ctrl.default_route_for(action)[1]
+        name ||= @ctrl.route_name_for(action)
+      elsif !(path && name) && !action.is_a?(Array) && !action.is_a?(Hash) &&
+      action.to_s =~ PATH_NAME_MATCHER
+        path ||= action.to_s
+        uname = Gin.underscore(@ctrl.to_s).sub(%r{^.*/},'')
+        name = "#{action}_#{uname}" if !name && uname =~ PATH_NAME_MATCHER
+      end
+
+      raise ArgumentError, "No path could be determined for target %s %s" %
+        [@ctrl.inspect, action.inspect] unless path
 
       path = File.join(@base_path, path)
       target = [@ctrl, action]
 
       route = Route.new(verb, path, target, name)
-      @routes << route
-      @actions << action.to_sym
+      @routes  << route
+      @actions << action
     end
 
 
@@ -132,7 +169,7 @@ class Gin::Router
 
     def initialize verb, path, target=[], name=nil
       @target = target
-      @name   = name
+      @name   = name.to_sym if name
       build verb, path
     end
 
@@ -260,8 +297,6 @@ class Gin::Router
   # Used by Gin::App.mount.
 
   def add ctrl, base_path=nil, &block
-    base_path ||= ctrl.controller_name
-
     mount = Mount.new(ctrl, base_path, &block)
 
     mount.each_route do |route|

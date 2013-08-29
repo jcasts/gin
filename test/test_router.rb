@@ -101,6 +101,110 @@ class RouterTest < Test::Unit::TestCase
   end
 
 
+  def test_add_and_retrieve_lambda
+    ctrl = lambda{ "foo" }
+    @router.add ctrl, "/foo"
+
+    assert_equal [[ctrl, :call],{}], @router.resources_for("GET", "/foo")
+  end
+
+
+  def test_add_and_retrieve_lambda_block
+    ctrl = lambda{ "foo" }
+    @router.add ctrl, "/foo" do
+      get :thing, "/thing"
+    end
+
+    assert_equal [[ctrl, :thing],{}], @router.resources_for("GET", "/foo/thing")
+  end
+
+
+  def test_add_lambda_no_path
+    ctrl = lambda{ "foo" }
+
+    assert_raises ArgumentError do
+      @router.add ctrl
+    end
+  end
+
+
+  def test_add_lambda_defaults
+    ctrl = lambda{ "foo" }
+
+    assert_raises TypeError do
+      @router.add ctrl, "/foo" do
+        get :thing, "/thing"
+        defaults
+      end
+    end
+  end
+
+
+  class MockCustomMount
+    def self.call env
+      [200, {}, ["OK"]]
+    end
+  end
+
+  def test_add_and_retrieve_custom_mount
+    @router.add MockCustomMount
+
+    assert_equal [[MockCustomMount, :call],{}],
+      @router.resources_for("GET", "/router_test/mock_custom_mount")
+
+    assert_equal [MockCustomMount, :call],
+      @router.route_to(MockCustomMount, :call).target
+
+    assert_equal [MockCustomMount, :call],
+      @router.route_to(:call_mock_custom_mount).target
+  end
+
+
+  def test_add_and_retrieve_custom_mount_block
+    @router.add MockCustomMount do
+      post :foo
+      get [:foo, 1, 2], "/ary"
+    end
+
+    assert_equal [[MockCustomMount, :foo],{}],
+      @router.resources_for("POST", "/router_test/mock_custom_mount/foo")
+
+    assert_equal [[MockCustomMount, [:foo, 1, 2]],{}],
+      @router.resources_for("GET", "/router_test/mock_custom_mount/ary")
+
+    assert_equal [MockCustomMount, :foo],
+      @router.route_to(:foo_mock_custom_mount).target
+
+    assert_nil @router.route_to(MockCustomMount, [:foo, 1, 2]).name
+  end
+
+
+  def test_add_custom_mount_action
+    assert_raises ArgumentError do
+      @router.add MockCustomMount do
+        post [:foo, 1, 2]
+      end
+    end
+  end
+
+
+  def test_add_custom_mount_defaults
+    assert_raises TypeError do
+      @router.add MockCustomMount, "/foo" do
+        get :thing, "/thing"
+        defaults
+      end
+    end
+  end
+
+
+  def test_add_and_retrieve_custom_mount_invalid
+    assert_raises ArgumentError do
+      @router.add TypeError
+    end
+  end
+
+
   def test_add_omit_base_path
     @router.add MyCtrl do
       get :bar

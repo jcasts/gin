@@ -1,6 +1,10 @@
 ##
 # The Gin::Mountable module provides an interface to mount any type of object
 # to a Gin::App route.
+#
+# The Gin::Mountable module is only necessary if features such automatic route
+# naming and defaults are needed. Gin will otherwise happily mount any object
+# that responds to the `call' method onto it's routing tree.
 
 module Gin::Mountable
 
