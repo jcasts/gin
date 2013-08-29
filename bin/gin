@@ -1,23 +1,79 @@
 #!/usr/bin/env ruby
 
 $: << File.join(File.dirname(__FILE__), "../lib") if $0 == "bin/gin"
+require 'rubygems'
 require 'gin'
+require 'optparse'
 
 class Gin::Cmd
+
+  def self.parse_args argv
+    options = {}
+
+    opts = OptionParser.new do |opt|
+      opt.program_name = File.basename $0
+      opt.version = Gin::VERSION
+      opt.release = nil
+
+      opt.banner = <<-STR
+
+#{opt.program_name}-#{opt.version}
+
+Create and control Gin applications.
+
+  Usage:
+    #{opt.program_name} --help
+    #{opt.program_name} --version
+
+    #{opt.program_name} <app-path> [options]
+
+  Options:
+      STR
+
+      opt.on('-b', '--bare', 'Create lightweight Gin app') do
+        options[:bare] = true
+      end
+
+      opt.on('-m', '--middleware', 'Create a Gin app as middleware') do
+        options[:middleware] = true
+      end
+
+      opt.separator nil
+
+      opt.on('-h', '--help', 'Print this help screen') do
+        puts opt
+        exit
+      end
+
+      opt.on('-v', '--version', 'Output Gin version and exit') do
+        puts Gin::VERSION
+        exit
+      end
+
+      opt.separator nil
+    end
+
+    opts.parse! argv
+
+    options[:app_path] = argv.shift
+    error("Missing app-path argument. Use gin -h for help.") if
+      !options[:app_path]
+
+    error("Invalid arguments #{argv.join(", ")}.") unless argv.empty?
+
+    options
+  end
+
+
   def self.run argv=ARGV
-    show_help if argv.empty? || argv.delete("-h") || argv.delete("--help")
+    options = parse_args(argv)
 
-    bare = !!argv.delete("--bare")
+    bare = options[:bare]
+    path = options[:app_path].sub(/\.\w+$/, '')
+    standalone = !options[:middleware]
 
-    path = argv.pop
-    error("Missing app_name argument. Use gin -h for help.") if !path
-
-    error("Invalid options #{argv.join(", ")}.") unless argv.empty?
-
-    name           = File.basename(path)
-    dir            = File.expand_path(path)
-    parent_ru_path = File.expand_path(File.join(dir, "..", "*.ru"))
-    standalone     = Dir[parent_ru_path].empty?
+    name = File.basename(path)
+    dir  = File.expand_path(path)
 
     make_dirs(dir, bare)
 
@@ -35,32 +91,6 @@ class Gin::Cmd
   def self.error msg
     $stderr.puts "#{msg}\n\n"
     exit 1
-  end
-
-
-  def self.show_help
-    puts <<-STR
-
-gin #{Gin::VERSION}
-
-Create a new Gin application.
-
-  gin <path/to/app_name>
-
-Examples:
-
-  $ gin my_website
-  $ gin my_api --bare
-
-Options:
-      --bare    Don't create view-related files/dirs
-  -h  --help    Show this screen
-
-Gin applications created in a directory containing
-a *.ru file will not generate its own config.ru.
-
-    STR
-    true
   end
 
 
