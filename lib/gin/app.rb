@@ -933,7 +933,7 @@ class Gin::App
 
   def request_target_name env, resp
     if env[GIN_TARGET]
-      if env[GIN_TARGET][0] < Gin::Mountable
+      if Gin::Mountable === env[GIN_TARGET][0]
         env[GIN_TARGET][0].display_name(env[GIN_TARGET][1])
       else
         "#{env[GIN_TARGET][0].inspect}->#{env[GIN_TARGET][1].inspect}"
