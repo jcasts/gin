@@ -546,6 +546,8 @@ class Gin::App
       @options[:config_dir] != @options[:config].dir ||
       @options[:config_reload] != @options[:config].ttl
 
+    @override_options = options if autoreload
+
     validate_all_controllers!
 
     @app   = self
@@ -706,7 +708,7 @@ class Gin::App
         require self.class.source_file
       end
 
-      @app = self.class.source_class.new @rack_app
+      @app = self.class.source_class.new @rack_app, @override_options
     end
   end
 
