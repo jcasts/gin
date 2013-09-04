@@ -16,6 +16,8 @@
   * Fix for default controller create action request path mapping
   * Reload bugfix which didn't recognize Controller classes in routes
   * Fix to remove slashes from namespaced controller route names
+  * Don't convert numeric params that start with 0 to Integers
+  * Support negative numbers when converting param types
 
 === 1.1.2 / 2013-07-19
 
