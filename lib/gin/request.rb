@@ -47,7 +47,7 @@ class Gin::Request < Rack::Request
 
   M_BOOLEAN = /^true|false$/  #:nodoc:
   M_FLOAT   = /^\d+\.\d+$/    #:nodoc:
-  M_INTEGER = /^\d+$/         #:nodoc:
+  M_INTEGER = /^([^0]\d+|\d)$/ #:nodoc:
 
   ##
   # Enable string or symbol key access to the nested params hash.
