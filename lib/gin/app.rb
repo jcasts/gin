@@ -232,12 +232,12 @@ class Gin::App
 
   def self.asset_paths *paths
     @options[:asset_paths] ||=
-      [File.join(root_dir, 'assets', ''),
-        File.join(root_dir, 'assets', '*', ''),
-        File.join(root_dir, 'lib', '**', 'assets', ''),
+      [File.join(root_dir, 'assets', '*', ''),
         File.join(root_dir, 'lib', '**', 'assets', '*', ''),
-        File.join(root_dir, 'vendor', '**', 'assets', ''),
-        File.join(root_dir, 'vendor', '**', 'assets', '*', '')]
+        File.join(root_dir, 'vendor', '**', 'assets', '*', ''),
+        File.join(root_dir, 'assets', ''),
+        File.join(root_dir, 'lib', '**', 'assets', ''),
+        File.join(root_dir, 'vendor', '**', 'assets', '')]
     @options[:asset_paths].concat(paths) if !paths.empty?
     @options[:asset_paths]
   end
@@ -1088,6 +1088,7 @@ class Gin::App
 
 
   def wait_on_asset_pipeline
+    return unless development? && use_asset_pipeline?
     sleep 0.05 while asset_pipeline && asset_pipeline.rendering?
   end
 
@@ -1125,10 +1126,10 @@ class Gin::App
         pipe = Gin::AssetPipeline.new(assets_dir, asset_paths, &asset_config)
         pipe.logger = self.logger
         pipe.render_all
-        pipe.listen!
       end
 
       w.run
+      w.wait
     end
   end
 
