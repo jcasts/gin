@@ -15,7 +15,8 @@ class Gin::AssetPipeline
     @render_dir = nil
     @sprockets  = nil
     @sprockets  = nil
-    @flag_update = false
+    @flag_update  = false
+    @force_render = false
 
     @render_lock = Gin::RWLock.new
     @listen_lock = Gin::RWLock.new
@@ -26,7 +27,7 @@ class Gin::AssetPipeline
 
 
   SPROCKET_ATTR = #:nodoc:
-    [:js_compressor, :css_compressor, :paths, :preprocessors, :postprocessors]
+    [:js_compressor, :css_compressor, :preprocessors, :postprocessors]
 
 
   def setup_listener asset_paths=[], &block
@@ -44,7 +45,9 @@ class Gin::AssetPipeline
     return @sprockets = spr if !@sprockets
 
     @listen_lock.write_sync do
-      @flag_update ||= SPROCKET_ATTR.any?{|m| spr.send(m) != @sprockets.send(m)}
+      @flag_update ||= spr.paths != @sprockets.paths
+      @force_render = SPROCKET_ATTR.any?{|m| spr.send(m) != @sprockets.send(m)}
+      @flag_update ||= @force_render
       @sprockets = spr
     end
   end
@@ -148,6 +151,12 @@ class Gin::AssetPipeline
   def render_all
     @render_lock.write_sync{ @rendering += 1 }
     start = Time.now
+
+    if @force_render
+      FileUtils.rm_r @render_dir
+      FileUtils.mkdir @render_dir
+      @force_render = false
+    end
 
     dir_glob = File.join(@render_dir, "**", "*")
 
