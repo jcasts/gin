@@ -14,7 +14,6 @@ class Gin::AssetPipeline
     @last_mtime = Time.now
     @render_dir = nil
     @sprockets  = nil
-    @sprockets  = nil
     @flag_update  = false
     @force_render = false
 
@@ -45,9 +44,9 @@ class Gin::AssetPipeline
     return @sprockets = spr if !@sprockets
 
     @listen_lock.write_sync do
-      @flag_update ||= spr.paths != @sprockets.paths
       @force_render = SPROCKET_ATTR.any?{|m| spr.send(m) != @sprockets.send(m)}
       @flag_update ||= @force_render
+      @flag_update ||= spr.paths != @sprockets.paths
       @sprockets = spr
     end
   end
@@ -59,7 +58,7 @@ class Gin::AssetPipeline
     if @render_dir && @render_dir != new_dir
       @listen_lock.write_sync do
         @flag_update = true
-        @render_dir = new_dir
+        @render_dir  = new_dir
       end
     else
       @render_dir = new_dir
