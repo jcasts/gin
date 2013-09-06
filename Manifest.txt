@@ -5,6 +5,7 @@ Rakefile
 bin/gin
 lib/gin.rb
 lib/gin/app.rb
+lib/gin/asset_pipeline.rb
 lib/gin/cache.rb
 lib/gin/config.rb
 lib/gin/constants.rb
@@ -24,6 +25,7 @@ lib/gin/rw_lock.rb
 lib/gin/stream.rb
 lib/gin/strict_hash.rb
 lib/gin/test.rb
+lib/gin/worker.rb
 public/400.html
 public/404.html
 public/500.html

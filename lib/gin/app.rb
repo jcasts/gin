@@ -38,6 +38,7 @@ class Gin::App
     dir = File.dirname(filepath)
 
     @source_file  = filepath
+    @app_name     = Gin.underscore(self.name).gsub("/", ".")
     @source_class = self.to_s
     @templates    = Gin::Cache.new
     @md5s         = Gin::Cache.new
@@ -76,6 +77,15 @@ class Gin::App
 
   def self.options
     @options
+  end
+
+
+  ##
+  # Get or set the app name.
+
+  def self.app_name name=nil
+    @app_name = name if name
+    @app_name
   end
 
 
@@ -187,6 +197,63 @@ class Gin::App
 
 
   ##
+  # Turn asset pipelining on or off. Defaults to turned on if any asset paths
+  # are present at boot time.
+  #   asset_pipeline true   # Force ON
+  #   asset_pipeline false  # Force OFF
+  #
+  # Passing a block will allow for configuration for Sprocket asset pipelining.
+  # Passed block yields a Sprocket::Environment instance.
+  #   asset_pipeline do |a|
+  #     a.append_path 'foo/assets'
+  #   end
+
+  def self.asset_pipeline val=nil, &block
+    if !val.nil?
+      @options[:force_asset_pipeline] = val
+    elsif block_given?
+      @options[:asset_config] = block
+    end
+    @options[:force_asset_pipeline]
+  end
+
+
+  ##
+  # Get or set the globs to find asset files.
+  #   asset_paths "foo/my_other_assets/*/"
+  #
+  # Default globs are:
+  #   <root_dir>/assets/
+  #   <root_dir>/assets/*/
+  #   <root_dir>/lib/**/assets/
+  #   <root_dir>/lib/**/assets/*/
+  #   <root_dir>/vendor/**/assets/
+  #   <root_dir>/vendor/**/assets/*/
+
+  def self.asset_paths *paths
+    @options[:asset_paths] ||=
+      [File.join(root_dir, 'assets', ''),
+        File.join(root_dir, 'assets', '*', ''),
+        File.join(root_dir, 'lib', '**', 'assets', ''),
+        File.join(root_dir, 'lib', '**', 'assets', '*', ''),
+        File.join(root_dir, 'vendor', '**', 'assets', ''),
+        File.join(root_dir, 'vendor', '**', 'assets', '*', '')]
+    @options[:asset_paths].concat(paths) if !paths.empty?
+    @options[:asset_paths]
+  end
+
+
+  ##
+  # Directory where the asset pipeline should render static assets to.
+  # Defaults to <public_dir>/assets
+
+  def self.assets_dir dir=nil
+    @options[:assets_dir] = dir if dir
+    @options[:assets_dir] || File.join(public_dir, "assets")
+  end
+
+
+  ##
   # Get or set the CDN asset host (and path).
   # If block is given, evaluates the block on every read.
 
@@ -199,9 +266,9 @@ class Gin::App
 
   def self.make_config opts={}  # :nodoc:
     Gin::Config.new opts[:environment] || self.environment,
-        :dir =>    opts[:config_dir]    || self.config_dir,
+        :dir    => opts[:config_dir]    || self.config_dir,
         :logger => opts[:logger]        || self.logger,
-        :ttl =>    opts[:config_reload] || self.config_reload
+        :ttl    => opts[:config_reload] || self.config_reload
   end
 
 
@@ -508,8 +575,10 @@ class Gin::App
   opt_reader :error_delegate, :router, :logger
   opt_reader :layout, :layouts_dir, :views_dir, :template_engines
   opt_reader :root_dir, :public_dir, :environment
+  opt_reader :asset_paths, :assets_dir, :asset_config, :force_asset_pipeline
 
   class_proxy :mime_type, :md5s, :templates, :reload_mutex, :autoreload
+  class_proxy :app_name
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
   attr_reader :rack_app
@@ -534,11 +603,13 @@ class Gin::App
     end
 
     @options = {
-      :config_dir =>  self.class.config_dir,
-      :public_dir =>  self.class.public_dir,
-      :layouts_dir => self.class.layouts_dir,
-      :views_dir =>   self.class.views_dir,
-      :config =>      self.class.config
+      :config_dir   => self.class.config_dir,
+      :public_dir   => self.class.public_dir,
+      :assets_dir   => self.class.assets_dir,
+      :asset_paths  => self.class.asset_paths,
+      :layouts_dir  => self.class.layouts_dir,
+      :views_dir    => self.class.views_dir,
+      :config       => self.class.config
     }.merge(self.class.options).merge(options)
 
     @options[:config] = self.class.make_config(@options) if
@@ -552,6 +623,8 @@ class Gin::App
 
     @app   = self
     @stack = build_app Rack::Builder.new
+
+    setup_asset_pipeline
   end
 
 
@@ -604,6 +677,39 @@ class Gin::App
 
   def production?
     self.environment == ENV_PROD
+  end
+
+
+  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
+
+  ##
+  # Check if an asset exists.
+  # Returns the full path to the asset if found, otherwise nil.
+  # Does not support ./ or ../ for security reasons.
+
+  def asset path
+    path = path.gsub STATIC_PATH_CLEANER, ""
+
+    filepath = File.expand_path(File.join(public_dir, path))
+    return filepath if File.file? filepath
+
+    if assets_dir.start_with?(public_dir) && File.directory?(File.dirname(filepath))
+      filepath.sub!(/(\.\w+)$/, '-*\1')
+      filepath = Dir[filepath].first
+      return filepath if filepath
+
+    else
+      filepath = File.expand_path(File.join(assets_dir, path))
+      return filepath if File.file? filepath
+
+      filepath = File.expand_path(File.join(assets_dir, path))
+      filepath.sub!(/(\.\w+)$/, '-*\1')
+      filepath = Dir[filepath].first
+      return filepath if filepath
+    end
+
+    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
+    return filepath if File.file? filepath
   end
 
 
@@ -716,6 +822,7 @@ class Gin::App
 
   def call env
     try_autoreload(env)
+    wait_on_asset_pipeline
 
     valid_host = valid_host?(env)
 
@@ -854,24 +961,6 @@ class Gin::App
   end
 
 
-  STATIC_PATH_CLEANER = %r{\.+/|/\.+}  #:nodoc:
-
-  ##
-  # Check if an asset exists.
-  # Returns the full path to the asset if found, otherwise nil.
-  # Does not support ./ or ../ for security reasons.
-
-  def asset path
-    path = path.gsub STATIC_PATH_CLEANER, ""
-
-    filepath = File.expand_path(File.join(public_dir, path))
-    return filepath if File.file? filepath
-
-    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
-    return filepath if File.file? filepath
-  end
-
-
   ##
   # Dispatch the Rack env to the given controller and action.
 
@@ -985,6 +1074,62 @@ class Gin::App
     opts[:except] += [:session_hijacking, :remote_token] unless sessions
     opts[:reaction] ||= :drop_session
     builder.use Rack::Protection, opts
+  end
+
+
+  def asset_pipeline
+    Thread.main[:"#{self.app_name}_asset_pipeline"]
+  end
+
+
+  def set_asset_pipeline pipe
+    Thread.main[:"#{self.app_name}_asset_pipeline"] = pipe
+  end
+
+
+  def wait_on_asset_pipeline
+    sleep 0.05 while asset_pipeline && asset_pipeline.rendering?
+  end
+
+
+  def use_asset_pipeline?
+    return force_asset_pipeline unless force_asset_pipeline.nil?
+    return false unless asset_paths
+    asset_paths.any? do |glob|
+      Dir[glob].first
+    end
+  end
+
+
+  def setup_asset_pipeline
+    return unless use_asset_pipeline?
+
+    if development? || autoreload
+      if pipe = asset_pipeline
+        pipe.logger = self.logger
+        pipe.render_dir = assets_dir
+        pipe.setup_listener(asset_paths, &asset_config)
+      else
+        require 'gin/asset_pipeline'
+        pipe = Gin::AssetPipeline.new(assets_dir, asset_paths, &asset_config)
+        pipe.logger = self.logger
+        pipe.render_all
+        pipe.listen
+        set_asset_pipeline pipe
+      end
+
+    else
+      require 'gin/worker'
+      w = Gin::Worker.new "#{self.app_name}.asset_pipeline.pid" do
+        require 'gin/asset_pipeline'
+        pipe = Gin::AssetPipeline.new(assets_dir, asset_paths, &asset_config)
+        pipe.logger = self.logger
+        pipe.render_all
+        pipe.listen!
+      end
+
+      w.run
+    end
   end
 
 
