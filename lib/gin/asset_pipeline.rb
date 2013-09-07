@@ -15,7 +15,6 @@ class Gin::AssetPipeline
     @render_dir = nil
     @sprockets  = nil
     @flag_update  = false
-    @force_render = false
 
     @render_lock = Gin::RWLock.new
     @listen_lock = Gin::RWLock.new
@@ -144,12 +143,6 @@ class Gin::AssetPipeline
   def render_all
     @render_lock.write_sync{ @rendering += 1 }
     start = Time.now
-
-    if @force_render
-      FileUtils.rm_r @render_dir
-      FileUtils.mkdir @render_dir
-      @force_render = false
-    end
 
     dir_glob = File.join(@render_dir, "**", "*")
 
