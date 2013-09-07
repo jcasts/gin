@@ -25,10 +25,6 @@ class Gin::AssetPipeline
   end
 
 
-  SPROCKET_ATTR = #:nodoc:
-    [:js_compressor, :css_compressor, :preprocessors, :postprocessors]
-
-
   def setup_listener asset_paths=[], &block
     spr = Sprockets::Environment.new
 
@@ -44,8 +40,6 @@ class Gin::AssetPipeline
     return @sprockets = spr if !@sprockets
 
     @listen_lock.write_sync do
-      @force_render = SPROCKET_ATTR.any?{|m| spr.send(m) != @sprockets.send(m)}
-      @flag_update ||= @force_render
       @flag_update ||= spr.paths != @sprockets.paths
       @sprockets = spr
     end
