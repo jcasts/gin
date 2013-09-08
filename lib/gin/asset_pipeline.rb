@@ -14,7 +14,7 @@ class Gin::AssetPipeline
     @last_mtime = Time.now
     @render_dir = nil
     @sprockets  = nil
-    @flag_update  = false
+    @flag_update = false
 
     @render_lock = Gin::RWLock.new
     @listen_lock = Gin::RWLock.new
@@ -27,11 +27,8 @@ class Gin::AssetPipeline
   def setup_listener asset_paths=[], &block
     spr = Sprockets::Environment.new
 
-    asset_paths.each do |glob|
-      glob = File.join(glob, '')
-      Dir[glob].each do |path|
-        spr.append_path path
-      end
+    Dir.glob(asset_paths).each do |path|
+      spr.append_path path
     end
 
     yield spr if block_given?

@@ -232,15 +232,19 @@ class Gin::App
 
   def self.asset_paths *paths
     @options[:asset_paths] ||=
-      [File.join(root_dir, 'assets', '*', ''),
-        File.join(root_dir, 'lib', '**', 'assets', '*', ''),
-        File.join(root_dir, 'vendor', '**', 'assets', '*', ''),
-        File.join(root_dir, 'assets', ''),
-        File.join(root_dir, 'lib', '**', 'assets', ''),
-        File.join(root_dir, 'vendor', '**', 'assets', '')]
+      DEFAULT_ASSET_PATHS.map{|pa| File.join(root_dir, *pa) }
     @options[:asset_paths].concat(paths) if !paths.empty?
     @options[:asset_paths]
   end
+
+  DEFAULT_ASSET_PATHS = [  #:nodoc:
+    %w{assets */},
+    %w{lib ** assets */},
+    %w{vendor ** assets */},
+    %w{assets/},
+    %w{lib ** assets/},
+    %w{vendor ** assets/}
+  ]
 
 
   ##
@@ -613,8 +617,8 @@ class Gin::App
     }.merge(self.class.options).merge(options)
 
     @options[:config] = self.class.make_config(@options) if
-      @options[:environment] != @options[:config].environment ||
-      @options[:config_dir] != @options[:config].dir ||
+      @options[:environment]   != @options[:config].environment ||
+      @options[:config_dir]    != @options[:config].dir ||
       @options[:config_reload] != @options[:config].ttl
 
     @override_options = options if autoreload
@@ -1096,9 +1100,8 @@ class Gin::App
   def use_asset_pipeline?
     return force_asset_pipeline unless force_asset_pipeline.nil?
     return false unless asset_paths
-    asset_paths.any? do |glob|
-      Dir[glob].first
-    end
+    return @use_asset_pipeline if defined? @use_asset_pipeline
+    @use_asset_pipeline = !!Dir.glob(asset_paths).first
   end
 
 
