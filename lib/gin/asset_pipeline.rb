@@ -15,6 +15,7 @@ class Gin::AssetPipeline
     @render_dir = nil
     @sprockets  = nil
     @flag_update = false
+    @asset_paths = nil
 
     @render_lock = Gin::RWLock.new
     @listen_lock = Gin::RWLock.new
@@ -31,14 +32,31 @@ class Gin::AssetPipeline
       spr.append_path path
     end
 
+    @asset_paths = asset_paths
+
     yield spr if block_given?
 
     return @sprockets = spr if !@sprockets
 
     @listen_lock.write_sync do
+      cache = @sprockets.instance_variable_get("@assets")
+      spr.instance_variable_set("@assets", cache)
       @flag_update ||= spr.paths != @sprockets.paths
       @sprockets = spr
     end
+  end
+
+
+  def asset_dir_updated?
+    paths = Dir.glob(@asset_paths).map{|pa| pa[-1] == ?/ ? pa[0..-2] : pa }
+    return false if @sprockets.paths == paths
+
+    @listen_lock.write_sync do
+      @sprockets.clear_paths
+      paths.each{|path| @sprockets.append_path(path) }
+    end
+
+    true
   end
 
 
@@ -85,7 +103,11 @@ class Gin::AssetPipeline
 
     while listen? do
       @listen_lock.read_sync do
-        render_all and next if @flag_update
+        if @flag_update || asset_dir_updated?
+          render_all
+          @last_mtime = Time.now
+          next
+        end
 
         @sprockets.paths.each do |dir|
           next unless File.exist?(dir)
@@ -172,10 +194,12 @@ class Gin::AssetPipeline
 
     asset = @sprockets[path]
     return unless asset
-    return if !asset || file_name && file_name.include?(asset.digest)
+
+    digest = asset.digest[0..7]
+    return if !asset || file_name && file_name.include?(digest)
 
     log "Rendering asset: #{path}"
-    render_filename = file_glob.sub('*', asset.digest)
+    render_filename = file_glob.sub('*', digest)
 
     FileUtils.mkdir_p File.dirname(render_filename)
     File.open(render_filename, 'wb'){|f| f.write asset.source }

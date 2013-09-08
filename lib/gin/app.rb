@@ -694,26 +694,19 @@ class Gin::App
   def asset path
     path = path.gsub STATIC_PATH_CLEANER, ""
 
-    filepath = File.expand_path(File.join(public_dir, path))
-    return filepath if File.file? filepath
+    pub_filepath = File.expand_path(File.join(public_dir, path))
+    return pub_filepath if File.file? pub_filepath
 
-    if assets_dir.start_with?(public_dir) && File.directory?(File.dirname(filepath))
-      filepath.sub!(/(\.\w+)$/, '-*\1')
-      filepath = Dir[filepath].first
-      return filepath if filepath
+    ast_filepath = File.expand_path(File.join(assets_dir, path))
+    return ast_filepath if File.file? ast_filepath
 
-    else
-      filepath = File.expand_path(File.join(assets_dir, path))
-      return filepath if File.file? filepath
+    pub_filepath.sub!(/(\.\w+)$/, '-*\1')
+    ast_filepath.sub!(/(\.\w+)$/, '-*\1')
+    filepath = Dir[pub_filepath, ast_filepath].first
+    return filepath if filepath
 
-      filepath = File.expand_path(File.join(assets_dir, path))
-      filepath.sub!(/(\.\w+)$/, '-*\1')
-      filepath = Dir[filepath].first
-      return filepath if filepath
-    end
-
-    filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
-    return filepath if File.file? filepath
+    gin_filepath = File.expand_path(File.join(Gin::PUBLIC_DIR, path))
+    return gin_filepath if File.file? gin_filepath
   end
 
 
