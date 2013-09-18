@@ -220,7 +220,7 @@ class Gin::App
 
   ##
   # Get or set the globs to find asset files.
-  #   asset_paths "foo/my_other_assets/*/"
+  #   asset_paths "/path/to/other/shared/assets/*/"
   #
   # Default globs are:
   #   <root_dir>/assets/
@@ -1085,7 +1085,7 @@ class Gin::App
 
 
   def wait_on_asset_pipeline
-    return unless development? && use_asset_pipeline?
+    return unless (development? || autoreload) && use_asset_pipeline?
     sleep 0.05 while asset_pipeline && asset_pipeline.rendering?
   end
 
