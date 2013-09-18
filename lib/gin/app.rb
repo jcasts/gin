@@ -635,15 +635,13 @@ class Gin::App
   end
 
 
-  MD5 = RUBY_PLATFORM =~ /darwin/ ? 'md5 -q' : 'md5sum' #:nodoc:
-
   ##
   # Returns the first 8 characters of a file's MD5 hash.
   # Values are cached for future reference.
 
   def md5 path
     return unless File.file?(path)
-    self.md5s[path] ||= `#{MD5} #{path}`[0...8]
+    self.md5s[path] ||= Digest::MD5.file(path).hexdigest[0...8]
   end
 
 
