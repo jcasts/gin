@@ -4,9 +4,10 @@ require 'fileutils'
 class Gin::AssetPipeline
 
   attr_accessor :logger
-  attr_reader   :render_dir
+  attr_reader   :render_dir, :name, :asset_paths
 
-  def initialize render_dir, asset_paths, &block
+  def initialize name, render_dir, asset_paths, &block
+    @name       = name
     @rendering  = 0
     @logger     = $stderr
     @listen     = false
@@ -39,6 +40,7 @@ class Gin::AssetPipeline
     return @sprockets = spr if !@sprockets
 
     @listen_lock.write_sync do
+      # Prevent re-rendering all assets
       cache = @sprockets.instance_variable_get("@assets")
       spr.instance_variable_set("@assets", cache)
       @flag_update ||= spr.paths != @sprockets.paths
@@ -60,16 +62,59 @@ class Gin::AssetPipeline
   end
 
 
+  def assets_version_file
+    File.join(@render_dir, "#{@name}.assets.version")
+  end
+
+
+  def calculate_assets_version
+    md5 = Digest::MD5.new
+    globpaths = @asset_paths.map do |pa|
+      pa.end_with?('/**/*') ? pa : File.join(pa, "**", "*")
+    end
+
+    filepaths = Dir.glob(globpaths)
+    filepaths.uniq!
+
+    filepaths.each do |path|
+      if File.file?(path)
+        md5.update path
+        md5.update Digest::MD5.file(path).hexdigest
+      end
+    end
+
+    md5.hexdigest
+  end
+
+
+  def load_assets_version
+    filepath = assets_version_file
+    @assets_version = File.file?(filepath) ? File.read(filepath).strip : nil
+  end
+
+
+  def update_assets_version
+    @curr_assets_version ||= calculate_assets_version
+    @assets_version = @curr_assets_version
+    File.open(assets_version_file, "w"){|f| f.write(@assets_version) }
+  end
+
+
+  def assets_version_outdated?
+    @curr_assets_version = calculate_assets_version
+    @curr_assets_version != @assets_version
+  end
+
+
   def render_dir= new_dir
     new_dir = File.expand_path(new_dir)
 
-    if @render_dir && @render_dir != new_dir
+    if !@render_dir || @render_dir != new_dir
       @listen_lock.write_sync do
         @flag_update = true
         @render_dir  = new_dir
+        load_assets_version
       end
-    else
-      @render_dir = new_dir
     end
   end
 
@@ -161,6 +206,12 @@ class Gin::AssetPipeline
 
   def render_all
     @render_lock.write_sync{ @rendering += 1 }
+
+    unless assets_version_outdated?
+      log "No assets to update"
+      return
+    end
+
     start = Time.now
 
     dir_glob = File.join(@render_dir, "**", "*")
@@ -176,6 +227,8 @@ class Gin::AssetPipeline
     end
 
     log "Assets rendered in (#{(Time.now.to_f - start.to_f).round(3)} sec)"
+
+    update_assets_version
 
   ensure
     @render_lock.write_sync do

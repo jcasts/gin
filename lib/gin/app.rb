@@ -1103,30 +1103,32 @@ class Gin::App
 
     if development? || autoreload
       if pipe = asset_pipeline
-        pipe.logger = self.logger
+        pipe.name       = self.app_name
+        pipe.logger     = self.logger
         pipe.render_dir = assets_dir
         pipe.setup_listener(asset_paths, &asset_config)
       else
-        require 'gin/asset_pipeline'
-        pipe = Gin::AssetPipeline.new(assets_dir, asset_paths, &asset_config)
-        pipe.logger = self.logger
-        pipe.render_all
+        pipe = create_asset_pipeline
         pipe.listen
         set_asset_pipeline pipe
       end
 
     else
       require 'gin/worker'
-      w = Gin::Worker.new "#{self.app_name}.asset_pipeline.pid" do
-        require 'gin/asset_pipeline'
-        pipe = Gin::AssetPipeline.new(assets_dir, asset_paths, &asset_config)
-        pipe.logger = self.logger
-        pipe.render_all
-      end
-
+      worker_name = "#{self.app_name}.asset_pipeline.pid"
+      w = Gin::Worker.new(worker_name){ create_asset_pipeline }
       w.run
       w.wait
     end
+  end
+
+
+  def create_asset_pipeline
+    require 'gin/asset_pipeline'
+    pipe = Gin::AssetPipeline.new(self.app_name, assets_dir, asset_paths, &asset_config)
+    pipe.logger = self.logger
+    pipe.render_all
+    pipe
   end
 
 
