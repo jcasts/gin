@@ -1,12 +1,18 @@
 require 'sprockets'
 require 'fileutils'
+require 'gin/asset_manifest'
+
+
+# TODO: Need a place to keep track of asset dirs in sprockets and gin, and when
+# globs match different dirs than previously found.
+#       Need a place to convert source-asset name to rendered-asset name.
 
 class Gin::AssetPipeline
 
   attr_accessor :logger
-  attr_reader   :render_dir, :name, :asset_paths
+  attr_reader   :render_dir, :asset_paths
 
-  def initialize name, render_dir, asset_paths, &block
+  def initialize manifest_file, render_dir, asset_paths, &block
     @rendering  = 0
     @logger     = $stderr
     @listen     = false
@@ -22,9 +28,9 @@ class Gin::AssetPipeline
     @listen_lock = Gin::RWLock.new
 
     @render_dir = render_dir
-    self.name = name
 
-    load_assets_version
+    @manifest = Gin::AssetManifest.new(manifest_file, asset_paths)
+
     setup_listener(asset_paths, &block)
   end
 
@@ -54,7 +60,7 @@ class Gin::AssetPipeline
 
   def asset_dir_updated?
     paths = Dir.glob(@asset_paths).map{|pa| pa[-1] == ?/ ? pa[0..-2] : pa }
-    return false if @sprockets.paths == paths
+    return false if @sprockets.paths == @sprockets.paths | paths
 
     @listen_lock.write_sync do
       @sprockets.clear_paths
@@ -65,61 +71,13 @@ class Gin::AssetPipeline
   end
 
 
-  def assets_version_file
-    File.join(@render_dir, "#{@name}.assets.version")
+  def manifest_file
+    @manifest.filepath
   end
 
 
-  def calculate_assets_version
-    md5 = Digest::MD5.new
-    globpaths = @asset_paths.map do |pa|
-      pa.end_with?('/**/*') ? pa : File.join(pa, "**", "*")
-    end
-
-    filepaths = Dir.glob(globpaths)
-    filepaths.uniq!
-
-    filepaths.each do |path|
-      if File.file?(path)
-        md5.update path
-        md5.update Digest::MD5.file(path).hexdigest
-      end
-    end
-
-    md5.hexdigest
-  end
-
-
-  def load_assets_version
-    filepath = assets_version_file
-    @assets_version = File.file?(filepath) ? File.read(filepath).strip : nil
-  end
-
-
-  def update_assets_version
-    @curr_assets_version ||= calculate_assets_version
-    @assets_version = @curr_assets_version
-    File.open(assets_version_file, "w"){|f| f.write(@assets_version) }
-  end
-
-
-  def assets_version_outdated?
-    @curr_assets_version = calculate_assets_version
-    @curr_assets_version != @assets_version
-  end
-
-
-  def name= new_name
-    @listen_lock.write_sync do
-      old_vfile = assets_version_file
-
-      @name = new_name
-      new_vfile = assets_version_file
-
-      FileUtils.mv(old_vfile, new_vfile) if
-        File.file?(old_vfile) && old_vfile != new_vfile
-      @name
-    end
+  def manifest_file= new_file
+    @manifest.filepath = new_file
   end
 
 
@@ -131,7 +89,6 @@ class Gin::AssetPipeline
         # TODO: instead of re-rendering everything, maybe move rendered assets?
         @flag_update = true
         @render_dir  = new_dir
-        load_assets_version
       end
     end
   end
@@ -206,6 +163,22 @@ class Gin::AssetPipeline
   end
 
 
+  def with_render_lock &block
+    @render_lock.write_sync{ @rendering += 1 }
+    start = Time.now
+    block.call
+
+    log "Assets rendered in (#{(Time.now.to_f - start.to_f).round(3)} sec)"
+
+  ensure
+    @render_lock.write_sync do
+      @rendering -= 1
+      @rendering = 0 if @rendering < 0
+      @flag_update = false
+    end
+  end
+
+
   def remove_path path
     log "Deleting asset: #{path}"
     File.delete(path)
@@ -222,54 +195,72 @@ class Gin::AssetPipeline
   # Looks at all rendered, added, and modified assets and compiles those
   # out of date or missing.
 
+  def _render_all
+    with_render_lock do
+      dir_glob = File.join(@render_dir, "**", "*")
+
+      Dir[dir_glob].each do |path|
+        next unless File.file?(path)
+        next unless local_path = local_path_for(path)
+        valid_asset = @sprockets.resolve(local_path) rescue false
+        remove_path path if !valid_asset
+      end
+
+      @sprockets.each_logical_path do |path|
+        render path
+      end
+    end
+  end
+
+
   def render_all
-    @render_lock.write_sync{ @rendering += 1 }
+    with_render_lock do
+      # delete rendered files that aren't in the asset_dirs
+      sp_files = @sprockets.each_file.map(&:to_s).uniq
+      @manifest.assets.each do |asset_file, asset|
+        valid_asset = sp_files.include?(asset_file)
+        next if valid_asset
 
-    unless assets_version_outdated?
-      log "No assets to update. \
-Delete the version file to force asset rendering:\n  #{assets_version_file}\n"
-      return
-    end
+        target_file = asset.target_file
+        remove_path target_file if target_file
+        @manifest.delete(asset_file)
+      end
 
-    start = Time.now
+      # update tree index
+      sp_files.each do |asset_file|
+        next unless @manifest.asset_outdated?(asset_file)
+        sp_asset = @sprockets[asset_file] # First time render
 
-    dir_glob = File.join(@render_dir, "**", "*")
+        if target_file = render(asset_file)
+          @manifest.stage asset_file, target_file,
+            sp_asset.dependencies.map{|d| d.pathname.to_s }
+        end
+      end
 
-    Dir[dir_glob].each do |path|
-      next unless File.file?(path)
-      next unless local_path = local_path_for(path)
-      valid_asset = @sprockets.resolve(local_path) rescue false
-      remove_path path if !valid_asset
-    end
+      @manifest.commit!
 
-    @sprockets.each_logical_path do |path|
-      render path
-    end
-
-    log "Assets rendered in (#{(Time.now.to_f - start.to_f).round(3)} sec)"
-
-    update_assets_version
-
-  ensure
-    @render_lock.write_sync do
-      @rendering -= 1
-      @rendering = 0 if @rendering < 0
-      @flag_update = false
+      # save cache to disk
+      @manifest.save_file!
     end
   end
 
 
   def render path
-    render_path = File.join(@render_dir, path)
-
-    file_glob = render_path.sub(/(\.\w+)$/, '-*\1')
-    file_name = Dir[file_glob].first
-
     asset = @sprockets[path]
     return unless asset
 
+    ctype = asset.content_type
+    ext = ctype == "application/octet-stream" ?
+            File.extname(path) :
+            @sprockets.extension_for_mime_type(ctype)
+
+    render_path = File.join(@render_dir, asset.logical_path)
+
+    file_glob = render_path.sub(/(\.\w+)$/, "-*#{ext}")
+    file_name = Dir[file_glob].first
+
     digest = asset.digest[0..7]
-    return if !asset || file_name && file_name.include?(digest)
+    return file_name if file_name && file_name.include?(digest)
 
     log "Rendering asset: #{path}"
     render_filename = file_glob.sub('*', digest)
@@ -279,6 +270,6 @@ Delete the version file to force asset rendering:\n  #{assets_version_file}\n"
 
     File.delete(file_name) if file_name
 
-    true
+    return render_filename
   end
 end
