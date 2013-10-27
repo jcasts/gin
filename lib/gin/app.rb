@@ -202,11 +202,18 @@ class Gin::App
   #   asset_pipeline true   # Force ON
   #   asset_pipeline false  # Force OFF
   #
-  # Passing a block will allow for configuration for Sprocket asset pipelining.
-  # Passed block yields a Sprocket::Environment instance.
-  #   asset_pipeline do |a|
-  #     a.append_path 'foo/assets'
+  # Passing a block will allow for configuration for Sprockets asset pipelining.
+  # Passed block yields a Sprockets::Environment instance.
+  #   asset_pipeline do |sprockets|
+  #     sprockets.append_path 'foo/assets'
   #   end
+  #
+  # To keep memory usage low, Gin avoids loading Sprockets during the App
+  # runtime. If you however need Sprockets at runtime for your app,
+  # you may also pass a Sprockets::Environment instance to the
+  # asset_pipeline method:
+  #   sprockets = Sprockets::Environment.new
+  #   asset_pipeline sprockets
 
   def self.asset_pipeline val=nil, &block
     if !val.nil?
@@ -221,6 +228,9 @@ class Gin::App
   ##
   # Get or set the globs to find asset files.
   #   asset_paths "/path/to/other/shared/assets/*/"
+  #
+  # These globs will be expanded and added to the asset_pipeline Sprockets
+  # instance.
   #
   # Default globs are:
   #   <root_dir>/assets/
@@ -1103,10 +1113,10 @@ class Gin::App
 
     if development? || autoreload
       if pipe = asset_pipeline
-        pipe.name       = self.app_name
-        pipe.logger     = self.logger
-        pipe.render_dir = assets_dir
-        pipe.setup_listener(asset_paths, &asset_config)
+        pipe.manifest_file = "#{self.app_name}.asset_manifest"
+        pipe.logger        = self.logger
+        pipe.render_dir    = assets_dir
+        pipe.setup_listener(asset_paths, force_asset_pipeline, &asset_config)
       else
         pipe = create_asset_pipeline
         pipe.listen
@@ -1125,7 +1135,10 @@ class Gin::App
 
   def create_asset_pipeline
     require 'gin/asset_pipeline'
-    pipe = Gin::AssetPipeline.new(self.app_name, assets_dir, asset_paths, &asset_config)
+
+    pipe = Gin::AssetPipeline.new("#{self.app_name}.asset_manifest",
+            assets_dir, asset_paths, force_asset_pipeline, &asset_config)
+
     pipe.logger = self.logger
     pipe.render_all
     pipe

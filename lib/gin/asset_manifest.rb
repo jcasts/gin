@@ -47,51 +47,27 @@ class Gin::AssetManifest
   end
 
 
-  attr_reader :assets, :asset_globs, :filepath
+  attr_reader :assets, :filepath
+  attr_accessor :render_dir, :asset_globs
 
 
-  def initialize filepath, asset_globs
+  def initialize filepath, render_dir, asset_globs
     @staged = []
     @assets = {}
     @filepath = filepath
+    @render_dir = render_dir
     @asset_globs = asset_globs
 
     load_file! if File.file?(@filepath)
   end
 
 
-  def render_all
-    ## delete rendered files that aren't in the asset_dirs
-    #   @cache.each_file do |asset_file|
-    #     valid_asset = @sprockets.resolve(asset_file) rescue false
-    #     next if valid_asset
-    #     @cache.delete(asset_file)
-    #     remove_path asset_file
-    #
-    ## update tree index
-    #   @sprockets.each_file do |asset_file|
-    #     next unless @cache.outdated?(asset_file)
-    #     sp_asset = @sprockets[asset_file] # First time render
-    #
-    #     #Only do this update after all files are rendered
-    #     @cache.stage asset_file, sp_asset.dependencies.map{|d| d.pathname.to_s }
-    #
-    #   @cache.commit!
-    #
-    ## save cache to disk
-    #   @cache.save_file!
-  end
-
-
   def set asset_file, target_file, dependencies=[]
-    asset_file = asset_file.to_s
+    asset_file  = asset_file.to_s
     target_file = target_file.to_s
 
     asset = @assets[asset_file] =
       Asset.new(asset_file, :target_file => target_file)
-    #return if dependencies == asset.dependencies
-
-    #asset.dependencies.clear
 
     Array(dependencies).each do |path|
       @assets[path] ||= Asset.new(path)
@@ -127,16 +103,18 @@ class Gin::AssetManifest
     return false if checked.include?(asset_file)
     checked << asset_file
 
-    return true if !@assets[asset_file] || @assets[asset_file].outdated?
+    asset = @assets[asset_file]
+    return true if
+      !asset || !asset.target_file.start_with?(@render_dir) || asset.outdated?
 
-    @assets[asset_file].dependencies.any? do |path|
+    asset.dependencies.any? do |path|
       return true if asset_outdated?(path, checked)
     end
   end
 
 
   def source_changed?
-    source_files.sort == @assets.keys.sort
+    source_files.sort != @assets.keys.sort
   end
 
 
@@ -145,6 +123,11 @@ class Gin::AssetManifest
               (gl =~ /\.(\*|\w+)$/) ? gl : File.join(gl, '**', '*') }
 
     Dir.glob(globs).reject{|path| !File.file?(path) }.uniq
+  end
+
+
+  def source_dirs
+    Dir.glob(@asset_globs).map{|pa| pa[-1] == ?/ ? pa[0..-2] : pa }.uniq
   end
 
 
@@ -160,7 +143,8 @@ class Gin::AssetManifest
 
 
   def filepath= new_file
-    FileUtils.mv(@filepath, new_file) if @filepath && File.file?(@filepath)
+    FileUtils.mv(@filepath, new_file) if
+      @filepath && new_file != @filepath && File.file?(@filepath)
     @filepath = new_file
   end
 

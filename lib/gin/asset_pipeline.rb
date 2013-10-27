@@ -2,17 +2,17 @@ require 'sprockets'
 require 'fileutils'
 require 'gin/asset_manifest'
 
-
-# TODO: Need a place to keep track of asset dirs in sprockets and gin, and when
-# globs match different dirs than previously found.
-#       Need a place to convert source-asset name to rendered-asset name.
+# TODO:
+#   - reliable asset-name -> rendered-name lookup
+#   - build on top of sprockets instead of around it
+#   - when should app reload happen? when should asset re-rendering happen?
 
 class Gin::AssetPipeline
 
   attr_accessor :logger
   attr_reader   :render_dir, :asset_paths
 
-  def initialize manifest_file, render_dir, asset_paths, &block
+  def initialize manifest_file, render_dir, asset_paths, sprockets, &block
     @rendering  = 0
     @logger     = $stderr
     @listen     = false
@@ -22,29 +22,30 @@ class Gin::AssetPipeline
     @sprockets  = nil
     @name       = nil
     @flag_update = false
-    @asset_paths = nil
 
     @render_lock = Gin::RWLock.new
     @listen_lock = Gin::RWLock.new
 
     @render_dir = render_dir
 
-    @manifest = Gin::AssetManifest.new(manifest_file, asset_paths)
+    @manifest = Gin::AssetManifest.new(manifest_file, render_dir, asset_paths)
 
-    setup_listener(asset_paths, &block)
+    setup_listener(asset_paths, sprockets, &block)
   end
 
 
-  def setup_listener asset_paths=[], &block
-    spr = Sprockets::Environment.new
+  def setup_listener asset_paths=[], spr=nil, &block
+    spr = Sprockets::Environment.new unless Sprockets::Environment === spr
 
-    Dir.glob(asset_paths).each do |path|
+    @manifest.asset_globs = asset_paths
+
+    @manifest.source_dirs.each do |path|
       spr.append_path path
     end
 
-    @asset_paths = asset_paths
-
     yield spr if block_given?
+
+    @manifest.asset_globs |= spr.paths
 
     return @sprockets = spr if !@sprockets
 
@@ -55,19 +56,6 @@ class Gin::AssetPipeline
       @flag_update ||= spr.paths != @sprockets.paths
       @sprockets = spr
     end
-  end
-
-
-  def asset_dir_updated?
-    paths = Dir.glob(@asset_paths).map{|pa| pa[-1] == ?/ ? pa[0..-2] : pa }
-    return false if @sprockets.paths == @sprockets.paths | paths
-
-    @listen_lock.write_sync do
-      @sprockets.clear_paths
-      paths.each{|path| @sprockets.append_path(path) }
-    end
-
-    true
   end
 
 
@@ -88,7 +76,7 @@ class Gin::AssetPipeline
       @listen_lock.write_sync do
         # TODO: instead of re-rendering everything, maybe move rendered assets?
         @flag_update = true
-        @render_dir  = new_dir
+        @manifest.render_dir = @render_dir = new_dir
       end
     end
   end
@@ -123,20 +111,11 @@ class Gin::AssetPipeline
 
     while listen? do
       @listen_lock.read_sync do
-        if @flag_update || asset_dir_updated?
+        if @flag_update || @manifest.outdated?
+          update_sprockets
           render_all
           @last_mtime = Time.now
           next
-        end
-
-        @sprockets.paths.each do |dir|
-          next unless File.exist?(dir)
-          mtime = File.mtime(dir) rescue 0
-          if mtime > @last_mtime
-            @last_mtime = mtime
-            render_all
-            break
-          end
         end
       end
 
@@ -156,10 +135,14 @@ class Gin::AssetPipeline
   end
 
 
-  def local_path_for path
-    path = path.sub(@render_dir,'')
-    path.sub!(/^\//, '')
-    path.sub!(/-[0-9a-f*]+(\.\w+)$/i, '\1')
+  def update_sprockets
+    paths = @manifest.source_dirs
+    return if @sprockets.paths == paths
+
+    @listen_lock.write_sync do
+      @sprockets.clear_paths
+      paths.each{|path| @sprockets.append_path(path) }
+    end
   end
 
 
@@ -195,24 +178,6 @@ class Gin::AssetPipeline
   # Looks at all rendered, added, and modified assets and compiles those
   # out of date or missing.
 
-  def _render_all
-    with_render_lock do
-      dir_glob = File.join(@render_dir, "**", "*")
-
-      Dir[dir_glob].each do |path|
-        next unless File.file?(path)
-        next unless local_path = local_path_for(path)
-        valid_asset = @sprockets.resolve(local_path) rescue false
-        remove_path path if !valid_asset
-      end
-
-      @sprockets.each_logical_path do |path|
-        render path
-      end
-    end
-  end
-
-
   def render_all
     with_render_lock do
       # delete rendered files that aren't in the asset_dirs
@@ -226,7 +191,7 @@ class Gin::AssetPipeline
         @manifest.delete(asset_file)
       end
 
-      # update tree index
+      # render assets and update tree index
       sp_files.each do |asset_file|
         next unless @manifest.asset_outdated?(asset_file)
         sp_asset = @sprockets[asset_file] # First time render
