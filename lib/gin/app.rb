@@ -202,6 +202,11 @@ class Gin::App
   #   asset_pipeline true   # Force ON
   #   asset_pipeline false  # Force OFF
   #
+  # If you would rather handle asset generation manually through the `gin -A`
+  # command for production purposes, you can set asset_pipieline to false. The
+  # app will still know where to look for rendered assets.
+  #   asset_pipeline ENV['RACK_ENV'] == 'development'
+  #
   # Passing a block will allow for configuration for Sprockets asset pipelining.
   # Passed block yields a Sprockets::Environment instance.
   #   asset_pipeline do |sprockets|
@@ -1113,7 +1118,7 @@ class Gin::App
 
     if development? || autoreload
       if pipe = asset_pipeline
-        pipe.manifest_file = "#{self.app_name}.asset_manifest"
+        pipe.manifest_file = asset_manifest_path
         pipe.logger        = self.logger
         pipe.render_dir    = assets_dir
         pipe.setup_listener(asset_paths, force_asset_pipeline, &asset_config)
@@ -1133,10 +1138,15 @@ class Gin::App
   end
 
 
+  def asset_manifest_path
+    File.join(self.root_dir, "#{self.app_name}.asset_manifest")
+  end
+
+
   def create_asset_pipeline
     require 'gin/asset_pipeline'
 
-    pipe = Gin::AssetPipeline.new("#{self.app_name}.asset_manifest",
+    pipe = Gin::AssetPipeline.new(asset_manifest_path,
             assets_dir, asset_paths, force_asset_pipeline, &asset_config)
 
     pipe.logger = self.logger

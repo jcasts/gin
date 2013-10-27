@@ -2,10 +2,6 @@ require 'sprockets'
 require 'fileutils'
 require 'gin/asset_manifest'
 
-# TODO:
-#   - reliable asset-name -> rendered-name lookup
-#   - build on top of sprockets instead of around it
-#   - when should app reload happen? when should asset re-rendering happen?
 
 class Gin::AssetPipeline
 
