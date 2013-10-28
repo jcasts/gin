@@ -5,12 +5,14 @@ Rakefile
 bin/gin
 lib/gin.rb
 lib/gin/app.rb
+lib/gin/asset_manifest.rb
 lib/gin/asset_pipeline.rb
 lib/gin/cache.rb
 lib/gin/config.rb
 lib/gin/constants.rb
 lib/gin/controller.rb
 lib/gin/core_ext/cgi.rb
+lib/gin/core_ext/float.rb
 lib/gin/core_ext/gin_class.rb
 lib/gin/core_ext/rack_commonlogger.rb
 lib/gin/core_ext/time.rb

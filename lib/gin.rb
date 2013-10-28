@@ -125,6 +125,7 @@ class Gin
 
   require 'gin/core_ext/cgi'
   require 'gin/core_ext/time'
+  require 'gin/core_ext/float'
   require 'gin/core_ext/gin_class'
   require 'gin/core_ext/rack_commonlogger'
 
