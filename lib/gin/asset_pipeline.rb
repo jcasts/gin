@@ -96,10 +96,7 @@ class Gin::AssetPipeline
     @listen_lock.write_sync{ @listen = true }
 
     while listen? do
-      @listen_lock.read_sync do
-        render_all if outdated?
-      end
-
+      render_all if outdated?
       sleep 0.2
     end
   end
@@ -112,12 +109,17 @@ class Gin::AssetPipeline
 
   def stop
     @listen_lock.write_sync{ @listen = false }
+  end
+
+
+  def stop!
+    stop
     @thread.join if @thread && @thread.alive?
   end
 
 
   def outdated?
-    @listen_lock.read_sync{ @flag_update || @manifest.outdated? }
+    @flag_update || @manifest.outdated?
   end
 
 
