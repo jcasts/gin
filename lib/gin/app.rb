@@ -26,6 +26,13 @@ class Gin::App
     /src\/kernel\/bootstrap\/[A-Z]/     # maglev kernel files
   ]
 
+  @@app_klasses = {}
+
+
+  def self.each &block
+    @@app_klasses.values.each(&block)
+  end
+
 
   def self.inherited subclass   #:nodoc:
     subclass.setup
@@ -36,6 +43,8 @@ class Gin::App
     caller_line = caller.find{|line| !CALLERS_TO_IGNORE.any?{|m| line =~ m} }
     filepath = File.expand_path(caller_line.split(/:\d+:in `/).first)
     dir = File.dirname(filepath)
+
+    @@app_klasses[self.name] = self unless self.name == "Gin::App"
 
     @source_file  = filepath
     @app_name     = Gin.underscore(self.name).gsub("/", ".")

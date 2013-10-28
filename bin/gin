@@ -38,6 +38,10 @@ Create and control Gin applications.
         options[:middleware] = true
       end
 
+      opt.on('-A', '--assets', 'Render assets for the given Gin app') do
+        options[:action] = :render_assets
+      end
+
       opt.separator nil
 
       opt.on('-h', '--help', 'Print this help screen') do
@@ -68,6 +72,42 @@ Create and control Gin applications.
   def self.run argv=ARGV
     options = parse_args(argv)
 
+    case options[:action]
+    when :render_assets
+      render_assets(options)
+    else
+      create_app(options)
+    end
+  end
+
+
+  def self.render_assets options
+    app_path = File.expand_path(options[:app_path])
+    app_filepath = nil
+
+    if File.file?(app_path)
+      app_filepath = app_path
+
+    elsif File.directory?(app_path)
+      ["#{File.basename(app_path)}.rb", "app.rb", "application.rb"].each do |name|
+        filepath = File.join(app_path, name)
+        app_filepath = filepath and break if File.file?(filepath)
+      end
+    end
+
+    error("No such file or directory: #{options[:app_path]}") if !app_filepath
+
+    $: << File.dirname(app_filepath)
+    require app_filepath
+
+    Gin::App.each do |app_klass|
+      puts "Generating assets for #{app_klass.name}..."
+      app_klass.new(:force_asset_pipeline => false).send(:create_asset_pipeline)
+    end
+  end
+
+
+  def self.create_app options
     bare = options[:bare]
     path = options[:app_path].sub(/\.\w+$/, '')
     standalone = !options[:middleware]
