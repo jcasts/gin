@@ -2,8 +2,6 @@ require 'sprockets'
 require 'fileutils'
 require 'gin/asset_manifest'
 
-# TODO: Overlapping logical_path files never render (and shouldn't),
-#       but manifest expects them to.
 
 class Gin::AssetPipeline
 
