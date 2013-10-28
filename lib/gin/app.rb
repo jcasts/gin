@@ -51,7 +51,7 @@ class Gin::App
     @source_class = self.to_s
     @templates    = Gin::Cache.new
     @md5s         = Gin::Cache.new
-    @reload_mutex = Mutex.new
+    @reload_lock  = Gin::RWLock.new
     @autoreload   = nil
     @instance     = nil
 
@@ -523,8 +523,8 @@ class Gin::App
   end
 
 
-  def self.reload_mutex # :nodoc:
-    @reload_mutex
+  def self.reload_lock # :nodoc:
+    @reload_lock
   end
 
 
@@ -605,7 +605,7 @@ class Gin::App
   opt_reader :root_dir, :public_dir, :environment
   opt_reader :asset_paths, :assets_dir, :asset_config, :force_asset_pipeline
 
-  class_proxy :mime_type, :md5s, :templates, :reload_mutex, :autoreload
+  class_proxy :mime_type, :md5s, :templates, :reload_lock, :autoreload
   class_proxy :app_name
 
   # App to fallback on if Gin::App is used as middleware and no route is found.
@@ -823,7 +823,7 @@ class Gin::App
   # If you use this in production, you're gonna have a bad time.
 
   def reload!
-    reload_mutex.synchronize do
+    reload_lock.write_sync do
       self.class.erase_dependencies!
 
       if File.extname(self.class.source_file) != ".ru"
@@ -842,45 +842,47 @@ class Gin::App
   # Default Rack call method.
 
   def call env
-    try_autoreload(env)
+    try_autoreload(env) do
+      valid_host = valid_host?(env)
 
-    valid_host = valid_host?(env)
+      resp =
+        if valid_host && @app.route!(env)
+          @app.call!(env)
 
-    resp =
-      if valid_host && @app.route!(env)
-        @app.call!(env)
+        elsif valid_host && @app.static!(env)
+          @app.call_static(env)
 
-      elsif valid_host && @app.static!(env)
-        @app.call_static(env)
+        elsif @rack_app
+          @rack_app.call(env)
 
-      elsif @rack_app
-        @rack_app.call(env)
+        elsif !valid_host
+          bt  = caller
+          msg = "No route for host '%s:%s'" % [env[SERVER_NAME], env[SERVER_PORT]]
+          err = Gin::BadRequest.new(msg)
+          err.set_backtrace(bt)
+          handle_error(err, env)
 
-      elsif !valid_host
-        bt  = caller
-        msg = "No route for host '%s:%s'" % [env[SERVER_NAME], env[SERVER_PORT]]
-        err = Gin::BadRequest.new(msg)
-        err.set_backtrace(bt)
-        handle_error(err, env)
+        else
+          @app.call!(env)
+        end
 
-      else
-        @app.call!(env)
-      end
+      resp[1][HOST_NAME] ||=
+        (hostname || env[SERVER_NAME]).sub(/(:[0-9]+)?$/, ":#{env[SERVER_PORT]}")
 
-    resp[1][HOST_NAME] ||=
-      (hostname || env[SERVER_NAME]).sub(/(:[0-9]+)?$/, ":#{env[SERVER_PORT]}")
-
-    resp
+      resp
+    end
   end
 
 
   ##
-  # Check if autoreload is needed and reload.
+  # Check if autoreload is needed, reload, and/or run block in a
+  # thread-safe manner.
 
-  def try_autoreload env
-    return if env[GIN_RELOADED] || !autoreload
+  def try_autoreload env, &block
+    return block.call if env[GIN_RELOADED] || !autoreload
     env[GIN_RELOADED] = true
     reload!
+    reload_lock.read_sync{ block.call }
   end
 
 
