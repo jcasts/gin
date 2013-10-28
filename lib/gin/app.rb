@@ -26,10 +26,10 @@ class Gin::App
     /src\/kernel\/bootstrap\/[A-Z]/     # maglev kernel files
   ]
 
-  @@app_klasses = {}
+  @@app_klasses = {}    #:nodoc:
 
 
-  def self.each &block
+  def self.each &block    #:nodoc:
     @@app_klasses.values.each(&block)
   end
 
@@ -843,7 +843,6 @@ class Gin::App
 
   def call env
     try_autoreload(env)
-    wait_on_asset_pipeline
 
     valid_host = valid_host?(env)
 
@@ -1104,18 +1103,14 @@ class Gin::App
 
 
   def set_asset_pipeline pipe
+    old_pipe = Thread.main[:"#{self.app_name}_asset_pipeline"]
+    old_pipe.stop if old_pipe
     Thread.main[:"#{self.app_name}_asset_pipeline"] = pipe
   end
 
 
-  def wait_on_asset_pipeline
-    return unless (development? || autoreload) && use_asset_pipeline?
-    sleep 0.05 while asset_pipeline && asset_pipeline.rendering?
-  end
-
-
   def use_asset_pipeline?
-    return force_asset_pipeline unless force_asset_pipeline.nil?
+    return !!force_asset_pipeline unless force_asset_pipeline.nil?
     return false unless asset_paths
     return @use_asset_pipeline if defined? @use_asset_pipeline
     @use_asset_pipeline = !!Dir.glob(asset_paths).first
@@ -1125,22 +1120,15 @@ class Gin::App
   def setup_asset_pipeline
     return unless use_asset_pipeline?
 
-    if development? || autoreload
-      if pipe = asset_pipeline
-        pipe.manifest_file = asset_manifest_path
-        pipe.logger        = self.logger
-        pipe.render_dir    = assets_dir
-        pipe.setup_listener(asset_paths, force_asset_pipeline, &asset_config)
-      else
-        pipe = create_asset_pipeline
-        pipe.listen
-        set_asset_pipeline pipe
-      end
+    if development?
+      pipe = create_asset_pipeline
+      pipe.listen
+      set_asset_pipeline pipe
 
     else
       require 'gin/worker'
-      worker_name = "#{self.app_name}.asset_pipeline.pid"
-      w = Gin::Worker.new(worker_name){ create_asset_pipeline }
+      pidfile = File.join(self.root_dir, "#{self.app_name}.asset_pipeline.pid")
+      w = Gin::Worker.new(pidfile){ create_asset_pipeline }
       w.run
       w.wait
     end
@@ -1159,7 +1147,7 @@ class Gin::App
             assets_dir, asset_paths, force_asset_pipeline, &asset_config)
 
     pipe.logger = self.logger
-    pipe.render_all
+    pipe.render_all if pipe.outdated?
     pipe
   end
 

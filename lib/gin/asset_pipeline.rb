@@ -36,16 +36,7 @@ class Gin::AssetPipeline
     yield spr if block_given?
 
     @manifest.asset_globs |= spr.paths
-
-    return @sprockets = spr if !@sprockets
-
-    @listen_lock.write_sync do
-      # Prevent re-rendering all assets
-      cache = @sprockets.instance_variable_get("@assets")
-      spr.instance_variable_set("@assets", cache)
-      @flag_update ||= spr.paths != @sprockets.paths
-      @sprockets = spr
-    end
+    @sprockets = spr
   end
 
 
@@ -106,11 +97,7 @@ class Gin::AssetPipeline
 
     while listen? do
       @listen_lock.read_sync do
-        if @flag_update || @manifest.outdated?
-          update_sprockets
-          render_all
-          next
-        end
+        render_all if outdated?
       end
 
       sleep 0.2
@@ -129,14 +116,17 @@ class Gin::AssetPipeline
   end
 
 
+  def outdated?
+    @listen_lock.read_sync{ @flag_update || @manifest.outdated? }
+  end
+
+
   def update_sprockets
     paths = @manifest.source_dirs
     return if @sprockets.paths == paths
 
-    @listen_lock.write_sync do
-      @sprockets.clear_paths
-      paths.each{|path| @sprockets.append_path(path) }
-    end
+    @sprockets.clear_paths
+    paths.each{|path| @sprockets.append_path(path) }
   end
 
 
@@ -173,6 +163,8 @@ class Gin::AssetPipeline
   # out of date or missing.
 
   def render_all
+    update_sprockets
+
     with_render_lock do
       sp_files = @sprockets.each_file.map(&:to_s).uniq
 
