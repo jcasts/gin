@@ -1105,9 +1105,12 @@ class Gin::App
 
 
   def set_asset_pipeline pipe
-    old_pipe = Thread.main[:"#{self.app_name}_asset_pipeline"]
+    pipe_key = :"#{self.app_name}_asset_pipeline"
+
+    old_pipe = Thread.main[pipe_key]
     old_pipe.stop if old_pipe
-    Thread.main[:"#{self.app_name}_asset_pipeline"] = pipe
+
+    Thread.main[pipe_key] = pipe
   end
 
 
