@@ -2,27 +2,23 @@ require 'sprockets'
 require 'fileutils'
 require 'gin/asset_manifest'
 
+# TODO: Overlapping logical_path files never render (and shouldn't),
+#       but manifest expects them to.
 
 class Gin::AssetPipeline
 
   attr_accessor :logger
-  attr_reader   :render_dir, :asset_paths
 
   def initialize manifest_file, render_dir, asset_paths, sprockets, &block
     @rendering  = 0
     @logger     = $stderr
     @listen     = false
     @thread     = false
-    @last_mtime = Time.now
-    @render_dir = nil
     @sprockets  = nil
-    @name       = nil
     @flag_update = false
 
     @render_lock = Gin::RWLock.new
     @listen_lock = Gin::RWLock.new
-
-    @render_dir = render_dir
 
     @manifest = Gin::AssetManifest.new(manifest_file, render_dir, asset_paths)
 
@@ -65,14 +61,19 @@ class Gin::AssetPipeline
   end
 
 
+  def render_dir
+    @manifest.render_dir
+  end
+
+
   def render_dir= new_dir
     new_dir = File.expand_path(new_dir)
 
-    if !@render_dir || @render_dir != new_dir
+    if @manifest.render_dir != new_dir
       @listen_lock.write_sync do
         # TODO: instead of re-rendering everything, maybe move rendered assets?
         @flag_update = true
-        @manifest.render_dir = @render_dir = new_dir
+        @manifest.render_dir = new_dir
       end
     end
   end
@@ -110,7 +111,6 @@ class Gin::AssetPipeline
         if @flag_update || @manifest.outdated?
           update_sprockets
           render_all
-          @last_mtime = Time.now
           next
         end
       end
@@ -163,7 +163,7 @@ class Gin::AssetPipeline
     File.delete(path)
 
     dir = File.dirname(path)
-    while dir != @render_dir && Dir[File.join(dir,'*')].empty?
+    while dir != self.render_dir && Dir[File.join(dir,'*')].empty?
       FileUtils.rm_r(dir)
       dir = File.dirname(dir)
     end
@@ -215,7 +215,7 @@ class Gin::AssetPipeline
             File.extname(path) :
             @sprockets.extension_for_mime_type(ctype)
 
-    render_path = File.join(@render_dir, asset.logical_path)
+    render_path = File.join(self.render_dir, asset.logical_path)
 
     file_glob = render_path.sub(/(\.\w+)$/, "-*#{ext}")
     file_name = Dir[file_glob].first
