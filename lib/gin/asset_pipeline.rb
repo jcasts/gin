@@ -193,6 +193,11 @@ class Gin::AssetPipeline
         sp_asset = @sprockets[asset_file] # First time render
 
         if target_file = render(asset_file)
+          if m_asset = @manifest.assets[asset_file]
+            FileUtils.rm(m_asset.target_file) if
+              File.file?(m_asset.target_file.to_s)
+          end
+
           @manifest.stage asset_file, target_file,
             sp_asset.dependencies.map{|d| d.pathname.to_s }
         end
@@ -218,18 +223,13 @@ class Gin::AssetPipeline
     render_path = File.join(self.render_dir, asset.logical_path)
 
     file_glob = render_path.sub(/(\.\w+)$/, "-*#{ext}")
-    file_name = Dir[file_glob].first
-
     digest = asset.digest[0..7]
-    return file_name if file_name && file_name.include?(digest)
 
     log "Rendering asset: #{path}"
     render_filename = file_glob.sub('*', digest)
 
     FileUtils.mkdir_p File.dirname(render_filename)
     File.open(render_filename, 'wb'){|f| f.write asset.source }
-
-    File.delete(file_name) if file_name
 
     return render_filename
   end
