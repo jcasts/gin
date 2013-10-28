@@ -176,8 +176,9 @@ class Gin::AssetPipeline
 
   def render_all
     with_render_lock do
-      # delete rendered files that aren't in the asset_dirs
       sp_files = @sprockets.each_file.map(&:to_s).uniq
+
+      # delete rendered files that aren't in the asset_dirs
       @manifest.assets.each do |asset_file, asset|
         valid_asset = sp_files.include?(asset_file)
         next if valid_asset
@@ -193,11 +194,6 @@ class Gin::AssetPipeline
         sp_asset = @sprockets[asset_file] # First time render
 
         if target_file = render(asset_file)
-          if m_asset = @manifest.assets[asset_file]
-            FileUtils.rm(m_asset.target_file) if
-              File.file?(m_asset.target_file.to_s)
-          end
-
           @manifest.stage asset_file, target_file,
             sp_asset.dependencies.map{|d| d.pathname.to_s }
         end
@@ -215,15 +211,14 @@ class Gin::AssetPipeline
     asset = @sprockets[path]
     return unless asset
 
-    ctype = asset.content_type
-    ext = ctype == "application/octet-stream" ?
-            File.extname(path) :
-            @sprockets.extension_for_mime_type(ctype)
-
+    ext = render_ext(asset)
     render_path = File.join(self.render_dir, asset.logical_path)
 
     file_glob = render_path.sub(/(\.\w+)$/, "-*#{ext}")
+    file_name = Dir[file_glob].first
+
     digest = asset.digest[0..7]
+    return file_name if file_name && file_name.include?(digest)
 
     log "Rendering asset: #{path}"
     render_filename = file_glob.sub('*', digest)
@@ -231,6 +226,18 @@ class Gin::AssetPipeline
     FileUtils.mkdir_p File.dirname(render_filename)
     File.open(render_filename, 'wb'){|f| f.write asset.source }
 
+    File.delete(file_name) if file_name
+
     return render_filename
+  end
+
+
+  private
+
+  def render_ext asset
+    path  = asset.pathname.to_s
+    ctype = asset.content_type
+    ctype == 'application/octet-stream' ?
+     File.extname(path) : @sprockets.extension_for_mime_type(ctype)
   end
 end

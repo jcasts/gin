@@ -5,7 +5,8 @@ class Gin::AssetManifest
 
   class Asset
 
-    attr_reader :path, :mtime, :digest, :dependencies, :target_file
+    attr_reader :path, :mtime, :digest, :dependencies
+    attr_accessor :target_file
 
     def initialize path, opts={}
       @path   = path
@@ -63,8 +64,7 @@ class Gin::AssetManifest
 
 
   def set asset_file, target_file, dependencies=[]
-    asset_file  = asset_file.to_s
-    target_file = target_file.to_s
+    squash_similar_targets(target_file)
 
     asset = @assets[asset_file] =
       Asset.new(asset_file, :target_file => target_file)
@@ -72,6 +72,18 @@ class Gin::AssetManifest
     Array(dependencies).each do |path|
       @assets[path] ||= Asset.new(path)
       asset.dependencies << path
+    end
+  end
+
+
+  def squash_similar_targets target_file
+    matcher = Regexp.escape( target_file.sub(/-\w+\.(\w+)$/, '') )
+    matcher = Regexp.new "#{matcher}-\\w+\\.#{$1}"
+
+    @assets.each do |name, asset|
+      if asset.target_file && matcher =~ asset.target_file
+        asset.target_file = nil
+      end
     end
   end
 
@@ -104,8 +116,9 @@ class Gin::AssetManifest
     checked << asset_file
 
     asset = @assets[asset_file]
-    return true if
-      !asset || !asset.target_file.start_with?(@render_dir) || asset.outdated?
+    return true if !asset ||
+      asset.target_file && !asset.target_file.start_with?(@render_dir) ||
+      asset.outdated?
 
     asset.dependencies.any? do |path|
       return true if asset_outdated?(path, checked)
