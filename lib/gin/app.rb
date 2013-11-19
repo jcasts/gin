@@ -230,11 +230,8 @@ class Gin::App
   #   asset_pipeline sprockets
 
   def self.asset_pipeline val=nil, &block
-    if !val.nil?
-      @options[:force_asset_pipeline] = val
-    elsif block_given?
-      @options[:asset_config] = block
-    end
+    @options[:force_asset_pipeline] = val if !val.nil?
+    @options[:asset_config] = block if block_given?
     @options[:force_asset_pipeline]
   end
 
