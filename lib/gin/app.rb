@@ -409,9 +409,9 @@ class Gin::App
 
 
   ##
-  # Get or et the Host header on responses if not set by the called action.
+  # Get or set the Host header on responses if not set by the called action.
   # If the enforce options is given, the app will only respond to requests that
-  # explicitely match the specified host, or regexp.
+  # explicitly match the specified host, or regexp.
   # This is useful for running multiple apps on the same middleware stack that
   # might have conflicting routes, or need explicit per-host routing (such
   # as an admin app).
