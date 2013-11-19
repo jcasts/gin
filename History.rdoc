@@ -1,4 +1,4 @@
-=== 1.2.0 / 2013-09-19
+=== 1.2.0 / 2013-11-18
 
 * Major Enhancements
   * Rubinius officially supported

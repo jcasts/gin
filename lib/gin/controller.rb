@@ -744,9 +744,28 @@ class Gin::Controller
   # Returns the url to an asset, including predefined asset cdn hosts if set.
 
   def asset_url name
-    url = File.join(@app.asset_host_for(name).to_s, name)
-    url = [url, *@app.asset_version(url)].compact.join("?") if url !~ %r{^https?://}
-    url
+    host = @app.asset_host_for(name)
+    return asset_path(name) if !host
+    File.join(host, name)
+  end
+
+
+  ##
+  # Returns the HTTP path to the local asset.
+
+  def asset_path name
+    fdpath = @app.asset(name)
+
+    if fdpath && fdpath.start_with?(@app.assets_dir)
+      if fdpath.start_with?(@app.public_dir)
+        fdpath[@app.public_dir.length..-1]
+      else
+        fdpath[@app.assets_dir.length..-1]
+      end
+    else
+      path = File.join('', name)
+      [path, *@app.asset_version(name)].compact.join("?")
+    end
   end
 
 
