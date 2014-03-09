@@ -3,6 +3,8 @@
 require 'rubygems'
 require 'hoe'
 
+Hoe.plugin :gemspec
+
 Hoe.spec 'gin' do
   developer('Jeremie Castagna', 'yaksnrainbows@gmail.com')
   self.readme_file      = "README.rdoc"
