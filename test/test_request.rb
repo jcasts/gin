@@ -7,7 +7,7 @@ class RequestTest < Test::Unit::TestCase
       'HTTP_HOST' => 'example.com',
       'rack.input' => '',
       'QUERY_STRING' =>
-        'id=456&foo=bar&bar=5&bool=true&zip=01234&nflt=01.123&neg=-12&negf=-2.1',
+        'id=456&foo=bar&bar=5&bool=true&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1',
       'gin.path_query_hash' => {'id' => 123},
     }
     @req = Gin::Request.new @env
@@ -19,6 +19,7 @@ class RequestTest < Test::Unit::TestCase
     assert_equal 'bar', @req.params['foo']
     assert_equal 5, @req.params['bar']
     assert_equal '01234', @req.params['zip']
+    assert_equal 'm3', @req.params['nint']
     assert_equal '01.123', @req.params['nflt']
     assert_equal -12, @req.params['neg']
     assert_equal -2.1, @req.params['negf']
@@ -74,6 +75,7 @@ class RequestTest < Test::Unit::TestCase
     assert_equal false, @req.send(:process_params, "false")
     assert_equal 1,     @req.send(:process_params, "1")
     assert_equal 1.1,   @req.send(:process_params, "1.1")
+    assert_equal "w1",  @req.send(:process_params, "w1")
     assert_equal "not_true", @req.send(:process_params, "not_true")
 
     ary = @req.send(:process_params, ["true", "1", "foo"])
