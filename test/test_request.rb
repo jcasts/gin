@@ -7,7 +7,7 @@ class RequestTest < Test::Unit::TestCase
       'HTTP_HOST' => 'example.com',
       'rack.input' => '',
       'QUERY_STRING' =>
-        'id=456&foo=bar&bar=5&bool=true&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1',
+        'id=456&foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1',
       'gin.path_query_hash' => {'id' => 123},
     }
     @req = Gin::Request.new @env

@@ -45,7 +45,7 @@ class Gin::Request < Rack::Request
 
   private
 
-  M_BOOLEAN = /^true|false$/           #:nodoc:
+  M_BOOLEAN = /^(true|false)$/         #:nodoc:
   M_FLOAT   = /^-?([1-9]\d+|\d)\.\d+$/ #:nodoc:
   M_INTEGER = /^-?([1-9]\d+|\d)$/      #:nodoc:
 
