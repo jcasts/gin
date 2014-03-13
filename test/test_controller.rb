@@ -132,6 +132,109 @@ class ControllerTest < Test::Unit::TestCase
   end
 
 
+  def test_autocast_params
+    rack_env['QUERY_STRING'] =
+      'id=456&foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1'
+
+    klass = Class.new(AppController)
+    params = klass.new(@app, rack_env).params
+
+    assert_equal true, params['bool']
+    assert_equal 'truefalse', params['nbool']
+    assert_equal 'bar', params['foo']
+    assert_equal 5, params['bar']
+    assert_equal '01234', params['zip']
+    assert_equal 'm3', params['nint']
+    assert_equal '01.123', params['nflt']
+    assert_equal -12, params['neg']
+    assert_equal -2.1, params['negf']
+  end
+
+
+  def test_autocast_params_off
+    rack_env['QUERY_STRING'] =
+      'id=456&foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1'
+
+    klass = Class.new(AppController)
+    klass.autocast_params false
+    params = klass.new(@app, rack_env).params
+
+    assert_equal 'true', params['bool']
+    assert_equal 'truefalse', params['nbool']
+    assert_equal 'bar', params['foo']
+    assert_equal '5', params['bar']
+    assert_equal '01234', params['zip']
+    assert_equal 'm3', params['nint']
+    assert_equal '01.123', params['nflt']
+    assert_equal '-12', params['neg']
+    assert_equal '-2.1', params['negf']
+  end
+
+
+  def test_autocast_params_only
+    rack_env['QUERY_STRING'] =
+      'foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1'
+
+    klass = Class.new(AppController)
+    klass.autocast_params :only => [:bool, :bar, :zip]
+    params = klass.new(@app, rack_env).params
+
+    assert_equal true, params['bool']
+    assert_equal 'truefalse', params['nbool']
+    assert_equal 'bar', params['foo']
+    assert_equal 5, params['bar']
+    assert_equal '01234', params['zip']
+    assert_equal 'm3', params['nint']
+    assert_equal '01.123', params['nflt']
+    assert_equal '-12', params['neg']
+    assert_equal '-2.1', params['negf']
+  end
+
+
+  def test_autocast_params_except
+    rack_env['QUERY_STRING'] =
+      'id=456&foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1'
+
+    klass = Class.new(AppController)
+    klass.autocast_params :except => [:bool, :bar, :zip]
+    params = klass.new(@app, rack_env).params
+
+    assert_equal 'true', params['bool']
+    assert_equal 'truefalse', params['nbool']
+    assert_equal 'bar', params['foo']
+    assert_equal '5', params['bar']
+    assert_equal '01234', params['zip']
+    assert_equal 'm3', params['nint']
+    assert_equal '01.123', params['nflt']
+    assert_equal -12, params['neg']
+    assert_equal -2.1, params['negf']
+  end
+
+
+  def test_autocast_params_inherit
+    rack_env['QUERY_STRING'] =
+      'foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1'
+
+    klass = Class.new(AppController)
+    klass.autocast_params :only => [:bool, :bar, :zip]
+
+    subklass = Class.new(klass)
+    subklass.autocast_params :only => :neg
+
+    params = klass.new(@app, rack_env).params
+
+    assert_equal true, params['bool']
+    assert_equal 5, params['bar']
+    assert_equal '-12', params['neg']
+
+    params = subklass.new(@app, rack_env).params
+
+    assert_equal true, params['bool']
+    assert_equal 5, params['bar']
+    assert_equal -12, params['neg']
+  end
+
+
   def test_class_layout
     assert_equal :foo, BarController.layout
     assert_equal :foo, AppController.layout

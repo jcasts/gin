@@ -69,12 +69,14 @@ class Gin::Controller
 
   def self.inherited subclass
     subclass.setup
+    subclass.autocast_params self.autocast_params
     super
   end
 
 
   def self.setup   # :nodoc:
     @layout = nil
+    @autocast_params = true
     @ctrl_name = Gin.underscore(self.to_s).gsub(/_?controller_?/,'')
   end
 
@@ -178,6 +180,47 @@ class Gin::Controller
   end
 
 
+  ##
+  # Define if params should be cast to autodetected types.
+  # This is an inherited attribute.
+  # * Passing a boolean turns auto-casting on or off for all params.
+  # * Passing a hash with :only or :except limits auto-casting to the
+  #   given param names
+  # By default all params are cast to their autodetected types.
+  #
+  #   autocast_params true  # enabled for all params
+  #   autocast_params false # disabled for all params
+  #   autocast_params except: [:zip, :phone, :fax]
+  #   autocast_params only: [:timestamp, :age]
+  #
+  # Params get cast as follows:
+  #   * TrueClass     true
+  #   * FalseClass:   false
+  #   * Fixnum:       1234, -1234
+  #   * Float:        1.123, -1.123
+  #   * String:       Everything else, including numbers that start with a 0
+
+  def self.autocast_params arg=nil
+    if Hash === arg && Hash === @autocast_params
+      arg.each do |k, v|
+        if @autocast_params[k]
+          @autocast_params[k] |= [*v]
+        else
+          @autocast_params[k] = [*v]
+        end
+      end
+
+    elsif arg == true || arg == false
+      @autocast_params = arg
+
+    elsif Hash === arg
+      @autocast_params = arg.dup
+    end
+
+    return @autocast_params
+  end
+
+
   class_rproxy :controller_name, :actions
 
   # The Gin::App instance used by the controller. The App instance is meant for
@@ -203,6 +246,7 @@ class Gin::Controller
     @env      = env
     @request  = Gin::Request.new env
     @response = Gin::Response.new
+    @request.autocast_params = self.class.autocast_params
   end
 
 

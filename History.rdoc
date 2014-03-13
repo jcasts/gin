@@ -1,3 +1,11 @@
+=== 1.2.1 / 2014-03-12
+
+* Minor Enhancements
+  * Controller.autocast_params to determine if/which params should be typecast
+
+* Bugfixes
+  * Fix for numeric and boolean param parsing
+
 === 1.2.0 / 2013-11-18
 
 * Major Enhancements

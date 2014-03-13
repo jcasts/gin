@@ -8,7 +8,7 @@ class RequestTest < Test::Unit::TestCase
       'rack.input' => '',
       'QUERY_STRING' =>
         'id=456&foo=bar&bar=5&bool=true&nbool=truefalse&zip=01234&nint=m3&nflt=01.123&neg=-12&negf=-2.1',
-      'gin.path_query_hash' => {'id' => 123},
+      'gin.path_query_hash' => {'id' => 123, 'age' => '22'},
     }
     @req = Gin::Request.new @env
   end
@@ -16,6 +16,51 @@ class RequestTest < Test::Unit::TestCase
 
   def test_query_hash_as_param
     assert_equal 123, @req.params['id']
+    assert_equal 22, @req.params['age']
+    assert_equal true, @req.params['bool']
+    assert_equal 'truefalse', @req.params['nbool']
+    assert_equal 'bar', @req.params['foo']
+    assert_equal 5, @req.params['bar']
+    assert_equal '01234', @req.params['zip']
+    assert_equal 'm3', @req.params['nint']
+    assert_equal '01.123', @req.params['nflt']
+    assert_equal -12, @req.params['neg']
+    assert_equal -2.1, @req.params['negf']
+  end
+
+
+  def test_query_hash_as_param_w_autocast_off
+    @req.autocast_params = false
+    assert_equal '22', @req.params['age']
+    assert_equal 'true', @req.params['bool']
+    assert_equal 'bar', @req.params['foo']
+    assert_equal '5', @req.params['bar']
+    assert_equal '01234', @req.params['zip']
+    assert_equal 'm3', @req.params['nint']
+    assert_equal '01.123', @req.params['nflt']
+    assert_equal '-12', @req.params['neg']
+    assert_equal '-2.1', @req.params['negf']
+  end
+
+
+  def test_query_hash_as_param_w_autocast_only
+    @req.autocast_params = {:only => [:age, :bool, :zip]}
+    assert_equal 22, @req.params['age']
+    assert_equal true, @req.params['bool']
+    assert_equal 'bar', @req.params['foo']
+    assert_equal '5', @req.params['bar']
+    assert_equal '01234', @req.params['zip']
+    assert_equal 'm3', @req.params['nint']
+    assert_equal '01.123', @req.params['nflt']
+    assert_equal '-12', @req.params['neg']
+    assert_equal '-2.1', @req.params['negf']
+  end
+
+
+  def test_query_hash_as_param_w_autocast_except
+    @req.autocast_params = {:except => [:age, :bool, :zip]}
+    assert_equal '22', @req.params['age']
+    assert_equal 'true', @req.params['bool']
     assert_equal 'bar', @req.params['foo']
     assert_equal 5, @req.params['bar']
     assert_equal '01234', @req.params['zip']

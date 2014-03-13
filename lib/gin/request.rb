@@ -1,9 +1,13 @@
 class Gin::Request < Rack::Request
   include Gin::Constants
 
+  attr_accessor :autocast_params  # :nodoc:
+
   def initialize env
+    @params = nil
+    @params_processed = false
+    @autocast_params = true
     super
-    self.params.update env[GIN_PATH_PARAMS] if env[GIN_PATH_PARAMS]
   end
 
 
@@ -28,7 +32,12 @@ class Gin::Request < Rack::Request
 
 
   def params
-    @params ||= process_params(super) || {}
+    return @params if @params_processed
+    @params = super
+    @params.update @env[GIN_PATH_PARAMS] if @env[GIN_PATH_PARAMS]
+    @params = process_params(@params)
+    @params_processed = true
+    @params
   end
 
 
@@ -54,10 +63,14 @@ class Gin::Request < Rack::Request
   # Make String numbers into Numerics.
 
   def process_params object
+    return object unless @autocast_params
+
     case object
     when Hash
       new_hash = Gin::StrictHash.new
-      object.each { |key, value| new_hash[key] = process_params(value) }
+      object.each do |key, value|
+        new_hash[key] = process_param?(key) ? process_params(value) : value
+      end
       new_hash
     when Array
       object.map { |item| process_params(item) }
@@ -70,5 +83,18 @@ class Gin::Request < Rack::Request
     else
       object
     end
+  end
+
+
+  def process_param? name
+    if Hash === @autocast_params
+      return false if @autocast_params[:except] &&
+                      @autocast_params[:except].include?(name.to_sym)
+
+      return @autocast_params[:only].include?(name.to_sym) if
+        @autocast_params[:only]
+    end
+
+    !!@autocast_params
   end
 end
