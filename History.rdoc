@@ -2,6 +2,7 @@
 
 * Minor Enhancements
   * Controller.autocast_params to determine if/which params should be typecast
+  * Warn when sprockets isn't found and asset pipeline is enabled
 
 * Bugfixes
   * Fix for numeric and boolean param parsing

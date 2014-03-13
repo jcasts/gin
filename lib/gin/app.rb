@@ -1134,6 +1134,13 @@ class Gin::App
       w.run
       w.wait
     end
+
+  rescue LoadError => e
+    raise e unless e =~ /sprockets/
+    logger << "\nWARNING: #{self.class} asset pipelining is enabled but the \
+sprockets gem wasn't found.\nIf you want asset pipelining turned off, add the \
+following to your #{self.class} definition:
+  asset_pipeline false\n\n"
   end
 
 
